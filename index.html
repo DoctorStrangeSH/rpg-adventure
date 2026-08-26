@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RPG Adventure</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Загрузочный экран -->
+        <div id="loading-screen" class="screen active">
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <h2>Загрузка...</h2>
+                <p>Подготовка приключения</p>
+            </div>
+        </div>
+        
+        <!-- Главное меню -->
+        <div id="main-menu" class="screen"></div>
+        
+        <!-- Экран персонажа -->
+        <div id="character-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="window.showScreen('main-menu')">←</button>
+                <h2>👤 Персонаж</h2>
+                <div class="header-spacer"></div>
+            </div>
+            <div class="screen-content" id="character-content"></div>
+        </div>
+        
+        <!-- Карта мира -->
+        <div id="map-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="window.showScreen('main-menu')">←</button>
+                <h2>🗺️ Карта мира</h2>
+                <div class="header-spacer"></div>
+            </div>
+            <div class="map-container">
+                <canvas id="map-canvas"></canvas>
+                <div class="map-overlay" id="map-overlay"></div>
+            </div>
+        </div>
+        
+        <!-- Экран боя -->
+        <div id="battle-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="window.exitBattle()">←</button>
+                <h2>⚔️ Сражение</h2>
+                <div class="header-spacer"></div>
+            </div>
+            <div class="battle-container">
+                <canvas id="battle-canvas"></canvas>
+                <div class="battle-ui" id="battle-ui"></div>
+            </div>
+        </div>
+        
+        <!-- Инвентарь -->
+        <div id="inventory-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="window.showScreen('main-menu')">←</button>
+                <h2>🎒 Инвентарь</h2>
+                <div class="header-spacer"></div>
+            </div>
+            <div class="screen-content" id="inventory-content"></div>
+        </div>
+        
+        <!-- Квесты -->
+        <div id="quests-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="window.showScreen('main-menu')">←</button>
+                <h2>📜 Квесты</h2>
+                <div class="header-spacer"></div>
+            </div>
+            <div class="screen-content" id="quests-content"></div>
+        </div>
+        
+        <!-- Достижения -->
+        <div id="achievements-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="window.showScreen('main-menu')">←</button>
+                <h2>🏆 Достижения</h2>
+                <div class="header-spacer"></div>
+            </div>
+            <div class="screen-content" id="achievements-content"></div>
+        </div>
+        
+        <!-- Магазин -->
+        <div id="shop-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" onclick="window.showScreen('main-menu')">←</button>
+                <h2>🏪 Магазин</h2>
+                <div class="header-spacer"></div>
+            </div>
+            <div class="screen-content" id="shop-content"></div>
+        </div>
+    </div>
+    
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -70,6 +70,7 @@ body {
         opacity: 0;
         transform: translateX(20px);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -77,18 +78,35 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Загрузочный экран */
@@ -268,6 +286,7 @@ body {
         opacity: 0;
         transform: translate(-50%, -100%);
     }
+
     to {
         opacity: 1;
         transform: translate(-50%, 0);
@@ -570,7 +589,6 @@ body {
 
 .map-overlay {
     position: absolute;
-    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.8);
@@ -580,8 +598,19 @@ body {
     backdrop-filter: blur(10px);
     border: 1px solid var(--border);
     min-width: 200px;
+    max-width: 300px;
     text-align: center;
     animation: slideUp 0.3s ease;
+    z-index: 100;
+}
+
+.map-overlay.bottom {
+    bottom: 20px;
+}
+
+.map-overlay.top {
+    top: 20px;
+    animation: slideDown 0.3s ease;
 }
 
 @keyframes slideUp {
@@ -589,6 +618,19 @@ body {
         opacity: 0;
         transform: translate(-50%, 20px);
     }
+
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -20px);
+    }
+
     to {
         opacity: 1;
         transform: translate(-50%, 0);
@@ -748,14 +790,17 @@ body {
         opacity: 0;
         transform: translate(-50%, -20px);
     }
+
     20% {
         opacity: 1;
         transform: translate(-50%, 0);
     }
+
     80% {
         opacity: 1;
         transform: translate(-50%, 0);
     }
+
     100% {
         opacity: 0;
         transform: translate(-50%, -20px);

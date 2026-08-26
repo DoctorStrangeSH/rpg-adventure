@@ -19,20 +19,24 @@ import {
     exitBattle,
     updateBattleUI,
     animateBattle,
-    showBattleMessage
+    showBattleMessage,
+    getBattleState
 } from './ui/battle.js';
 import { updateInventoryScreen, useInventoryItem, unequipItem } from './ui/inventory.js';
 import { updateShopScreen, buyItem } from './ui/shop.js';
 import { updateQuestsScreen, updateQuestProgress, claimQuestReward } from './ui/quests.js';
 import { updateAchievementsScreen, updateAchievements, claimAchievement } from './ui/achievements.js';
 import { 
-    startDungeon, 
-    startDungeonBattle, 
+    startLocation, 
+    startStageBattle,
     startBossFight,
-    completeDungeon,
-    startBossBattle,
-    getDungeonState,
-    resetDungeonState
+    completeLocation,
+    fleeLocation,
+    resetLocationState,
+    getLocationState,
+    handleVictory,
+    handleBossVictory,
+    handleDefeat
 } from './systems/dungeon.js';
 
 // Инициализация Telegram
@@ -79,6 +83,7 @@ window.exitBattle = exitBattle;
 window.updateBattleUI = updateBattleUI;
 window.animateBattle = animateBattle;
 window.showBattleMessage = showBattleMessage;
+window.getBattleState = getBattleState;
 
 window.updateInventoryScreen = updateInventoryScreen;
 window.useInventoryItem = useInventoryItem;
@@ -95,13 +100,16 @@ window.updateAchievementsScreen = updateAchievementsScreen;
 window.updateAchievements = updateAchievements;
 window.claimAchievement = claimAchievement;
 
-window.startDungeon = startDungeon;
-window.startDungeonBattle = startDungeonBattle;
+window.startLocation = startLocation;
+window.startStageBattle = startStageBattle;
 window.startBossFight = startBossFight;
-window.completeDungeon = completeDungeon;
-window.startBossBattle = startBossBattle;
-window.getDungeonState = getDungeonState;
-window.resetDungeonState = resetDungeonState;
+window.completeLocation = completeLocation;
+window.fleeLocation = fleeLocation;
+window.resetLocationState = resetLocationState;
+window.getLocationState = getLocationState;
+window.handleVictory = handleVictory;
+window.handleBossVictory = handleBossVictory;
+window.handleDefeat = handleDefeat;
 
 // Уведомления
 window.showNotification = function(message, type = 'info') {
@@ -131,6 +139,14 @@ window.heal = function(amount) {
 window.restoreMana = function(amount) {
     const player = gameState.player;
     player.mana = Math.min(player.maxMana, player.mana + amount);
+    gameState.save();
+    updateMainMenu();
+    updateCharacterScreen();
+};
+
+window.addGold = function(amount) {
+    const player = gameState.player;
+    player.gold += amount;
     gameState.save();
     updateMainMenu();
     updateCharacterScreen();

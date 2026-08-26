@@ -21,7 +21,8 @@ let battleState = {
     animationFrame: 0,
     turn: 'player',
     isDungeonBattle: false,
-    isBossBattle: false
+    isBossBattle: false,
+    isLocationBattle: false
 };
 
 export function initBattle() {
@@ -58,6 +59,8 @@ export function startBattle(location) {
     battleState.isActive = true;
     battleState.animationFrame = 0;
     battleState.turn = 'player';
+    battleState.isBossBattle = false;
+    battleState.isLocationBattle = false;
     isProcessing = false;
     
     const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
@@ -120,24 +123,19 @@ function drawBattleHPBar(ctx, sprite, entity, isPlayer) {
     const barX = sprite.x - barWidth / 2;
     const barY = sprite.y - 80;
     
-    // Фон
     ctx.fillStyle = '#333';
     ctx.fillRect(barX, barY, barWidth, barHeight);
     
-    // Ограничиваем HP от 0 до максимума
     const currentHealth = Math.max(0, Math.min(entity.health, entity.maxHealth));
     const fillPercent = currentHealth / entity.maxHealth;
     
-    // Заполнение
     ctx.fillStyle = isPlayer ? '#4caf50' : '#f44336';
     ctx.fillRect(barX, barY, barWidth * fillPercent, barHeight);
     
-    // Обводка
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barWidth, barHeight);
     
-    // Текст HP
     ctx.fillStyle = '#fff';
     ctx.font = '10px Arial';
     ctx.textAlign = 'center';
@@ -191,11 +189,9 @@ function disableBattleButtons() {
 }
 
 export function playerAttack() {
-    // Проверяем блокировку
     if (isProcessing) return;
     if (battleState.turn !== 'player') return;
     
-    // Блокируем действия
     isProcessing = true;
     disableBattleButtons();
     
@@ -231,7 +227,6 @@ export function playerAttack() {
     setTimeout(() => {
         battleState.playerSprite.isAttacking = false;
         
-        // Проверяем победу
         if (enemy.health <= 0) {
             SoundSystem.playSound('victory');
             isProcessing = false;
@@ -362,7 +357,14 @@ export function playerFlee() {
         showBattleMessage('Вы успешно сбежали!');
         setTimeout(() => {
             isProcessing = false;
-            exitBattle();
+            
+            // Проверяем, в локации ли мы
+            const locationState = window.getLocationState?.();
+            if (locationState && locationState.inLocation) {
+                window.fleeLocation?.();
+            } else {
+                exitBattle();
+            }
         }, 1000);
     } else {
         showBattleMessage('Побег не удался!');
@@ -426,7 +428,6 @@ export function battleVictory() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    // Останавливаем анимацию
     battleState.isActive = false;
     
     const expGain = Math.floor(enemy.expReward * (1 + Math.random() * 0.5));
@@ -457,33 +458,14 @@ export function battleVictory() {
     gameState.save();
     window.updateMainMenu?.();
     
-    const dungeonState = window.getDungeonState?.();
+    const locationState = window.getLocationState?.();
     
-    if (dungeonState && dungeonState.inDungeon) {
-        dungeonState.enemiesDefeated++;
-        
-        const dungeon = dungeonState.currentDungeon;
-        const floor = dungeon.floors[dungeonState.currentFloor];
-        
-        setTimeout(() => {
-            if (dungeonState.enemiesDefeated >= floor.enemiesCount) {
-                if (floor.boss) {
-                    window.startBossFight?.(floor.boss);
-                } else {
-                    if (dungeonState.currentFloor < dungeon.floors.length - 1) {
-                        dungeonState.currentFloor++;
-                        dungeonState.enemiesDefeated = 0;
-                        window.startDungeonFloor?.();
-                    } else {
-                        player.stats.dungeonsCompleted = (player.stats.dungeonsCompleted || 0) + 1;
-                        window.updateAchievements?.();
-                        window.completeDungeon?.();
-                    }
-                }
-            } else {
-                window.startDungeonBattle?.();
-            }
-        }, 2000);
+    if (locationState && locationState.inLocation) {
+        if (battleState.isBossBattle) {
+            window.handleBossVictory?.();
+        } else {
+            window.handleVictory?.();
+        }
     } else {
         setTimeout(() => {
             exitBattle();
@@ -494,7 +476,6 @@ export function battleVictory() {
 export function battleDefeat() {
     const player = gameState.player;
     
-    // Останавливаем анимацию
     battleState.isActive = false;
     
     const goldLoss = Math.floor(player.gold * 0.1);
@@ -504,7 +485,8 @@ export function battleDefeat() {
     
     showBattleMessage(`Вы погибли! Потеряно ${goldLoss} золота!`);
     
-    window.resetDungeonState?.();
+    window.handleDefeat?.();
+    window.resetLocationState?.();
     
     gameState.save();
     window.updateMainMenu?.();
@@ -520,6 +502,7 @@ export function exitBattle() {
     battleState.currentEnemy = null;
     battleState.isDungeonBattle = false;
     battleState.isBossBattle = false;
+    battleState.isLocationBattle = false;
     isProcessing = false;
     
     window.showScreen('main-menu');
@@ -551,12 +534,14 @@ export function updateBattleScreen() {
         drawBattle();
     } else {
         const battleUI = document.getElementById('battle-ui');
-        battleUI.innerHTML = `
-            <div style="text-align: center; padding: 20px;">
-                <p style="font-size: 18px; margin-bottom: 10px;">Нет активного сражения</p>
-                <p style="color: var(--text-secondary);">Вернитесь на карту и выберите локацию для боя</p>
-            </div>
-        `;
+        if (battleUI && !battleState.currentEnemy) {
+            battleUI.innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <p style="font-size: 18px; margin-bottom: 10px;">Нет активного сражения</p>
+                    <p style="color: var(--text-secondary);">Вернитесь на карту и выберите локацию для боя</p>
+                </div>
+            `;
+        }
     }
 }
 

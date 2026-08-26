@@ -1,52 +1,81 @@
-// Система подземелий
+// Система локаций с этапами
 import { gameState } from '../core/state.js';
-import { DUNGEONS, getDungeon } from '../data/dungeons.js';
+import { getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getBattleState } from '../ui/battle.js';
 
-let dungeonState = {
-    currentDungeon: null,
-    currentFloor: 0,
+let locationState = {
+    currentLocation: null,
+    currentStage: 0,
     enemiesDefeated: 0,
-    inDungeon: false
+    inLocation: false
 };
 
-export function startDungeon(location) {
+export function startLocation(locationId) {
     const player = gameState.player;
+    const location = getLocation(locationId);
     
-    const dungeon = DUNGEONS.find(d => d.id === location.id);
-    
-    if (!dungeon) {
-        window.showNotification('Подземелье не найдено!', 'error');
+    if (!location) {
+        window.showNotification('Локация не найдена!', 'error');
         return;
     }
     
-    if (player.level < dungeon.minLevel) {
-        window.showNotification(`Требуется ${dungeon.minLevel} уровень!`, 'error');
+    if (!location.unlocked) {
+        window.showNotification('Локация закрыта! Пройдите предыдущую.', 'error');
         return;
     }
     
-    dungeonState.currentDungeon = dungeon;
-    dungeonState.currentFloor = 0;
-    dungeonState.enemiesDefeated = 0;
-    dungeonState.inDungeon = true;
+    if (player.level < location.minLevel) {
+        window.showNotification(`Требуется ${location.minLevel} уровень!`, 'error');
+        return;
+    }
     
-    startDungeonFloor();
+    if (player.health <= 0) {
+        window.showNotification('Вы мертвы! Восстановите здоровье в деревне.', 'error');
+        return;
+    }
+    
+    locationState.currentLocation = location;
+    locationState.currentStage = 0;
+    locationState.enemiesDefeated = 0;
+    locationState.inLocation = true;
+    
+    startStage();
 }
 
-function startDungeonFloor() {
-    const dungeon = dungeonState.currentDungeon;
-    const floor = dungeon.floors[dungeonState.currentFloor];
+function startStage() {
+    const location = locationState.currentLocation;
+    const stage = location.stages[locationState.currentStage];
     
-    window.showNotification(`Вы входите на ${floor.floor} этаж!`, 'info');
+    if (!stage) {
+        completeLocation();
+        return;
+    }
+    
+    const isMiniBoss = stage.boss && stage.stage % 10 !== 0;
+    const isBoss = stage.boss && stage.stage % 10 === 0;
+    
+    let bossText = '';
+    if (isMiniBoss) {
+        bossText = '<p style="color: #ff9800;">👹 МИНИ-БОСС!</p>';
+    } else if (isBoss) {
+        bossText = '<p style="color: #ff4444;">👑 ГЛАВНЫЙ БОСС!</p>';
+    }
+    
+    window.showNotification(`${location.name} - Этап ${stage.stage}/${location.stages.length}`, 'info');
     
     const battleUI = document.getElementById('battle-ui');
     battleUI.innerHTML = `
         <div class="dungeon-info">
-            <h3>${dungeon.name} - Этаж ${floor.floor}</h3>
-            <p>Врагов осталось: ${floor.enemiesCount - dungeonState.enemiesDefeated}</p>
-            <button class="battle-btn attack" onclick="window.startDungeonBattle()">
+            <h3>${location.name}</h3>
+            <p>Этап ${stage.stage}/${location.stages.length}</p>
+            <p>Врагов осталось: ${stage.enemiesCount - locationState.enemiesDefeated}</p>
+            ${bossText}
+            <button class="battle-btn attack" onclick="window.startStageBattle()">
                 ⚔️ Сражаться!
+            </button>
+            <button class="battle-btn flee" onclick="window.fleeLocation()" style="margin-top: 10px;">
+                🏃 Покинуть локацию
             </button>
         </div>
     `;
@@ -54,22 +83,29 @@ function startDungeonFloor() {
     window.showScreen('battle-screen');
 }
 
-export function startDungeonBattle() {
-    const dungeon = dungeonState.currentDungeon;
-    const floor = dungeon.floors[dungeonState.currentFloor];
+export function startStageBattle() {
+    const location = locationState.currentLocation;
+    const stage = location.stages[locationState.currentStage];
     
-    const enemyData = getRandomEnemy(floor.enemies);
+    if (!stage) return;
     
+    const enemyData = getRandomEnemy(stage.enemies);
     if (!enemyData) return;
+    
+    // Усиливаем врага в зависимости от этапа и локации
+    const locationIndex = parseInt(location.id === 'forest' ? 1 : 
+                                  location.id === 'mountains' ? 2 : 
+                                  location.id === 'ruins' ? 3 : 4);
+    const stageMultiplier = 1 + (stage.stage * 0.1) + (locationIndex * 0.5);
     
     const enemy = {
         ...enemyData,
-        health: enemyData.health * 1.5,
-        maxHealth: enemyData.health * 1.5,
-        attack: enemyData.attack * 1.2,
-        defense: enemyData.defense * 1.2,
-        expReward: enemyData.expReward * 1.5,
-        goldReward: enemyData.goldReward * 1.5
+        health: Math.floor(enemyData.health * stageMultiplier),
+        maxHealth: Math.floor(enemyData.health * stageMultiplier),
+        attack: Math.floor(enemyData.attack * (1 + stage.stage * 0.05 + locationIndex * 0.3)),
+        defense: Math.floor(enemyData.defense * (1 + stage.stage * 0.05 + locationIndex * 0.3)),
+        expReward: Math.floor(enemyData.expReward * stageMultiplier),
+        goldReward: Math.floor(enemyData.goldReward * stageMultiplier)
     };
     
     const battleState = getBattleState();
@@ -77,12 +113,11 @@ export function startDungeonBattle() {
     battleState.isActive = true;
     battleState.animationFrame = 0;
     battleState.turn = 'player';
-    battleState.isDungeonBattle = true;
+    battleState.isLocationBattle = true;
+    battleState.isBossBattle = false;
     
-    // Здесь нужно создать спрайты
     const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
     
-    // Импортируем Sprite динамически
     import('../entities/Sprite.js').then(module => {
         const Sprite = module.Sprite;
         battleState.playerSprite = new Sprite(gameState.player.class, 100, 200);
@@ -114,6 +149,7 @@ export function startBossFight(bossData) {
     battleState.animationFrame = 0;
     battleState.turn = 'player';
     battleState.isBossBattle = true;
+    battleState.isLocationBattle = true;
     
     const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
     
@@ -127,14 +163,15 @@ export function startBossFight(bossData) {
     });
 }
 
-export function completeDungeon() {
-    const dungeon = dungeonState.currentDungeon;
+export function completeLocation() {
+    const location = locationState.currentLocation;
     const player = gameState.player;
     
-    player.experience += dungeon.rewards.exp;
-    player.gold += dungeon.rewards.gold;
+    // Выдаём награды
+    player.experience += location.rewards.exp;
+    player.gold += location.rewards.gold;
     
-    dungeon.rewards.items.forEach(rewardItem => {
+    location.rewards.items.forEach(rewardItem => {
         const existingItem = player.inventory.find(item => item.id === rewardItem.id);
         
         if (existingItem) {
@@ -147,47 +184,99 @@ export function completeDungeon() {
         }
     });
     
-    dungeonState.inDungeon = false;
-    dungeonState.currentDungeon = null;
-    dungeonState.currentFloor = 0;
-    dungeonState.enemiesDefeated = 0;
+    // Открываем следующую локацию
+    const nextLocation = unlockNextLocation(location.id);
     
-    window.showNotification(`🎉 Подземелье пройдено! +${dungeon.rewards.exp} EXP, +${dungeon.rewards.gold} золота!`, 'success');
+    locationState.inLocation = false;
+    locationState.currentLocation = null;
+    locationState.currentStage = 0;
+    locationState.enemiesDefeated = 0;
+    
+    let nextLocationText = '';
+    if (nextLocation) {
+        nextLocationText = `\n🔓 Открыта новая локация: ${nextLocation.name}!`;
+    } else {
+        nextLocationText = '\n🎉 Все локации пройдены!';
+    }
+    
+    window.showNotification(`🎉 Локация пройдена! +${location.rewards.exp} EXP, +${location.rewards.gold} золота!${nextLocationText}`, 'success');
     
     gameState.save();
     window.updateMainMenu?.();
-    window.updateQuestsScreen?.();
+    window.updateMapScreen?.();
     
     setTimeout(() => {
         window.exitBattle();
         window.showScreen('map-screen');
+    }, 3000);
+}
+
+export function fleeLocation() {
+    locationState.inLocation = false;
+    locationState.currentLocation = null;
+    locationState.currentStage = 0;
+    locationState.enemiesDefeated = 0;
+    
+    window.showNotification('Вы покинули локацию. Прогресс сброшен.', 'info');
+    window.exitBattle();
+    window.showScreen('map-screen');
+}
+
+export function resetLocationState() {
+    locationState.inLocation = false;
+    locationState.currentLocation = null;
+    locationState.currentStage = 0;
+    locationState.enemiesDefeated = 0;
+}
+
+export function getLocationState() {
+    return locationState;
+}
+
+export function handleVictory() {
+    locationState.enemiesDefeated++;
+    
+    const location = locationState.currentLocation;
+    const stage = location.stages[locationState.currentStage];
+    
+    setTimeout(() => {
+        if (locationState.enemiesDefeated >= stage.enemiesCount) {
+            if (stage.boss) {
+                // Бой с боссом
+                startBossFight(stage.boss);
+            } else {
+                // Следующий этап
+                locationState.currentStage++;
+                locationState.enemiesDefeated = 0;
+                startStage();
+            }
+        } else {
+            // Следующий враг
+            startStageBattle();
+        }
     }, 2000);
 }
 
-export function startBossBattle(location) {
-    const player = gameState.player;
+export function handleBossVictory() {
+    const location = locationState.currentLocation;
     
-    const dungeon = DUNGEONS.find(d => d.id === 'dragon_lair');
-    
-    if (dungeon) {
-        const bossFloor = dungeon.floors.find(f => f.boss);
-        if (bossFloor && bossFloor.boss) {
-            window.showNotification(`Вы встречаете босса: ${bossFloor.boss.name}!`, 'error');
-            startBossFight(bossFloor.boss);
-            return;
-        }
+    // Проверяем, был ли это последний этап
+    if (locationState.currentStage >= location.stages.length - 1) {
+        completeLocation();
+    } else {
+        // Следующий этап
+        locationState.currentStage++;
+        locationState.enemiesDefeated = 0;
+        startStage();
     }
+}
+
+export function handleDefeat() {
+    // Сбрасываем прогресс локации
+    locationState.currentStage = 0;
+    locationState.enemiesDefeated = 0;
+    locationState.inLocation = false;
+    locationState.currentLocation = null;
     
-    window.startBattle(location);
-}
-
-export function getDungeonState() {
-    return dungeonState;
-}
-
-export function resetDungeonState() {
-    dungeonState.inDungeon = false;
-    dungeonState.currentDungeon = null;
-    dungeonState.currentFloor = 0;
-    dungeonState.enemiesDefeated = 0;
+    window.showNotification('Вы погибли! Прогресс локации сброшен. Начните заново.', 'error');
 }

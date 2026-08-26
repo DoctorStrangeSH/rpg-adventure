@@ -40,10 +40,11 @@ export function startLocation(locationId) {
     locationState.enemiesDefeated = 0;
     locationState.inLocation = true;
     
-    startStage();
+    // Показываем информацию о локации
+    showLocationInfo();
 }
 
-function startStage() {
+function showLocationInfo() {
     const location = locationState.currentLocation;
     const stage = location.stages[locationState.currentStage];
     
@@ -69,10 +70,10 @@ function startStage() {
         <div class="dungeon-info">
             <h3>${location.name}</h3>
             <p>Этап ${stage.stage}/${location.stages.length}</p>
-            <p>Врагов осталось: ${stage.enemiesCount - locationState.enemiesDefeated}</p>
+            <p>Врагов осталось: ${stage.enemiesCount}</p>
             ${bossText}
             <button class="battle-btn attack" onclick="window.startStageBattle()">
-                ⚔️ Сражаться!
+                ⚔️ Начать сражение!
             </button>
             <button class="battle-btn flee" onclick="window.fleeLocation()" style="margin-top: 10px;">
                 🏃 Покинуть локацию
@@ -93,9 +94,7 @@ export function startStageBattle() {
     if (!enemyData) return;
     
     // Усиливаем врага в зависимости от этапа и локации
-    const locationIndex = parseInt(location.id === 'forest' ? 1 : 
-                                  location.id === 'mountains' ? 2 : 
-                                  location.id === 'ruins' ? 3 : 4);
+    const locationIndex = getLocationIndex(location.id);
     const stageMultiplier = 1 + (stage.stage * 0.1) + (locationIndex * 0.5);
     
     const enemy = {
@@ -125,7 +124,20 @@ export function startStageBattle() {
         
         window.updateBattleUI();
         window.animateBattle();
+        
+        // Показываем сообщение о враге
+        window.showBattleMessage(`${enemy.name} появляется!`);
     });
+}
+
+function getLocationIndex(locationId) {
+    const indexMap = {
+        'forest': 1,
+        'mountains': 2,
+        'ruins': 3,
+        'dragon_lair': 4
+    };
+    return indexMap[locationId] || 1;
 }
 
 export function startBossFight(bossData) {
@@ -160,6 +172,8 @@ export function startBossFight(bossData) {
         
         window.updateBattleUI();
         window.animateBattle();
+        
+        window.showBattleMessage(`${bossData.name} появляется!`);
     });
 }
 
@@ -248,7 +262,7 @@ export function handleVictory() {
                 // Следующий этап
                 locationState.currentStage++;
                 locationState.enemiesDefeated = 0;
-                startStage();
+                showLocationInfo();
             }
         } else {
             // Следующий враг
@@ -267,7 +281,7 @@ export function handleBossVictory() {
         // Следующий этап
         locationState.currentStage++;
         locationState.enemiesDefeated = 0;
-        startStage();
+        showLocationInfo();
     }
 }
 

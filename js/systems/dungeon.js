@@ -40,11 +40,16 @@ export function startLocation(locationId) {
     locationState.enemiesDefeated = 0;
     locationState.inLocation = true;
     
-    // Показываем информацию о локации
-    showLocationInfo();
+    // Показываем экран боя
+    window.showScreen('battle-screen');
+    
+    // Сразу начинаем первый бой!
+    setTimeout(() => {
+        startStageBattle();
+    }, 500);
 }
 
-function showLocationInfo() {
+export function startStageBattle() {
     const location = locationState.currentLocation;
     const stage = location.stages[locationState.currentStage];
     
@@ -53,45 +58,11 @@ function showLocationInfo() {
         return;
     }
     
-    const isMiniBoss = stage.boss && stage.stage % 10 !== 0;
-    const isBoss = stage.boss && stage.stage % 10 === 0;
-    
-    let bossText = '';
-    if (isMiniBoss) {
-        bossText = '<p style="color: #ff9800;">👹 МИНИ-БОСС!</p>';
-    } else if (isBoss) {
-        bossText = '<p style="color: #ff4444;">👑 ГЛАВНЫЙ БОСС!</p>';
-    }
-    
-    window.showNotification(`${location.name} - Этап ${stage.stage}/${location.stages.length}`, 'info');
-    
-    const battleUI = document.getElementById('battle-ui');
-    battleUI.innerHTML = `
-        <div class="dungeon-info">
-            <h3>${location.name}</h3>
-            <p>Этап ${stage.stage}/${location.stages.length}</p>
-            <p>Врагов осталось: ${stage.enemiesCount}</p>
-            ${bossText}
-            <button class="battle-btn attack" onclick="window.startStageBattle()">
-                ⚔️ Начать сражение!
-            </button>
-            <button class="battle-btn flee" onclick="window.fleeLocation()" style="margin-top: 10px;">
-                🏃 Покинуть локацию
-            </button>
-        </div>
-    `;
-    
-    window.showScreen('battle-screen');
-}
-
-export function startStageBattle() {
-    const location = locationState.currentLocation;
-    const stage = location.stages[locationState.currentStage];
-    
-    if (!stage) return;
-    
     const enemyData = getRandomEnemy(stage.enemies);
-    if (!enemyData) return;
+    if (!enemyData) {
+        console.error('No enemy data for:', stage.enemies);
+        return;
+    }
     
     // Усиливаем врага в зависимости от этапа и локации
     const locationIndex = getLocationIndex(location.id);
@@ -125,8 +96,18 @@ export function startStageBattle() {
         window.updateBattleUI();
         window.animateBattle();
         
-        // Показываем сообщение о враге
-        window.showBattleMessage(`${enemy.name} появляется!`);
+        // Показываем информацию о этапе
+        const isMiniBoss = stage.boss && stage.stage % 10 !== 0;
+        const isBoss = stage.boss && stage.stage % 10 === 0;
+        
+        let bossText = '';
+        if (isMiniBoss) {
+            bossText = ' 👹 МИНИ-БОСС!';
+        } else if (isBoss) {
+            bossText = ' 👑 ГЛАВНЫЙ БОСС!';
+        }
+        
+        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}`);
     });
 }
 
@@ -262,7 +243,7 @@ export function handleVictory() {
                 // Следующий этап
                 locationState.currentStage++;
                 locationState.enemiesDefeated = 0;
-                showLocationInfo();
+                startStageBattle();
             }
         } else {
             // Следующий враг
@@ -281,7 +262,7 @@ export function handleBossVictory() {
         // Следующий этап
         locationState.currentStage++;
         locationState.enemiesDefeated = 0;
-        showLocationInfo();
+        startStageBattle();
     }
 }
 

@@ -157,7 +157,38 @@ export function updateBattleUI() {
     const isBoss = battleState.isBossBattle || false;
     const canAct = battleState.turn === 'player' && !isProcessing;
     
+    // Получаем информацию о локации
+    const locationState = window.getLocationState?.();
+    let stageInfo = '';
+    
+    if (locationState && locationState.inLocation && locationState.currentLocation) {
+        const location = locationState.currentLocation;
+        const stage = location.stages[locationState.currentStage];
+        
+        if (stage) {
+            const isMiniBoss = stage.boss && stage.stage % 10 !== 0;
+            const isBossStage = stage.boss && stage.stage % 10 === 0;
+            
+            let bossText = '';
+            if (isMiniBoss) {
+                bossText = '👹 МИНИ-БОСС';
+            } else if (isBossStage) {
+                bossText = '👑 ГЛАВНЫЙ БОСС';
+            }
+            
+            stageInfo = `
+                <div class="stage-info">
+                    <span>📍 ${location.name}</span>
+                    <span>Этап ${stage.stage}/${location.stages.length}</span>
+                    <span>Врагов: ${locationState.enemiesDefeated}/${stage.enemiesCount}</span>
+                    ${bossText ? `<span style="color: #ff4444;">${bossText}</span>` : ''}
+                </div>
+            `;
+        }
+    }
+    
     battleUI.innerHTML = `
+        ${stageInfo}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
         <div class="battle-buttons">
             <button class="battle-btn attack" onclick="window.playerAttack()" ${!canAct ? 'disabled' : ''}>
@@ -191,6 +222,7 @@ function disableBattleButtons() {
 export function playerAttack() {
     if (isProcessing) return;
     if (battleState.turn !== 'player') return;
+    if (!battleState.currentEnemy) return;
     
     isProcessing = true;
     disableBattleButtons();
@@ -242,6 +274,7 @@ export function playerAttack() {
 export function playerDefend() {
     if (isProcessing) return;
     if (battleState.turn !== 'player') return;
+    if (!battleState.currentEnemy) return;
     
     isProcessing = true;
     disableBattleButtons();
@@ -272,6 +305,7 @@ export function playerDefend() {
 export function playerSkill() {
     if (isProcessing) return;
     if (battleState.turn !== 'player') return;
+    if (!battleState.currentEnemy) return;
     
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
@@ -377,6 +411,8 @@ function enemyTurn() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
+    if (!enemy) return;
+    
     battleState.enemySprite.isAttacking = true;
     
     setTimeout(() => {
@@ -427,6 +463,8 @@ function addDamageText(x, y, damage, isCrit = false) {
 export function battleVictory() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
+    
+    if (!enemy) return;
     
     battleState.isActive = false;
     

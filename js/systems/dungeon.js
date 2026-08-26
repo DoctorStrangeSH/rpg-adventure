@@ -43,7 +43,7 @@ export function startLocation(locationId) {
     // Показываем экран боя
     window.showScreen('battle-screen');
     
-    // Сразу начинаем первый бой!
+    // Сразу начинаем первый бой
     setTimeout(() => {
         startStageBattle();
     }, 500);
@@ -51,9 +51,16 @@ export function startLocation(locationId) {
 
 export function startStageBattle() {
     const location = locationState.currentLocation;
+    
+    if (!location || !location.stages) {
+        console.error('No location or stages');
+        return;
+    }
+    
     const stage = location.stages[locationState.currentStage];
     
     if (!stage) {
+        console.error('No stage found at index:', locationState.currentStage);
         completeLocation();
         return;
     }
@@ -64,7 +71,7 @@ export function startStageBattle() {
         return;
     }
     
-    // Усиливаем врага в зависимости от этапа и локации
+    // Усиливаем врага
     const locationIndex = getLocationIndex(location.id);
     const stageMultiplier = 1 + (stage.stage * 0.1) + (locationIndex * 0.5);
     
@@ -97,16 +104,7 @@ export function startStageBattle() {
         window.animateBattle();
         
         // Показываем информацию о этапе
-        const isMiniBoss = stage.boss && stage.stage % 10 !== 0;
-        const isBoss = stage.boss && stage.stage % 10 === 0;
-        
-        let bossText = '';
-        if (isMiniBoss) {
-            bossText = ' 👹 МИНИ-БОСС!';
-        } else if (isBoss) {
-            bossText = ' 👑 ГЛАВНЫЙ БОСС!';
-        }
-        
+        const bossText = stage.boss ? ' 👹 БОСС!' : '';
         window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}`);
     });
 }
@@ -161,6 +159,8 @@ export function startBossFight(bossData) {
 export function completeLocation() {
     const location = locationState.currentLocation;
     const player = gameState.player;
+    
+    if (!location) return;
     
     // Выдаём награды
     player.experience += location.rewards.exp;
@@ -228,6 +228,7 @@ export function getLocationState() {
     return locationState;
 }
 
+// Вызывается после победы над обычным врагом
 export function handleVictory() {
     locationState.enemiesDefeated++;
     
@@ -240,18 +241,19 @@ export function handleVictory() {
                 // Бой с боссом
                 startBossFight(stage.boss);
             } else {
-                // Следующий этап
+                // Переход на следующий этап
                 locationState.currentStage++;
                 locationState.enemiesDefeated = 0;
                 startStageBattle();
             }
         } else {
-            // Следующий враг
+            // Следующий враг на этом же этапе
             startStageBattle();
         }
     }, 2000);
 }
 
+// Вызывается после победы над боссом
 export function handleBossVictory() {
     const location = locationState.currentLocation;
     
@@ -259,15 +261,15 @@ export function handleBossVictory() {
     if (locationState.currentStage >= location.stages.length - 1) {
         completeLocation();
     } else {
-        // Следующий этап
+        // Переход на следующий этап
         locationState.currentStage++;
         locationState.enemiesDefeated = 0;
         startStageBattle();
     }
 }
 
+// Вызывается при поражении
 export function handleDefeat() {
-    // Сбрасываем прогресс локации
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.inLocation = false;

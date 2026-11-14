@@ -140,3 +140,29 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     player.mana -= manaBurned;
     return { damage, healed: 0, manaBurned };
 }
+
+ 
+// Set bonuses are computed from equipment, never added to saved base stats.
+export function getEquipmentSetBonuses(player) {
+    const equipped = Object.values(player?.equipment || {}).filter(Boolean);
+    const sets = [
+        { id: 'emberguard', name: 'Страж пепла', pieces: ['ember_sword', 'guardian_armor'], attack: 6, defense: 0 },
+        { id: 'frostwarden', name: 'Хранитель стужи', pieces: ['frost_blade', 'frost_armor'], attack: 0, defense: 7 },
+        { id: 'bloodhunter', name: 'Охотник за кровью', pieces: ['blood_dagger', 'blood_armor'], attack: 4, defense: 3 }
+    ];
+    const activeSets = sets.filter(set => set.pieces.every(id => equipped.includes(id)));
+    return {
+        attack: activeSets.reduce((sum, set) => sum + set.attack, 0),
+        defense: activeSets.reduce((sum, set) => sum + set.defense, 0),
+        activeSets: activeSets.map(({ id, name }) => ({ id, name }))
+    };
+}
+
+export function getEffectiveCombatStats(player) {
+    const bonuses = getEquipmentSetBonuses(player);
+    return {
+        attack: Math.max(0, (Number(player?.attack) || 0) + bonuses.attack),
+        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense),
+        activeSets: bonuses.activeSets
+    };
+}

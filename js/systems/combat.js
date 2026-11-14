@@ -67,6 +67,34 @@ export function chooseEnemyAction(enemy, player, roll = Math.random()) {
     return 'attack';
 }
 
+export function getBossPhase(enemy) {
+    const ratio = enemy.maxHealth > 0 ? enemy.health / enemy.maxHealth : 1;
+    return ratio <= 0.25 ? 3 : ratio <= 0.6 ? 2 : 1;
+}
+
+// A dangerous boss attack is announced one turn in advance. Keeping the intent
+// on the enemy prevents the next decision from silently replacing the warning.
+export function planEnemyTurn(enemy, player, roll = Math.random()) {
+    if (enemy.behavior !== 'boss') return { action: chooseEnemyAction(enemy, player, roll), warned: false, phaseChanged: false };
+    const phase = getBossPhase(enemy);
+    const phaseChanged = enemy.phase !== undefined && phase !== enemy.phase;
+    enemy.phase = phase;
+    if (phaseChanged) enemy.intent = null;
+
+    if (enemy.intent === 'heavy') {
+        enemy.intent = null;
+        return { action: 'heavy', warned: false, phaseChanged, phase };
+    }
+
+    // More dangerous phases increase the chance of a telegraphed heavy attack.
+    const heavyChance = phase === 3 ? 0.65 : phase === 2 ? 0.5 : 0.35;
+    if (roll < heavyChance) {
+        enemy.intent = 'heavy';
+        return { action: null, warned: true, phaseChanged, phase };
+    }
+    return { action: roll < 0.8 ? 'mana_burn' : 'attack', warned: false, phaseChanged, phase };
+}
+
 export function applyEnemyAction(enemy, player, action, variance = 0, reduction = 0) {
     if (action === 'recover') {
         const healed = Math.min(enemy.maxHealth - enemy.health, Math.max(1, Math.floor(enemy.maxHealth * 0.15)));

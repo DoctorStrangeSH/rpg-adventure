@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 
 globalThis.localStorage = {
@@ -133,5 +133,36 @@ test('enemy mana drain and guard reduction respect player resources', () => {
     assert.equal(result.manaBurned, 3);
     assert.equal(player.mana, 0);
     assert.ok(result.damage < 30);
+});
+
+test('boss phases follow health thresholds', () => {
+    const boss = { health: 100, maxHealth: 100 };
+    assert.equal(getBossPhase(boss), 1);
+    boss.health = 60;
+    assert.equal(getBossPhase(boss), 2);
+    boss.health = 25;
+    assert.equal(getBossPhase(boss), 3);
+});
+
+test('boss telegraphs heavy hit before performing it', () => {
+    const boss = { behavior: 'boss', health: 100, maxHealth: 100 };
+    const player = { mana: 20 };
+    const warning = planEnemyTurn(boss, player, 0.1);
+    assert.equal(warning.warned, true);
+    assert.equal(warning.action, null);
+    const attack = planEnemyTurn(boss, player, 0.95);
+    assert.equal(attack.warned, false);
+    assert.equal(attack.action, 'heavy');
+    assert.equal(boss.intent, null);
+});
+
+test('phase change clears obsolete boss warning', () => {
+    const boss = { behavior: 'boss', health: 100, maxHealth: 100 };
+    planEnemyTurn(boss, { mana: 20 }, 0.1);
+    boss.health = 50;
+    const next = planEnemyTurn(boss, { mana: 20 }, 0.9);
+    assert.equal(next.phaseChanged, true);
+    assert.equal(next.action, 'attack');
+    assert.equal(boss.intent, null);
 });
 

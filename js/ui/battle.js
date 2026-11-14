@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase } from '../systems/combat.js';
 
 const particleSystem = new ParticleSystem();
 let damageTexts = [];
@@ -208,6 +208,7 @@ export function updateBattleUI() {
     battleUI.innerHTML = `
         ${stageInfo}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
+        ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
         ${activeEffects.length ? `<div class="battle-effects" aria-label="Активные эффекты">${activeEffects.map(effect => `<span class="battle-effect">${effect}</span>`).join('')}</div>` : ''}
         <div class="battle-buttons">
             <button class="battle-btn attack" onclick="window.playerAttack()" ${!canAct ? 'disabled' : ''}>
@@ -304,29 +305,15 @@ export function playerDefend() {
     isProcessing = true;
     disableBattleButtons();
     
-    const player = gameState.player;
     const enemy = battleState.currentEnemy;
-    
-    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, player.defense) / 2));
-    applyDamage(player, damage);
-    gameState.save();
-    
-    showBattleMessage(`Вы защищаетесь! ${enemy.name} наносит ${damage} урона!`);
+    battleState.guardReduction = Math.max(battleState.guardReduction, 0.5);
+    showBattleMessage('Вы готовитесь отразить следующий удар!');
     
     battleState.turn = 'enemy';
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
-        if (player.health <= 0) {
-            isProcessing = false;
-            battleDefeat();
-            return;
-        }
-        
-        battleState.turn = 'player';
-        isProcessing = false;
-        updateBattleUI();
-        window.updateMainMenu?.();
-    }, 1000);
+        enemyTurn();
+    }, 350);
 }
 
 export function playerSkill(skillId) {
@@ -462,7 +449,16 @@ function enemyTurn() {
         updateBattleUI();
         return;
     }
-    const action = chooseEnemyAction(enemy, player);
+    const plan = planEnemyTurn(enemy, player);
+    if (plan.phaseChanged) showBattleMessage(`⚡ ${enemy.name} переходит в фазу ${plan.phase}!`);
+    if (plan.warned) {
+        battleState.turn = 'player';
+        isProcessing = false;
+        showBattleMessage(`⚠️ ${enemy.name} готовит сокрушительный удар! Защищайтесь!`);
+        updateBattleUI();
+        return;
+    }
+    const action = plan.action;
     const actionName = {
         attack: 'атакует', heavy: 'готовит мощный удар',
         mana_burn: 'готовит истощение маны', recover: 'восстанавливается'

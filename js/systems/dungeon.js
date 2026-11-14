@@ -180,6 +180,7 @@ export function completeLocation() {
     // Выдаём награды
     player.experience += location.rewards.exp;
     player.gold += location.rewards.gold;
+    if (player.experience >= player.maxExperience) window.levelUp?.();
     
     location.rewards.items.forEach(rewardItem => {
         const existingItem = player.inventory.find(item => item.id === rewardItem.id);

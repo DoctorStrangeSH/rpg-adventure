@@ -9,6 +9,8 @@ import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
 import { completeLocation, getLocationState, resetLocationState } from '../js/systems/dungeon.js';
+import { applyExperience } from '../js/systems/progression.js';
+import { levelUp } from '../js/ui/character.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -279,5 +281,31 @@ test('location completion rewards only once and unlocks next area', () => {
         globalThis.setTimeout = previousTimeout;
         resetLocationState();
     }
+});
+
+test('large experience reward grants all earned levels and preserves remainder', () => {
+    const player = gameState.createPlayer('warrior');
+    const gained = applyExperience(player, 1000);
+    assert.equal(gained, 4);
+    assert.equal(player.level, 5);
+    assert.equal(player.experience, 188);
+    assert.equal(player.maxExperience, 505);
+    assert.equal(player.health, player.maxHealth);
+    assert.equal(player.attack, 35);
+});
+
+test('levelUp entry point handles existing XP without undefined UI helpers', () => {
+    const player = gameState.createPlayer('mage');
+    player.experience = 260;
+    assert.doesNotThrow(() => levelUp());
+    assert.equal(player.level, 3);
+    assert.equal(player.experience, 10);
+});
+
+test('negative experience reward cannot reduce level or progress', () => {
+    const player = gameState.createPlayer('archer');
+    assert.equal(applyExperience(player, -100), 0);
+    assert.equal(player.level, 1);
+    assert.equal(player.experience, 0);
 });
 

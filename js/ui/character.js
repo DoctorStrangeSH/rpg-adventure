@@ -2,6 +2,8 @@
 import { gameState } from '../core/state.js';
 import { CLASSES } from '../data/classes.js';
 import { SoundSystem } from '../systems/sound.js';
+import { applyExperience } from '../systems/progression.js';
+import { escapeHtml } from '../core/html.js';
 
 export function updateCharacterScreen() {
     const player = gameState.player;
@@ -14,7 +16,7 @@ export function updateCharacterScreen() {
         <div class="character-header">
             <div class="character-avatar">${classData.icon}</div>
             <div class="character-info">
-                <h3>${player.username}</h3>
+                <h3>${escapeHtml(player.username)}</h3>
                 <p>${classData.name} • Уровень ${player.level}</p>
                 <p style="color: var(--gold);">💰 ${player.gold} золота</p>
             </div>
@@ -98,27 +100,15 @@ function createStatCard(label, value) {
 
 export function levelUp() {
     const player = gameState.player;
-    
-    while (player.experience >= player.maxExperience) {
-        player.experience -= player.maxExperience;
-        player.level++;
-        player.maxExperience = Math.floor(player.maxExperience * 1.5);
-        
-        player.maxHealth += 20;
-        player.health = player.maxHealth;
-        player.maxMana += 10;
-        player.mana = player.maxMana;
-        player.attack += 5;
-        player.defense += 3;
-        
+    if (!player) return;
+    const gainedLevels = applyExperience(player);
+    if (gainedLevels) {
         SoundSystem.playSound('levelup');
-        window.showNotification(`🎉 Уровень повышен! Теперь вы ${player.level} уровня!`, 'success');
-        
+        window.showNotification(`🎉 +${gainedLevels} ур.! Теперь вы ${player.level} уровня!`, 'success');
         window.updateQuestProgress?.('level', player.level);
     }
-    
     gameState.save();
-    updateMainMenu();
+    window.updateMainMenu?.();
     updateCharacterScreen();
     window.updateQuestsScreen?.();
     window.updateAchievements?.();

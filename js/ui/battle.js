@@ -8,6 +8,7 @@ import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
+import { awardRelic, RELICS } from '../systems/relics.js';
 
 const particleSystem = new ParticleSystem();
 const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
@@ -583,7 +584,9 @@ export function battleVictory() {
     const lootId = rollLoot(battleState.isBossBattle);
     const lootQuantity = lootId ? grantItem(player, lootId) : 0;
     const lootText = lootQuantity ? ` 🎁 Добыча: ${getItem(lootId).name}!` : '';
-    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}`);
+    const relicId = awardRelic(player, enemy.elite === true, battleState.isBossBattle);
+    const relicText = relicId ? ` 🌟 Реликвия: ${RELICS[relicId].name}!` : '';
+    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}${relicText}`);
     
     if (player.experience >= player.maxExperience) {
         window.levelUp?.();

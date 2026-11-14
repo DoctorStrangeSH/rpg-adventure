@@ -1,6 +1,7 @@
 // Pure combat rules: shared by battles and automated regression tests.
 import { getItem } from '../data/items.js';
 import { getTalentBonuses } from './talents.js';
+import { getRelicBonuses } from './relics.js';
 
 export function hasSpecialization(player, id) {
     return player?.talents?.includes(id) === true;
@@ -51,7 +52,8 @@ export function consumeHealingPotion(player, item, potionData) {
 
 export function useSkillEffect(player, enemy, skill) {
     const hits = Math.max(1, Math.floor(skill.hits || 1));
-    const multiplier = (skill.damageMultiplier ?? 1) * (hasSpecialization(player, 'mage_arcanist') ? 1.2 : 1);
+    const multiplier = (skill.damageMultiplier ?? 1) * (hasSpecialization(player, 'mage_arcanist') ? 1.2 : 1) *
+        (1 + getRelicBonuses(player).skillPower);
     let damage = 0;
     // Utility abilities can deliberately skip direct damage.
     if (skill.damageMultiplier || skill.hits || skill.poison) {
@@ -186,11 +188,12 @@ export function getEquipmentSetBonuses(player) {
 export function getEffectiveCombatStats(player) {
     const bonuses = getEquipmentSetBonuses(player);
     const talents = getTalentBonuses(player);
+    const relics = getRelicBonuses(player);
     return {
-        attack: Math.max(0, Math.floor(((Number(player?.attack) || 0) + bonuses.attack + talents.attack) *
+        attack: Math.max(0, Math.floor(((Number(player?.attack) || 0) + bonuses.attack + talents.attack + relics.attack) *
             (hasSpecialization(player, 'warrior_berserker') && player.maxHealth > 0 && player.health / player.maxHealth <= 0.35 ? 1.3 : 1))),
-        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense),
-        critChance: Math.min(1, 0.15 + talents.critChance),
+        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense + relics.defense),
+        critChance: Math.min(1, 0.15 + talents.critChance + relics.critChance),
         activeSets: bonuses.activeSets
     };
 }

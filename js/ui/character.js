@@ -6,6 +6,7 @@ import { applyExperience } from '../systems/progression.js';
 import { escapeHtml } from '../core/html.js';
 import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
 import { getEffectiveCombatStats } from '../systems/combat.js';
+import { RELICS, MAX_ACTIVE_RELICS, toggleRelic } from '../systems/relics.js';
 
 export function updateCharacterScreen() {
     const player = gameState.player;
@@ -54,6 +55,19 @@ export function updateCharacterScreen() {
                 </div>
             `).join('')}
         </div>
+
+        <div class="section-title">💎 Реликвии • активных: ${player.activeRelics?.length || 0}/${MAX_ACTIVE_RELICS}</div>
+        <div class="skills-section">
+            ${(player.relics || []).length ? player.relics.filter(id => RELICS[id]).map(id => `
+                <div class="skill-card talent-card">
+                    <div class="skill-icon">${RELICS[id].icon}</div>
+                    <div class="skill-info"><div class="skill-name">${RELICS[id].name}</div><div class="skill-description">${RELICS[id].description}</div></div>
+                    <button class="talent-button" onclick="window.toggleCharacterRelic('${id}')" ${!player.activeRelics?.includes(id) && (player.activeRelics?.length || 0) >= MAX_ACTIVE_RELICS ? 'disabled' : ''}>
+                        ${player.activeRelics?.includes(id) ? 'Снять' : 'Надеть'}
+                    </button>
+                </div>
+            `).join('') : '<p class="skill-description">Реликвии можно найти у элитных врагов и боссов.</p>'}
+        </div>
         
         <div class="section-title">✨ Навыки</div>
         <div class="skills-section">
@@ -67,6 +81,13 @@ export function updateCharacterScreen() {
             ${createStatCard('👹 Убийств', player.stats.kills)}
         </div>
     `;
+}
+
+export function toggleCharacterRelic(id) {
+    if (!toggleRelic(gameState.player, id)) return false;
+    gameState.save();
+    updateCharacterScreen();
+    return true;
 }
 
 export function chooseTalent(id) {

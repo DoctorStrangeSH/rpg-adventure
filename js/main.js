@@ -3,7 +3,7 @@ import { gameState } from './core/state.js';
 import { ScreenManager } from './core/screen.js';
 import { SoundSystem } from './systems/sound.js';
 import { initUI, showClassSelection, updateMainMenu } from './ui/mainMenu.js';
-import { updateCharacterScreen, levelUp, chooseTalent } from './ui/character.js';
+import { updateCharacterScreen, levelUp, chooseTalent, toggleCharacterRelic } from './ui/character.js';
 import { initMap, updateMapScreen, enterLocation } from './ui/map.js';
 import { 
     initBattle, 
@@ -67,6 +67,7 @@ window.updateMainMenu = updateMainMenu;
 window.updateCharacterScreen = updateCharacterScreen;
 window.levelUp = levelUp;
 window.chooseTalent = chooseTalent;
+window.toggleCharacterRelic = toggleCharacterRelic;
 
 window.initMap = initMap;
 window.updateMapScreen = updateMapScreen;

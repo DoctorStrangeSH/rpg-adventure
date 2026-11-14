@@ -16,6 +16,7 @@ import { buyItem } from '../js/ui/shop.js';
 import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
 import { rollAdventureEvent, resolveAdventureEvent } from '../js/systems/adventureEvents.js';
 import { getRoute, applyRouteToEnemy } from '../js/systems/dungeonRoutes.js';
+import { RELICS, MAX_ACTIVE_RELICS, awardRelic, toggleRelic, getRelicBonuses } from '../js/systems/relics.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -650,5 +651,51 @@ test('enraged elites deal more damage at half health without affecting normal en
     const angry = applyEnemyAction(enemy, player, 'attack');
     assert.equal(angry.enraged, true);
     assert.ok(angry.damage > normal);
+});
+
+test('relics drop only from eligible victories and do not duplicate', () => {
+    const player = gameState.createPlayer('warrior');
+    assert.equal(awardRelic(player, false, false, 0), null);
+    assert.equal(awardRelic(player, true, false, 0.8), null);
+    const first = awardRelic(player, true, false, 0.1);
+    assert.ok(RELICS[first]);
+    const second = awardRelic(player, true, false, 0.1);
+    assert.notEqual(second, first);
+    assert.equal(new Set(player.relics).size, player.relics.length);
+    assert.equal(awardRelic(player, false, true, 0.9), null);
+    assert.equal(awardRelic(player, false, true, -1), null);
+});
+
+test('only two owned relics can be active and duplicate toggles do not stack', () => {
+    const player = gameState.createPlayer('mage');
+    player.relics = Object.keys(RELICS);
+    assert.equal(MAX_ACTIVE_RELICS, 2);
+    assert.equal(toggleRelic(player, 'ash_heart'), true);
+    assert.equal(toggleRelic(player, 'stone_oath'), true);
+    assert.equal(toggleRelic(player, 'eagle_eye'), false);
+    assert.equal(toggleRelic(player, 'unknown'), false);
+    assert.equal(getRelicBonuses(player).attack, 6);
+    assert.equal(getRelicBonuses(player).defense, 6);
+    assert.equal(toggleRelic(player, 'ash_heart'), true);
+    assert.equal(getRelicBonuses(player).attack, 0);
+    assert.equal(toggleRelic(player, 'eagle_eye'), true);
+    assert.equal(getRelicBonuses(player).critChance, 0.07);
+});
+
+test('relic effects apply to combat without changing saved base stats', () => {
+    const player = gameState.createPlayer('mage');
+    player.relics = ['ash_heart', 'arcane_spark'];
+    player.activeRelics = ['ash_heart', 'arcane_spark'];
+    const baseAttack = player.attack;
+    assert.equal(getEffectiveCombatStats(player).attack, baseAttack + 6);
+    const enemy = { health: 300, defense: 0 };
+    const augmented = useSkillEffect(player, enemy, CLASSES.mage.skills[0]).damage;
+    player.activeRelics = [];
+    const ordinary = { health: 300, defense: 0 };
+    assert.ok(augmented > useSkillEffect(player, ordinary, CLASSES.mage.skills[0]).damage);
+    assert.equal(player.attack, baseAttack);
+    gameState.save();
+    assert.equal(gameState.load(), true);
+    assert.deepEqual(gameState.player.relics, player.relics);
 });
 

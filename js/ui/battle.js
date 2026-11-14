@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction } from '../systems/combat.js';
 
 const particleSystem = new ParticleSystem();
 let damageTexts = [];
@@ -169,6 +169,11 @@ export function updateBattleUI() {
     const skills = CLASSES[player.class]?.skills || [];
     const isBoss = battleState.isBossBattle || false;
     const canAct = battleState.turn === 'player' && !isProcessing;
+    const activeEffects = [
+        enemy.effects?.freezeTurns > 0 ? `❄️ Заморозка: ${enemy.effects.freezeTurns}` : null,
+        enemy.effects?.poisonTurns > 0 ? `☠️ Яд: ${enemy.effects.poisonTurns}` : null,
+        battleState.guardReduction > 0 ? '🛡️ Защитная стойка' : null
+    ].filter(Boolean);
     
     // Получаем информацию о локации
     const locationState = window.getLocationState?.();
@@ -203,6 +208,7 @@ export function updateBattleUI() {
     battleUI.innerHTML = `
         ${stageInfo}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
+        ${activeEffects.length ? `<div class="battle-effects" aria-label="Активные эффекты">${activeEffects.map(effect => `<span class="battle-effect">${effect}</span>`).join('')}</div>` : ''}
         <div class="battle-buttons">
             <button class="battle-btn attack" onclick="window.playerAttack()" ${!canAct ? 'disabled' : ''}>
                 ⚔️ Атаковать
@@ -354,6 +360,7 @@ export function playerSkill(skillId) {
     const effect = skill.freeze ? ' Враг заморожен!' : skill.poison ? ' Враг отравлен!' :
         result.guardReduction ? ' Следующий удар ослаблен!' : '';
     showBattleMessage(`${skill.name}! ${result.damage ? `Урон: ${result.damage}.` : ''}${effect}`);
+    updateBattleUI();
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -455,6 +462,12 @@ function enemyTurn() {
         updateBattleUI();
         return;
     }
+    const action = chooseEnemyAction(enemy, player);
+    const actionName = {
+        attack: 'атакует', heavy: 'готовит мощный удар',
+        mana_burn: 'готовит истощение маны', recover: 'восстанавливается'
+    }[action];
+    showBattleMessage(`${enemy.name} ${actionName}!`);
     
     battleState.enemySprite.isAttacking = true;
     
@@ -462,16 +475,12 @@ function enemyTurn() {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         SoundSystem.playSound('hit');
         
-        const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, player.defense, Math.floor(Math.random() * 5)) * (1 - battleState.guardReduction)));
+        const result = applyEnemyAction(enemy, player, action, Math.floor(Math.random() * 5), battleState.guardReduction);
+        const damage = result.damage;
         battleState.guardReduction = 0;
-        applyDamage(player, damage);
         gameState.save();
         
-        addDamageText(
-            battleState.playerSprite.x,
-            battleState.playerSprite.y - 50,
-            damage
-        );
+        if (damage) addDamageText(battleState.playerSprite.x, battleState.playerSprite.y - 50, damage);
         
         particleSystem.createExplosion(
             battleState.playerSprite.x,
@@ -482,7 +491,8 @@ function enemyTurn() {
         
         battleState.enemySprite.isAttacking = false;
         
-        showBattleMessage(`${enemy.name} наносит ${damage} урона!`);
+        showBattleMessage(result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
+            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}`);
         
         setTimeout(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;

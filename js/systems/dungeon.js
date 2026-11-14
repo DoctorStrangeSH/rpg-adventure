@@ -130,6 +130,7 @@ export function startBossFight(bossData) {
         id: bossData.id,
         name: bossData.name,
         icon: bossData.icon,
+        behavior: 'boss',
         health: bossData.health,
         maxHealth: bossData.health,
         attack: bossData.attack,

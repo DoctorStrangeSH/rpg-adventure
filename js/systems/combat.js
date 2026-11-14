@@ -53,3 +53,30 @@ export function tickEnemyEffects(enemy) {
     if (frozen) effects.freezeTurns--;
     return { poisonDamage, frozen };
 }
+
+// Deterministic with an injected roll, so tactics are reproducible in tests.
+export function chooseEnemyAction(enemy, player, roll = Math.random()) {
+    const behavior = enemy.behavior || (enemy.id === 'dragon' ? 'boss' : 'standard');
+    const healthRatio = enemy.maxHealth > 0 ? enemy.health / enemy.maxHealth : 1;
+    if (behavior === 'boss') {
+        return roll < 0.4 ? 'heavy' : roll < 0.7 ? 'mana_burn' : 'attack';
+    }
+    if (behavior === 'resilient' && healthRatio < 0.45 && roll < 0.5) return 'recover';
+    if (behavior === 'opportunist' && player.mana > 0 && roll < 0.3) return 'mana_burn';
+    if (behavior === 'aggressive' && roll < 0.35) return 'heavy';
+    return 'attack';
+}
+
+export function applyEnemyAction(enemy, player, action, variance = 0, reduction = 0) {
+    if (action === 'recover') {
+        const healed = Math.min(enemy.maxHealth - enemy.health, Math.max(1, Math.floor(enemy.maxHealth * 0.15)));
+        enemy.health += healed;
+        return { damage: 0, healed, manaBurned: 0 };
+    }
+    const multiplier = action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1;
+    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, player.defense, variance, multiplier) * (1 - reduction)));
+    applyDamage(player, damage);
+    const manaBurned = action === 'mana_burn' ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / 3))) : 0;
+    player.mana -= manaBurned;
+    return { damage, healed: 0, manaBurned };
+}

@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 
 globalThis.localStorage = {
@@ -109,5 +109,29 @@ test('warrior shield skill grants damage reduction without direct damage', () =>
     const result = useSkillEffect(player, enemy, CLASSES.warrior.skills[1]);
     assert.equal(enemy.health, 100);
     assert.equal(result.guardReduction, 0.75);
+});
+
+test('different enemy archetypes choose distinct tactics', () => {
+    const player = { mana: 30 };
+    assert.equal(chooseEnemyAction({ behavior: 'aggressive', health: 20, maxHealth: 30 }, player, 0.1), 'heavy');
+    assert.equal(chooseEnemyAction({ behavior: 'opportunist', health: 30, maxHealth: 30 }, player, 0.1), 'mana_burn');
+    assert.equal(chooseEnemyAction({ behavior: 'resilient', health: 20, maxHealth: 100 }, player, 0.1), 'recover');
+    assert.equal(chooseEnemyAction({ behavior: 'boss', health: 100, maxHealth: 100 }, player, 0.5), 'mana_burn');
+});
+
+test('recovery cannot exceed max health', () => {
+    const enemy = { health: 98, maxHealth: 100, attack: 10 };
+    const result = applyEnemyAction(enemy, { health: 50, mana: 10 }, 'recover');
+    assert.equal(result.healed, 2);
+    assert.equal(enemy.health, 100);
+});
+
+test('enemy mana drain and guard reduction respect player resources', () => {
+    const enemy = { attack: 30 };
+    const player = { health: 100, mana: 3, defense: 0 };
+    const result = applyEnemyAction(enemy, player, 'mana_burn', 0, 0.75);
+    assert.equal(result.manaBurned, 3);
+    assert.equal(player.mana, 0);
+    assert.ok(result.damage < 30);
 });
 

@@ -60,6 +60,7 @@ function createInventoryItem(item, index, player) {
 
 export function useInventoryItem(index) {
     const player = gameState.player;
+    if (!player || !Number.isInteger(index)) return;
     const item = player.inventory[index];
     
     if (!item) return;
@@ -69,7 +70,7 @@ export function useInventoryItem(index) {
     
     switch (itemData.type) {
         case 'consumable':
-            useConsumable(player, item, itemData, index);
+            if (!useConsumable(player, item, itemData, index)) return;
             break;
         case 'weapon':
             equipItem(player, item, 'weapon');
@@ -86,6 +87,12 @@ export function useInventoryItem(index) {
 }
 
 function useConsumable(player, item, itemData, index) {
+    const needsHealth = itemData.heal > 0 && player.health < player.maxHealth;
+    const needsMana = itemData.manaHeal > 0 && player.mana < player.maxMana;
+    if (!needsHealth && !needsMana) {
+        window.showNotification('Сейчас это зелье не требуется', 'info');
+        return false;
+    }
     if (itemData.heal) {
         player.health = Math.min(player.maxHealth, player.health + itemData.heal);
         window.showNotification(`Вы использовали ${itemData.name}! +${itemData.heal} HP`, 'success');
@@ -100,19 +107,24 @@ function useConsumable(player, item, itemData, index) {
     if (item.quantity <= 0) {
         player.inventory.splice(index, 1);
     }
+    return true;
 }
 
 function equipItem(player, item, slot) {
     const itemData = getItem(item.id);
+    if (player.equipment[slot] === item.id) {
+        window.showNotification('Предмет уже экипирован', 'info');
+        return;
+    }
     
     // Снимаем старый предмет
     if (player.equipment[slot]) {
         const oldItemData = getItem(player.equipment[slot]);
         
-        if (oldItemData.attackBonus) {
+        if (oldItemData?.attackBonus) {
             player.attack -= oldItemData.attackBonus;
         }
-        if (oldItemData.defenseBonus) {
+        if (oldItemData?.defenseBonus) {
             player.defense -= oldItemData.defenseBonus;
         }
     }
@@ -132,6 +144,7 @@ function equipItem(player, item, slot) {
 
 export function unequipItem(slot) {
     const player = gameState.player;
+    if (!player || !['weapon', 'armor'].includes(slot)) return;
     
     if (!player.equipment[slot]) {
         window.showNotification('Слот пуст', 'info');
@@ -140,16 +153,16 @@ export function unequipItem(slot) {
     
     const itemData = getItem(player.equipment[slot]);
     
-    if (itemData.attackBonus) {
+    if (itemData?.attackBonus) {
         player.attack -= itemData.attackBonus;
     }
-    if (itemData.defenseBonus) {
+    if (itemData?.defenseBonus) {
         player.defense -= itemData.defenseBonus;
     }
     
     player.equipment[slot] = null;
     
-    window.showNotification(`${itemData.name} снят`, 'info');
+    window.showNotification(`${itemData?.name || 'Предмет'} снят`, 'info');
     gameState.save();
     updateInventoryScreen();
     window.updateCharacterScreen?.();

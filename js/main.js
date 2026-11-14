@@ -40,11 +40,11 @@ import {
 } from './systems/dungeon.js';
 
 // Инициализация Telegram
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
-tg.setHeaderColor('#0a0a1a');
-tg.setBackgroundColor('#0a0a1a');
+const tg = window.Telegram?.WebApp;
+tg?.ready?.();
+tg?.expand?.();
+tg?.setHeaderColor?.('#0a0a1a');
+tg?.setBackgroundColor?.('#0a0a1a');
 
 // Глобальные функции для HTML
 window.showScreen = function(screenId) {
@@ -53,7 +53,7 @@ window.showScreen = function(screenId) {
 };
 
 window.selectClass = function(classId) {
-    gameState.createPlayer(classId);
+    if (!gameState.createPlayer(classId)) return;
     gameState.save();
     initUI();
     ScreenManager.show('main-menu');

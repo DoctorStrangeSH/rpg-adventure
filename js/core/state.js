@@ -3,6 +3,7 @@ import { GAME_CONFIG } from '../config/constants.js';
 import { CLASSES } from '../data/classes.js';
 import { QUESTS } from '../data/quests.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
+import { Storage } from './storage.js';
 
 class GameState {
     constructor() {
@@ -30,6 +31,7 @@ class GameState {
     
     createPlayer(classId) {
         const classData = CLASSES[classId];
+        if (!classData) return null;
         
         this.player = {
             id: Date.now(),
@@ -82,22 +84,18 @@ class GameState {
     }
     
     save() {
-        try {
-            localStorage.setItem(GAME_CONFIG.saveKey, JSON.stringify(this.data));
-        } catch (error) {
-            console.error('Error saving game:', error);
-        }
+        Storage.save(this.data);
     }
     
     load() {
-        try {
-            const saved = localStorage.getItem(GAME_CONFIG.saveKey);
-            if (saved) {
-                this.data = JSON.parse(saved);
-                return true;
-            }
-        } catch (error) {
-            console.error('Error loading game:', error);
+        const saved = Storage.load();
+        if (saved && typeof saved === 'object' && !Array.isArray(saved) &&
+            saved.player && typeof saved.player === 'object' &&
+            CLASSES[saved.player.class] &&
+            Array.isArray(saved.player.inventory) &&
+            saved.player.equipment && typeof saved.player.equipment === 'object') {
+            this.data = { player: saved.player, screen: 'main-menu' };
+            return true;
         }
         return false;
     }

@@ -2,6 +2,7 @@
 import { gameState } from '../core/state.js';
 import { CLASSES } from '../data/classes.js';
 import { ScreenManager } from '../core/screen.js';
+import { escapeHtml } from '../core/html.js';
 
 export function initUI() {
     const mainMenu = document.getElementById('main-menu');
@@ -101,7 +102,7 @@ export function updateMainMenu() {
         <div class="player-info-header">
             <div class="player-avatar">${classData.icon}</div>
             <div>
-                <div class="player-name">${player.username}</div>
+                <div class="player-name">${escapeHtml(player.username)}</div>
                 <div class="player-level">Уровень ${player.level} • ${classData.name}</div>
             </div>
         </div>

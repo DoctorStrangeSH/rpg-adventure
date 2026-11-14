@@ -1,7 +1,7 @@
 // Pure combat rules: shared by battles and automated regression tests.
 import { getItem } from '../data/items.js';
 import { getTalentBonuses } from './talents.js';
-import { getRelicBonuses } from './relics.js';
+import { getRelicBonuses, hasActiveRelic } from './relics.js';
 
 export function hasSpecialization(player, id) {
     return player?.talents?.includes(id) === true;
@@ -66,7 +66,19 @@ export function useSkillEffect(player, enemy, skill) {
     if (skill.burn) applyStatusEffect(enemy, 'burn', 2);
     if (skill.bleed) applyStatusEffect(enemy, 'bleed', 2);
     if (skill.weaken) applyStatusEffect(enemy, 'weaken', 2);
-    return { damage, hits, guardReduction: skill.defenseBonus ? 0.75 : 0 };
+    // Legendary skills ignite surviving enemies. The same resistance rules
+    // used by ordinary burns apply, including complete immunity.
+    const phoenixBurn = damage > 0 && enemy.health > 0 && hasActiveRelic(player, 'phoenix_crown')
+        ? applyStatusEffect(enemy, 'burn', 2) : false;
+    return { damage, hits, guardReduction: skill.defenseBonus ? 0.75 : 0, phoenixBurn };
+}
+
+export function tryPhoenixRebirth(player, battleRelics) {
+    if (!battleRelics || player?.health > 0 || !Number.isFinite(player?.maxHealth) || player.maxHealth <= 0 ||
+        !hasActiveRelic(player, 'phoenix_crown') || battleRelics.phoenixRebirthUsed) return false;
+    player.health = Math.max(1, Math.ceil(player.maxHealth * 0.2));
+    battleRelics.phoenixRebirthUsed = true;
+    return true;
 }
 
 export function applyStatusEffect(enemy, type, turns) {

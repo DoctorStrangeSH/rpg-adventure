@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS } from '../systems/relics.js';
 
@@ -28,7 +28,8 @@ let battleState = {
     isDungeonBattle: false,
     isBossBattle: false,
     isLocationBattle: false,
-    guardReduction: 0
+    guardReduction: 0,
+    relicEffects: { phoenixRebirthUsed: false }
 };
 
 export function initBattle() {
@@ -69,6 +70,7 @@ export function startBattle(location) {
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
     battleState.guardReduction = 0;
+    battleState.relicEffects = { phoenixRebirthUsed: false };
     isProcessing = false;
     player.stats.battles++;
     gameState.save();
@@ -373,7 +375,8 @@ export function playerSkill(skillId) {
         skill.poison && enemy.effects?.poisonTurns && 'яд',
         skill.burn && enemy.effects?.burnTurns && 'горение',
         skill.bleed && enemy.effects?.bleedTurns && 'кровотечение',
-        skill.weaken && enemy.effects?.weakenTurns && 'ослабление']
+        skill.weaken && enemy.effects?.weakenTurns && 'ослабление',
+        result.phoenixBurn && 'пламя феникса']
         .filter(Boolean).join(', ');
     const effect = statuses ? ` Эффект: ${statuses}.` :
         result.guardReduction ? ' Следующий удар ослаблен!' :
@@ -508,6 +511,7 @@ function enemyTurn() {
         
         const result = applyEnemyAction(enemy, player, action, Math.floor(Math.random() * 5), battleState.guardReduction);
         const damage = result.damage;
+        const reborn = tryPhoenixRebirth(player, battleState.relicEffects);
         battleState.guardReduction = 0;
         gameState.save();
         
@@ -522,7 +526,7 @@ function enemyTurn() {
         
         battleState.enemySprite.isAttacking = false;
         
-        showBattleMessage(result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
+        showBattleMessage(reborn ? '🔥 Корона феникса спасает вас от гибели! Здоровье восстановлено.' : result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
             `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}`);
         
         setTimeout(() => {

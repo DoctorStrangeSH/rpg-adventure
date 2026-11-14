@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -16,7 +16,7 @@ import { buyItem } from '../js/ui/shop.js';
 import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
 import { rollAdventureEvent, resolveAdventureEvent } from '../js/systems/adventureEvents.js';
 import { getRoute, applyRouteToEnemy } from '../js/systems/dungeonRoutes.js';
-import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, awardRelic, toggleRelic, getRelicBonuses, getActiveRelicSynergies } from '../js/systems/relics.js';
+import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, awardRelic, toggleRelic, getRelicBonuses, getActiveRelicSynergies, hasActiveRelic } from '../js/systems/relics.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -730,5 +730,43 @@ test('unknown, duplicate and unowned relic IDs cannot produce phantom synergies'
     assert.equal(getRelicBonuses(player).critChance, 0.1);
     player.relics = ['stone_oath'];
     assert.deepEqual(getActiveRelicSynergies(player), []);
+});
+
+test('legendary phoenix crown ignites targets only on damaging skills and respects immunity', () => {
+    const player = gameState.createPlayer('mage');
+    player.relics = ['phoenix_crown'];
+    player.activeRelics = ['phoenix_crown'];
+    const skill = CLASSES.mage.skills.find(entry => entry.damageMultiplier);
+    const target = { health: 500, maxHealth: 500, defense: 0 };
+    const result = useSkillEffect(player, target, skill);
+    assert.equal(result.phoenixBurn, true);
+    assert.equal(target.effects.burnTurns, 2);
+    const immune = { health: 500, maxHealth: 500, defense: 0, resistances: { burn: 1 } };
+    assert.equal(useSkillEffect(player, immune, skill).phoenixBurn, false);
+    player.activeRelics = [];
+    assert.equal(useSkillEffect(player, { health: 500, defense: 0 }, skill).phoenixBurn, false);
+});
+
+test('phoenix rebirth activates once per battle and never changes base maximum health', () => {
+    const player = gameState.createPlayer('warrior');
+    player.relics = ['phoenix_crown'];
+    player.activeRelics = ['phoenix_crown'];
+    const battleRelics = { phoenixRebirthUsed: false };
+    const maximum = player.maxHealth;
+    assert.equal(hasActiveRelic(player, 'phoenix_crown'), true);
+    assert.equal(tryPhoenixRebirth(player, battleRelics), false);
+    player.health = 0;
+    assert.equal(tryPhoenixRebirth(player, battleRelics), true);
+    assert.equal(player.health, Math.ceil(maximum * 0.2));
+    player.health = 0;
+    assert.equal(tryPhoenixRebirth(player, battleRelics), false);
+    assert.equal(player.maxHealth, maximum);
+    assert.equal(tryPhoenixRebirth(player, { phoenixRebirthUsed: false }), true);
+    player.health = 0;
+    player.activeRelics = [];
+    assert.equal(tryPhoenixRebirth(player, { phoenixRebirthUsed: false }), false);
+    gameState.save();
+    assert.equal(gameState.load(), true);
+    assert.deepEqual(gameState.player.activeRelics, []);
 });
 

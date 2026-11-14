@@ -7,7 +7,7 @@ export const RELICS = Object.freeze({
     arcane_spark: { id: 'arcane_spark', icon: '✨', name: 'Арканная искра', rarity: 'rare', description: '+10% к урону умений', skillPower: 0.1 },
     blood_moon: { id: 'blood_moon', icon: '🌙', name: 'Кровавая луна', rarity: 'epic', description: '+9 к атаке', attack: 9 },
     guardian_sigil: { id: 'guardian_sigil', icon: '🛡️', name: 'Печать стража', rarity: 'epic', description: '+10 к защите', defense: 10 },
-    phoenix_crown: { id: 'phoenix_crown', icon: '👑', name: 'Корона феникса', rarity: 'legendary', description: '+8 к атаке и +15% к урону умений', attack: 8, skillPower: 0.15 }
+    phoenix_crown: { id: 'phoenix_crown', icon: '👑', name: 'Корона феникса', rarity: 'legendary', description: '+8 к атаке, +15% к урону умений; умения поджигают врагов, раз за бой спасает от гибели', attack: 8, skillPower: 0.15 }
 });
 export const MAX_ACTIVE_RELICS = 2;
 export const RELIC_RARITIES = Object.freeze({
@@ -27,6 +27,10 @@ function validActiveRelics(player) {
     const owned = new Set(Array.isArray(player?.relics) ? player.relics : []);
     const active = Array.isArray(player?.activeRelics) ? player.activeRelics : [];
     return [...new Set(active)].filter(id => owned.has(id) && Object.hasOwn(RELICS, id)).slice(0, MAX_ACTIVE_RELICS);
+}
+
+export function hasActiveRelic(player, id) {
+    return Object.hasOwn(RELICS, id) && validActiveRelics(player).includes(id);
 }
 
 export function getActiveRelicSynergies(player) {

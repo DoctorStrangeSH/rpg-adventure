@@ -45,6 +45,7 @@ function createShopItem(item, player) {
                 ${item.defenseBonus ? `🛡️ +${item.defenseBonus} защиты` : ''}
                 ${item.heal ? `❤️ +${item.heal} HP` : ''}
                 ${item.manaHeal ? `💙 +${item.manaHeal} MP` : ''}
+                ${item.onHit ? `<br>${{ burn: '🔥 Поджог', bleed: '🩸 Кровотечение', freeze: '❄️ Заморозка' }[item.onHit.type]}: ${Math.round(item.onHit.chance * 100)}%` : ''}
             </div>
             <div class="item-price">💰 ${item.price}</div>
             ${requiredLevel > 1 ? `<div class="item-stats">${player.level < requiredLevel ? '🔒 ' : ''}Экипировка с ${requiredLevel} уровня</div>` : ''}

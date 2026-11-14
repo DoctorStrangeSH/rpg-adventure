@@ -6,10 +6,11 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 
 const particleSystem = new ParticleSystem();
+const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
 let damageTexts = [];
 let isProcessing = false;
 let animationRunning = false;
@@ -283,6 +284,7 @@ export function playerAttack() {
     const damage = isCrit ? Math.floor(baseDamage * 2) : baseDamage;
     
     applyDamage(enemy, damage);
+    const weaponEffect = triggerWeaponEffect(player, enemy);
     
     addDamageText(
         battleState.enemySprite.x,
@@ -298,7 +300,7 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${isCrit ? ' КРИТ!' : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -361,10 +363,11 @@ export function playerSkill(skillId) {
     battleState.playerSprite.isAttacking = true;
     
     const result = useSkillEffect(player, enemy, skill);
+    const weaponEffect = result.damage > 0 ? triggerWeaponEffect(player, enemy) : null;
     if (result.guardReduction) battleState.guardReduction = result.guardReduction;
     gameState.save();
     
-    const statuses = [skill.freeze && enemy.effects?.freezeTurns && 'заморозка',
+    const statuses = [weaponEffect && WEAPON_EFFECT_NAMES[weaponEffect], skill.freeze && enemy.effects?.freezeTurns && 'заморозка',
         skill.poison && enemy.effects?.poisonTurns && 'яд',
         skill.burn && enemy.effects?.burnTurns && 'горение',
         skill.bleed && enemy.effects?.bleedTurns && 'кровотечение',

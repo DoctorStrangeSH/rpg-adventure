@@ -65,6 +65,24 @@ export const ITEMS = {
         id: 'moonblade', name: 'Лунный клинок', icon: '🌙',
         type: 'weapon', rarity: 'epic', attackBonus: 28,
         requiredLevel: 6, price: 750
+    },
+    ember_sword: {
+        id: 'ember_sword', name: 'Клинок тлеющих углей', icon: '🔥',
+        type: 'weapon', rarity: 'rare', attackBonus: 20,
+        requiredLevel: 4, price: 480,
+        onHit: { type: 'burn', chance: 0.3, turns: 2 }
+    },
+    frost_blade: {
+        id: 'frost_blade', name: 'Клинок вечной мерзлоты', icon: '❄️',
+        type: 'weapon', rarity: 'epic', attackBonus: 24,
+        requiredLevel: 6, price: 780,
+        onHit: { type: 'freeze', chance: 0.18, turns: 1 }
+    },
+    blood_dagger: {
+        id: 'blood_dagger', name: 'Кровавый кинжал', icon: '🩸',
+        type: 'weapon', rarity: 'uncommon', attackBonus: 12,
+        requiredLevel: 3, price: 320,
+        onHit: { type: 'bleed', chance: 0.35, turns: 2 }
     }
 };
 

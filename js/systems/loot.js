@@ -24,8 +24,9 @@ export function rollLoot(isBoss = false, random = Math.random) {
     const tier = isBoss ? roll : roll / 0.18;
     if (isBoss && tier < 0.06) return 'dragon_sword';
     if (isBoss && tier < 0.16) return 'moonblade';
-    if (tier < 0.28) return 'guardian_armor';
-    if (tier < 0.48) return 'iron_sword';
+    if (tier < 0.28) return 'ember_sword';
+    if (tier < 0.40) return 'guardian_armor';
+    if (tier < 0.48) return 'blood_dagger';
     if (tier < 0.72) return 'big_health_potion';
     return 'mana_potion';
 }

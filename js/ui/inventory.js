@@ -60,6 +60,7 @@ function createInventoryItem(item, index, player) {
             <div class="item-icon">${itemData.icon}</div>
             <div class="item-name">${itemData.name}</div>
             <div class="item-rarity" style="color:${RARITIES[itemData.rarity]?.color || RARITIES.common.color}">${RARITIES[itemData.rarity]?.name || RARITIES.common.name}</div>
+            ${itemData.onHit ? `<div class="item-stats">${{ burn: '🔥 Поджог', bleed: '🩸 Кровотечение', freeze: '❄️ Заморозка' }[itemData.onHit.type]}: ${Math.round(itemData.onHit.chance * 100)}%</div>` : ''}
             ${['weapon', 'armor'].includes(itemData.type) ? `<div class="item-stats">${statLabel}: +${newBonus} <span style="color:${difference >= 0 ? '#6ee7b7' : '#fca5a5'}">(${difference >= 0 ? '+' : ''}${difference})</span></div>` : ''}
             ${itemData.requiredLevel ? `<div class="item-stats">${levelLocked ? '🔒 ' : ''}Уровень ${itemData.requiredLevel}</div>` : ''}
             <div class="item-quantity">x${item.quantity}</div>

@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -314,7 +314,7 @@ test('negative experience reward cannot reduce level or progress', () => {
 
 test('loot drop chances are deterministic and bosses always drop something', () => {
     assert.equal(rollLoot(false, () => 0.5), null);
-    assert.equal(rollLoot(false, () => 0.01), 'guardian_armor');
+    assert.equal(rollLoot(false, () => 0.01), 'ember_sword');
     assert.equal(rollLoot(true, () => 0.01), 'dragon_sword');
     assert.equal(rollLoot(true, () => 0.8), 'mana_potion');
     assert.equal(rollLoot(true, () => 0.1), 'moonblade');
@@ -394,5 +394,39 @@ test('inventory rejects zero-quantity and negative-index items', () => {
     useInventoryItem(0);
     useInventoryItem(-1);
     assert.equal(player.health, originalHealth);
+});
+
+test('equipped ember sword applies burn only on a successful proc', () => {
+    const player = gameState.createPlayer('warrior');
+    player.equipment.weapon = 'ember_sword';
+    const enemy = { health: 100, maxHealth: 100 };
+    assert.equal(triggerWeaponEffect(player, enemy, 0.29), 'burn');
+    assert.equal(enemy.effects.burnTurns, 2);
+    assert.equal(triggerWeaponEffect(player, enemy, 0.3), null);
+    assert.equal(tickEnemyEffects(enemy).burnDamage, 4);
+});
+
+test('frost and bleeding weapon effects respect enemy resistance', () => {
+    const player = gameState.createPlayer('mage');
+    const enemy = { health: 100, maxHealth: 100, resistances: { freeze: 1, bleed: 0.5 } };
+    player.equipment.weapon = 'frost_blade';
+    assert.equal(triggerWeaponEffect(player, enemy, 0), null);
+    assert.equal(enemy.effects, undefined);
+    player.equipment.weapon = 'blood_dagger';
+    assert.equal(triggerWeaponEffect(player, enemy, 0.1), 'bleed');
+    assert.equal(enemy.effects.bleedTurns, 1);
+    enemy.health = 0;
+    assert.equal(triggerWeaponEffect(player, enemy, 0), null);
+});
+
+test('ordinary weapons and invalid proc rolls never create status effects', () => {
+    const player = gameState.createPlayer('archer');
+    const enemy = { health: 10, maxHealth: 10 };
+    player.equipment.weapon = 'iron_sword';
+    assert.equal(triggerWeaponEffect(player, enemy, 0), null);
+    player.equipment.weapon = 'ember_sword';
+    assert.equal(triggerWeaponEffect(player, enemy, NaN), null);
+    assert.equal(triggerWeaponEffect(player, enemy, -1), null);
+    assert.equal(enemy.effects, undefined);
 });
 

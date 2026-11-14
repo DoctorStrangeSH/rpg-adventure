@@ -15,6 +15,7 @@ import { grantItem, rollLoot } from '../js/systems/loot.js';
 import { buyItem } from '../js/ui/shop.js';
 import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
 import { rollAdventureEvent, resolveAdventureEvent } from '../js/systems/adventureEvents.js';
+import { getRoute, applyRouteToEnemy } from '../js/systems/dungeonRoutes.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -591,5 +592,31 @@ test('traveling merchant requires funds and never produces negative gold', () =>
     assert.equal(outcome.gold, -20);
     assert.equal(player.gold, 0);
     assert.equal(player.health, 55);
+});
+
+test('safe dungeon route preserves enemy balance and rewards', () => {
+    const original = { name: 'Волк', health: 100, maxHealth: 100, attack: 20, expReward: 30, goldReward: 10 };
+    const safe = applyRouteToEnemy(original, 'safe', 0);
+    assert.equal(safe.health, original.health);
+    assert.equal(safe.goldReward, original.goldReward);
+    assert.equal(safe.elite, false);
+    assert.equal(original.elite, undefined);
+    assert.equal(getRoute('nonexistent'), null);
+    assert.equal(applyRouteToEnemy(original, 'nonexistent'), null);
+});
+
+test('danger route increases enemy difficulty and rewards with a rare elite encounter', () => {
+    const enemy = { name: 'Гоблин', health: 100, maxHealth: 100, attack: 20, expReward: 100, goldReward: 40 };
+    const dangerous = applyRouteToEnemy(enemy, 'danger', 0.8);
+    assert.equal(dangerous.health, 135);
+    assert.equal(dangerous.attack, 27);
+    assert.equal(dangerous.expReward, 165);
+    assert.equal(dangerous.goldReward, 66);
+    assert.equal(dangerous.elite, false);
+    const elite = applyRouteToEnemy(enemy, 'danger', 0.1);
+    assert.equal(elite.elite, true);
+    assert.ok(elite.health > dangerous.health);
+    assert.ok(elite.expReward > dangerous.expReward);
+    assert.ok(elite.name.includes('Элитный'));
 });
 

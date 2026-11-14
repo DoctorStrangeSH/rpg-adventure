@@ -5,6 +5,7 @@ import { getRandomEnemy } from '../data/enemies.js';
 import { getBattleState } from '../ui/battle.js';
 import { grantItem } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent } from './adventureEvents.js';
+import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 
 let locationState = {
     currentLocation: null,
@@ -13,7 +14,10 @@ let locationState = {
     inLocation: false,
     runId: 0,
     pendingEvent: null,
-    visitedEventStages: new Set()
+    visitedEventStages: new Set(),
+    pendingRoute: null,
+    visitedRouteStages: new Set(),
+    routeChoices: {}
 };
 
 export function startLocation(locationId) {
@@ -47,6 +51,9 @@ export function startLocation(locationId) {
     locationState.inLocation = true;
     locationState.pendingEvent = null;
     locationState.visitedEventStages = new Set();
+    locationState.pendingRoute = null;
+    locationState.visitedRouteStages = new Set();
+    locationState.routeChoices = {};
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -82,6 +89,11 @@ export function startStageBattle() {
         presentAdventureEvent();
         return;
     }
+    if ((locationState.currentStage + 1) % 10 === 3 &&
+        !locationState.visitedRouteStages.has(locationState.currentStage)) {
+        presentRouteChoice();
+        return;
+    }
     
     const enemyData = getRandomEnemy(stage.enemies);
     if (!enemyData) {
@@ -93,7 +105,7 @@ export function startStageBattle() {
     const locationIndex = getLocationIndex(location.id);
     const stageMultiplier = 1 + (stage.stage * 0.1) + (locationIndex * 0.5);
     
-    const enemy = {
+    let enemy = {
         ...enemyData,
         health: Math.floor(enemyData.health * stageMultiplier),
         maxHealth: Math.floor(enemyData.health * stageMultiplier),
@@ -102,6 +114,8 @@ export function startStageBattle() {
         expReward: Math.floor(enemyData.expReward * stageMultiplier),
         goldReward: Math.floor(enemyData.goldReward * stageMultiplier)
     };
+    const routeId = locationState.routeChoices[locationState.currentStage];
+    if (routeId) enemy = applyRouteToEnemy(enemy, routeId);
     
     const battleState = getBattleState();
     battleState.currentEnemy = enemy;
@@ -129,6 +143,39 @@ export function startStageBattle() {
         const bossText = stage.boss ? ' 👹 БОСС!' : '';
         window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}`);
     });
+}
+
+function presentRouteChoice() {
+    if (locationState.pendingRoute) return;
+    const stage = locationState.currentStage;
+    locationState.pendingRoute = { stage, runId: locationState.runId };
+    const ui = document.getElementById('battle-ui');
+    if (!ui) {
+        locationState.pendingRoute = null;
+        locationState.visitedRouteStages.add(stage);
+        locationState.routeChoices[stage] = 'safe';
+        startStageBattle();
+        return;
+    }
+    ui.innerHTML = `<section class="adventure-event" aria-label="Выбор маршрута">
+        <div class="adventure-event-icon">🧭</div><h3>Перекрёсток</h3>
+        <p>Какую дорогу вы выберете перед следующим боем?</p>
+        ${Object.values(DUNGEON_ROUTES).map(route => `<button class="battle-btn" onclick="window.chooseDungeonRoute('${route.id}')">${route.icon} ${route.name} — ${route.description}</button>`).join('')}
+    </section>`;
+    window.showBattleMessage?.('🧭 Перед вами развилка.');
+}
+
+export function chooseDungeonRoute(routeId) {
+    const pending = locationState.pendingRoute;
+    if (!pending || !getRoute(routeId) || !locationState.inLocation ||
+        getBattleState().isActive || pending.runId !== locationState.runId ||
+        pending.stage !== locationState.currentStage) return false;
+    locationState.routeChoices[pending.stage] = routeId;
+    locationState.visitedRouteStages.add(pending.stage);
+    locationState.pendingRoute = null;
+    window.showNotification?.(`Вы выбрали: ${getRoute(routeId).name}`, 'info');
+    startStageBattle();
+    return true;
 }
 
 function presentAdventureEvent() {
@@ -162,6 +209,7 @@ export function chooseAdventureEvent(choiceId) {
     }
     locationState.visitedEventStages.add(pending.stage);
     locationState.pendingEvent = null;
+    locationState.pendingRoute = null;
     gameState.save();
     window.showNotification?.(outcome.message, 'info');
     startStageBattle();
@@ -247,6 +295,7 @@ export function completeLocation() {
     
     locationState.inLocation = false;
     locationState.pendingEvent = null;
+    locationState.pendingRoute = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -275,6 +324,7 @@ export function fleeLocation() {
     locationState.runId++;
     locationState.inLocation = false;
     locationState.pendingEvent = null;
+    locationState.pendingRoute = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -288,6 +338,7 @@ export function resetLocationState() {
     locationState.runId++;
     locationState.inLocation = false;
     locationState.pendingEvent = null;
+    locationState.pendingRoute = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -346,10 +397,12 @@ export function handleBossVictory() {
 
 // Вызывается при поражении
 export function handleDefeat() {
+    locationState.runId++;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.inLocation = false;
     locationState.pendingEvent = null;
+    locationState.pendingRoute = null;
     locationState.currentLocation = null;
     
     window.showNotification('Вы погибли! Прогресс локации сброшен. Начните заново.', 'error');

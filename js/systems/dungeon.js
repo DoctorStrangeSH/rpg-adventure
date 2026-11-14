@@ -92,10 +92,13 @@ export function startStageBattle() {
     battleState.turn = 'player';
     battleState.isLocationBattle = true;
     battleState.isBossBattle = false;
+    gameState.player.stats.battles++;
+    gameState.save();
     
     const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
     
     import('../entities/Sprite.js').then(module => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         const Sprite = module.Sprite;
         battleState.playerSprite = new Sprite(gameState.player.class, 100, 200);
         battleState.enemySprite = new Sprite(enemyData.id, canvasWidth - 100, 200);
@@ -141,10 +144,13 @@ export function startBossFight(bossData) {
     battleState.turn = 'player';
     battleState.isBossBattle = true;
     battleState.isLocationBattle = true;
+    gameState.player.stats.battles++;
+    gameState.save();
     
     const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
     
     import('../entities/Sprite.js').then(module => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         const Sprite = module.Sprite;
         battleState.playerSprite = new Sprite(gameState.player.class, 100, 200);
         battleState.enemySprite = new Sprite(bossData.id, canvasWidth - 100, 150);

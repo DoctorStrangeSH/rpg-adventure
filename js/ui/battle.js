@@ -6,10 +6,12 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
+import { calculateDamage, applyDamage, consumeHealingPotion } from '../systems/combat.js';
 
 const particleSystem = new ParticleSystem();
 let damageTexts = [];
 let isProcessing = false;
+let animationRunning = false;
 
 let battleState = {
     canvas: null,
@@ -43,6 +45,7 @@ function resizeBattleCanvas() {
 
 export function startBattle(location) {
     const player = gameState.player;
+    if (!player || !location?.enemies?.length || battleState.isActive) return;
     
     const enemyData = getRandomEnemy(location.enemies);
     if (!enemyData) return;
@@ -62,6 +65,8 @@ export function startBattle(location) {
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
     isProcessing = false;
+    player.stats.battles++;
+    gameState.save();
     
     const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
     battleState.playerSprite = new Sprite(player.class, 100, 200);
@@ -73,12 +78,18 @@ export function startBattle(location) {
 }
 
 export function animateBattle() {
-    if (!battleState.isActive) return;
-    
-    battleState.animationFrame++;
-    drawBattle();
-    
-    requestAnimationFrame(animateBattle);
+    if (animationRunning) return;
+    animationRunning = true;
+    const frame = () => {
+        if (!battleState.isActive) {
+            animationRunning = false;
+            return;
+        }
+        battleState.animationFrame++;
+        drawBattle();
+        requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
 }
 
 function drawBattle() {
@@ -153,7 +164,7 @@ export function updateBattleUI() {
     
     if (!enemy) return;
     
-    const hasMana = player.mana >= 10;
+    const hasMana = player.mana >= (CLASSES[player.class]?.skills?.[0]?.manaCost ?? Infinity);
     const isBoss = battleState.isBossBattle || false;
     const canAct = battleState.turn === 'player' && !isProcessing;
     
@@ -221,6 +232,7 @@ function disableBattleButtons() {
 
 export function playerAttack() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     if (!battleState.currentEnemy) return;
     
@@ -235,10 +247,10 @@ export function playerAttack() {
     battleState.playerSprite.isAttacking = true;
     
     const isCrit = Math.random() < 0.15;
-    const baseDamage = Math.max(1, player.attack - enemy.defense + Math.floor(Math.random() * 10));
+    const baseDamage = calculateDamage(player.attack, enemy.defense, Math.floor(Math.random() * 10));
     const damage = isCrit ? Math.floor(baseDamage * 2) : baseDamage;
     
-    enemy.health = Math.max(0, enemy.health - damage);
+    applyDamage(enemy, damage);
     
     addDamageText(
         battleState.enemySprite.x,
@@ -257,6 +269,7 @@ export function playerAttack() {
     showBattleMessage(`Вы нанесли ${damage} урона!${isCrit ? ' КРИТ!' : ''}`);
     
     setTimeout(() => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         battleState.playerSprite.isAttacking = false;
         
         if (enemy.health <= 0) {
@@ -273,6 +286,7 @@ export function playerAttack() {
 
 export function playerDefend() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     if (!battleState.currentEnemy) return;
     
@@ -282,13 +296,15 @@ export function playerDefend() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    const damage = Math.max(1, Math.floor((enemy.attack - player.defense) / 2));
-    player.health = Math.max(0, player.health - damage);
+    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, player.defense) / 2));
+    applyDamage(player, damage);
+    gameState.save();
     
     showBattleMessage(`Вы защищаетесь! ${enemy.name} наносит ${damage} урона!`);
     
     battleState.turn = 'enemy';
     setTimeout(() => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         if (player.health <= 0) {
             isProcessing = false;
             battleDefeat();
@@ -304,13 +320,15 @@ export function playerDefend() {
 
 export function playerSkill() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     if (!battleState.currentEnemy) return;
     
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     const classData = CLASSES[player.class];
-    const skill = classData.skills[0];
+    const skill = classData?.skills?.[0];
+    if (!skill) return;
     
     if (player.mana < skill.manaCost) {
         showBattleMessage('Недостаточно маны!');
@@ -324,12 +342,14 @@ export function playerSkill() {
     
     battleState.playerSprite.isAttacking = true;
     
-    const damage = Math.max(1, Math.floor(player.attack * skill.damageMultiplier - enemy.defense));
-    enemy.health = Math.max(0, enemy.health - damage);
+    const damage = calculateDamage(player.attack, enemy.defense, 0, skill.damageMultiplier);
+    applyDamage(enemy, damage);
+    gameState.save();
     
     showBattleMessage(`${skill.name}! Нанесено ${damage} урона!`);
     
     setTimeout(() => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         battleState.playerSprite.isAttacking = false;
         
         if (enemy.health <= 0) {
@@ -345,30 +365,27 @@ export function playerSkill() {
 
 export function playerUseItem() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     
     const player = gameState.player;
     
-    const potionIndex = player.inventory.findIndex(item => item.id === 'health_potion');
+    const potionIndex = player.inventory.findIndex(item => item.id === 'health_potion' && item.quantity > 0);
     
     if (potionIndex === -1) {
         showBattleMessage('У вас нет зелий!');
         return;
     }
     
-    isProcessing = true;
-    disableBattleButtons();
-    
     const potion = player.inventory[potionIndex];
     const potionData = getItem(potion.id);
-    
-    const healAmount = potionData.heal || 50;
-    player.health = Math.min(player.maxHealth, player.health + healAmount);
-    potion.quantity--;
-    
-    if (potion.quantity <= 0) {
-        player.inventory.splice(potionIndex, 1);
+    const healAmount = consumeHealingPotion(player, potion, potionData);
+    if (!healAmount) {
+        showBattleMessage('Здоровье уже полностью восстановлено!');
+        return;
     }
+    isProcessing = true;
+    disableBattleButtons();
     
     showBattleMessage(`Вы использовали ${potionData.name}! +${healAmount} HP`);
     
@@ -382,14 +399,17 @@ export function playerUseItem() {
 
 export function playerFlee() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     
     isProcessing = true;
     disableBattleButtons();
+    const enemy = battleState.currentEnemy;
     
     if (Math.random() < 0.7) {
         showBattleMessage('Вы успешно сбежали!');
         setTimeout(() => {
+            if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
             isProcessing = false;
             
             // Проверяем, в локации ли мы
@@ -411,15 +431,17 @@ function enemyTurn() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    if (!enemy) return;
+    if (!battleState.isActive || !enemy) return;
     
     battleState.enemySprite.isAttacking = true;
     
     setTimeout(() => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         SoundSystem.playSound('hit');
         
-        const damage = Math.max(1, enemy.attack - player.defense + Math.floor(Math.random() * 5));
-        player.health = Math.max(0, player.health - damage);
+        const damage = calculateDamage(enemy.attack, player.defense, Math.floor(Math.random() * 5));
+        applyDamage(player, damage);
+        gameState.save();
         
         addDamageText(
             battleState.playerSprite.x,
@@ -439,6 +461,7 @@ function enemyTurn() {
         showBattleMessage(`${enemy.name} наносит ${damage} урона!`);
         
         setTimeout(() => {
+            if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
             if (player.health <= 0) {
                 SoundSystem.playSound('defeat');
                 isProcessing = false;
@@ -464,9 +487,10 @@ export function battleVictory() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    if (!enemy) return;
+    if (!battleState.isActive || !enemy || enemy.health > 0) return;
     
     battleState.isActive = false;
+    isProcessing = false;
     
     const expGain = Math.floor(enemy.expReward * (1 + Math.random() * 0.5));
     const goldGain = Math.floor(enemy.goldReward * (1 + Math.random() * 0.5));
@@ -513,8 +537,10 @@ export function battleVictory() {
 
 export function battleDefeat() {
     const player = gameState.player;
+    if (!battleState.isActive || !player || player.health > 0) return;
     
     battleState.isActive = false;
+    isProcessing = false;
     
     const goldLoss = Math.floor(player.gold * 0.1);
     player.gold -= goldLoss;

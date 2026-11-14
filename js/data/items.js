@@ -59,8 +59,10 @@ export const ITEMS = {
     guardian_armor: {
         id: 'guardian_armor', name: 'Доспех стража', icon: '🛡️',
         type: 'armor', rarity: 'rare', defenseBonus: 17,
-        requiredLevel: 4, price: 450
+        requiredLevel: 4, price: 450, setId: 'emberguard'
     },
+    frost_armor: { id: 'frost_armor', name: 'Кираса ледяного дозора', icon: '🧊', type: 'armor', rarity: 'epic', defenseBonus: 19, requiredLevel: 6, price: 820, setId: 'frostwarden' },
+    blood_armor: { id: 'blood_armor', name: 'Кожаный панцирь охотника', icon: '🩸', type: 'armor', rarity: 'rare', defenseBonus: 13, requiredLevel: 3, price: 390, setId: 'bloodhunter' },
     moonblade: {
         id: 'moonblade', name: 'Лунный клинок', icon: '🌙',
         type: 'weapon', rarity: 'epic', attackBonus: 28,
@@ -69,19 +71,19 @@ export const ITEMS = {
     ember_sword: {
         id: 'ember_sword', name: 'Клинок тлеющих углей', icon: '🔥',
         type: 'weapon', rarity: 'rare', attackBonus: 20,
-        requiredLevel: 4, price: 480,
+        requiredLevel: 4, price: 480, setId: 'emberguard',
         onHit: { type: 'burn', chance: 0.3, turns: 2 }
     },
     frost_blade: {
         id: 'frost_blade', name: 'Клинок вечной мерзлоты', icon: '❄️',
         type: 'weapon', rarity: 'epic', attackBonus: 24,
-        requiredLevel: 6, price: 780,
+        requiredLevel: 6, price: 780, setId: 'frostwarden',
         onHit: { type: 'freeze', chance: 0.18, turns: 1 }
     },
     blood_dagger: {
         id: 'blood_dagger', name: 'Кровавый кинжал', icon: '🩸',
         type: 'weapon', rarity: 'uncommon', attackBonus: 12,
-        requiredLevel: 3, price: 320,
+        requiredLevel: 3, price: 320, setId: 'bloodhunter',
         onHit: { type: 'bleed', chance: 0.35, turns: 2 }
     }
 };

@@ -1,6 +1,7 @@
 // Экран инвентаря
 import { gameState } from '../core/state.js';
 import { getItem, RARITIES } from '../data/items.js';
+import { getEquipmentSetBonuses } from '../systems/combat.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -8,6 +9,8 @@ export function updateInventoryScreen() {
     
     const content = document.getElementById('inventory-content');
     
+    const setBonuses = getEquipmentSetBonuses(player);
+    const setSummary = setBonuses.activeSets.length ? setBonuses.activeSets.map(set => set.name).join(', ') : 'Нет активных комплектов';
     content.innerHTML = `
         <div class="section-title">⚔️ Экипировка</div>
         <div class="equipment-slots">
@@ -15,6 +18,8 @@ export function updateInventoryScreen() {
             ${createEquipmentSlot('armor', '🛡️', 'Броня', player.equipment.armor)}
         </div>
         
+        <div class="section-title">✨ Комплекты</div>
+        <div class="equipment-set-summary">${setSummary}${setBonuses.attack ? ` · +${setBonuses.attack} атаки` : ''}${setBonuses.defense ? ` · +${setBonuses.defense} защиты` : ''}</div>
         <div class="section-title">🎒 Предметы</div>
         <div class="inventory-grid">
             ${player.inventory.length > 0 ? player.inventory.map((item, index) => 

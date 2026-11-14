@@ -430,3 +430,15 @@ test('ordinary weapons and invalid proc rolls never create status effects', () =
     assert.equal(enemy.effects, undefined);
 });
 
+
+test('matching weapon and armor activate a set bonus used by combat stats', () => {
+    const player = gameState.createPlayer('warrior');
+    player.equipment.weapon = 'ember_sword';
+    assert.equal(getEquipmentSetBonuses(player).attack, 0);
+    player.equipment.armor = 'guardian_armor';
+    const result = getEffectiveCombatStats(player);
+    assert.equal(result.attack, player.attack + 6);
+    assert.equal(result.activeSets[0].name, 'Страж пепла');
+    player.equipment.weapon = 'blood_dagger';
+    assert.equal(getEquipmentSetBonuses(player).activeSets.length, 0);
+});

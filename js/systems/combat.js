@@ -41,7 +41,7 @@ export function useSkillEffect(player, enemy, skill) {
     // Utility abilities can deliberately skip direct damage.
     if (skill.damageMultiplier || skill.hits || skill.poison) {
         for (let hit = 0; hit < hits; hit++) {
-            damage += applyDamage(enemy, calculateDamage(player.attack, enemy.defense, 0, multiplier));
+            damage += applyDamage(enemy, calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, 0, multiplier));
         }
     }
     if (skill.freeze) applyStatusEffect(enemy, 'freeze', 1);
@@ -134,7 +134,7 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     const weakened = enemy.effects?.weakenTurns > 0;
     const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1) * (weakened ? 0.75 : 1);
     if (weakened) enemy.effects.weakenTurns--;
-    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, player.defense, variance, multiplier) * (1 - reduction)));
+    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, getEffectiveCombatStats(player).defense, variance, multiplier) * (1 - reduction)));
     applyDamage(player, damage);
     const manaBurned = action === 'mana_burn' ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / 3))) : 0;
     player.mana -= manaBurned;

@@ -2,6 +2,20 @@
 import { getItem } from '../data/items.js';
 import { getTalentBonuses } from './talents.js';
 
+export function hasSpecialization(player, id) {
+    return player?.talents?.includes(id) === true;
+}
+
+export function getCriticalMultiplier(player) {
+    return hasSpecialization(player, 'archer_sniper') ? 2.5 : 2;
+}
+
+export function triggerRangerEffect(player, enemy, roll = Math.random()) {
+    if (!hasSpecialization(player, 'archer_ranger') || !enemy || enemy.health <= 0 ||
+        !Number.isFinite(roll) || roll < 0 || roll >= 0.3) return false;
+    return applyStatusEffect(enemy, 'bleed', 2);
+}
+
 export function triggerWeaponEffect(player, enemy, roll = Math.random()) {
     if (!enemy || enemy.health <= 0 || !player?.equipment?.weapon) return null;
     const effect = getItem(player.equipment.weapon)?.onHit;
@@ -37,7 +51,7 @@ export function consumeHealingPotion(player, item, potionData) {
 
 export function useSkillEffect(player, enemy, skill) {
     const hits = Math.max(1, Math.floor(skill.hits || 1));
-    const multiplier = skill.damageMultiplier ?? 1;
+    const multiplier = (skill.damageMultiplier ?? 1) * (hasSpecialization(player, 'mage_arcanist') ? 1.2 : 1);
     let damage = 0;
     // Utility abilities can deliberately skip direct damage.
     if (skill.damageMultiplier || skill.hits || skill.poison) {
@@ -130,16 +144,21 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     if (action === 'recover') {
         const healed = Math.min(enemy.maxHealth - enemy.health, Math.max(1, Math.floor(enemy.maxHealth * 0.15)));
         enemy.health += healed;
-        return { damage: 0, healed, manaBurned: 0 };
+        return { damage: 0, healed, manaBurned: 0, reflected: 0 };
     }
     const weakened = enemy.effects?.weakenTurns > 0;
     const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1) * (weakened ? 0.75 : 1);
     if (weakened) enemy.effects.weakenTurns--;
-    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, getEffectiveCombatStats(player).defense, variance, multiplier) * (1 - reduction)));
+    const runeReduction = hasSpecialization(player, 'mage_warden') ? 0.15 : 0;
+    const effectiveReduction = 1 - (1 - Math.min(1, Math.max(0, reduction))) * (1 - runeReduction);
+    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, getEffectiveCombatStats(player).defense, variance, multiplier) * (1 - effectiveReduction)));
     applyDamage(player, damage);
+    // Retaliation is tied to an actual guard, not passive defense or recovery.
+    const reflected = hasSpecialization(player, 'warrior_sentinel') && reduction > 0
+        ? applyDamage(enemy, Math.max(1, Math.floor(damage * 0.25))) : 0;
     const manaBurned = action === 'mana_burn' ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / 3))) : 0;
     player.mana -= manaBurned;
-    return { damage, healed: 0, manaBurned };
+    return { damage, healed: 0, manaBurned, reflected };
 }
 
 // Set bonuses are derived from equipped IDs, never permanently added to base
@@ -163,7 +182,8 @@ export function getEffectiveCombatStats(player) {
     const bonuses = getEquipmentSetBonuses(player);
     const talents = getTalentBonuses(player);
     return {
-        attack: Math.max(0, (Number(player?.attack) || 0) + bonuses.attack + talents.attack),
+        attack: Math.max(0, Math.floor(((Number(player?.attack) || 0) + bonuses.attack + talents.attack) *
+            (hasSpecialization(player, 'warrior_berserker') && player.maxHealth > 0 && player.health / player.maxHealth <= 0.35 ? 1.3 : 1))),
         defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense),
         critChance: Math.min(1, 0.15 + talents.critChance),
         activeSets: bonuses.activeSets

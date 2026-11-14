@@ -5,22 +5,22 @@ export const TALENTS = Object.freeze({
         { id: 'warrior_force', name: 'Сокрушитель', icon: '⚔️', description: '+5 к атаке', attack: 5 },
         { id: 'warrior_guard', name: 'Железная воля', icon: '🛡️', description: '+5 к защите', defense: 5 },
         { id: 'warrior_critical', name: 'Боевой азарт', icon: '💥', description: '+5% к шансу критического удара', critChance: 0.05 },
-        { id: 'warrior_berserker', name: 'Берсерк', icon: '🔥', description: 'Специализация: +12 к атаке', attack: 12, requiredLevel: 4, requires: 'warrior_force', specialization: true },
-        { id: 'warrior_sentinel', name: 'Защитник', icon: '🏰', description: 'Специализация: +10 к защите', defense: 10, requiredLevel: 4, requires: 'warrior_guard', specialization: true }
+        { id: 'warrior_berserker', name: 'Берсерк', icon: '🔥', description: '+12 к атаке; при ≤35% здоровья атака +30%', attack: 12, requiredLevel: 4, requires: 'warrior_force', specialization: true },
+        { id: 'warrior_sentinel', name: 'Защитник', icon: '🏰', description: '+10 к защите; отражает 25% урона при блокировании', defense: 10, requiredLevel: 4, requires: 'warrior_guard', specialization: true }
     ],
     mage: [
         { id: 'mage_focus', name: 'Тайное знание', icon: '🔮', description: '+6 к атаке', attack: 6 },
         { id: 'mage_ward', name: 'Магический барьер', icon: '✨', description: '+4 к защите', defense: 4 },
         { id: 'mage_critical', name: 'Разряд энергии', icon: '⚡', description: '+5% к шансу критического удара', critChance: 0.05 },
-        { id: 'mage_arcanist', name: 'Арканист', icon: '🌌', description: 'Специализация: +14 к атаке', attack: 14, requiredLevel: 4, requires: 'mage_focus', specialization: true },
-        { id: 'mage_warden', name: 'Хранитель рун', icon: '🪄', description: 'Специализация: +9 к защите', defense: 9, requiredLevel: 4, requires: 'mage_ward', specialization: true }
+        { id: 'mage_arcanist', name: 'Арканист', icon: '🌌', description: '+14 к атаке; урон умений +20%', attack: 14, requiredLevel: 4, requires: 'mage_focus', specialization: true },
+        { id: 'mage_warden', name: 'Хранитель рун', icon: '🪄', description: '+9 к защите; входящий урон −15%', defense: 9, requiredLevel: 4, requires: 'mage_ward', specialization: true }
     ],
     archer: [
         { id: 'archer_precision', name: 'Верный прицел', icon: '🎯', description: '+5% к шансу критического удара', critChance: 0.05 },
         { id: 'archer_power', name: 'Тугой лук', icon: '🏹', description: '+5 к атаке', attack: 5 },
         { id: 'archer_evasion', name: 'Ловкость охотника', icon: '🍃', description: '+4 к защите', defense: 4 },
-        { id: 'archer_sniper', name: 'Снайпер', icon: '🏹', description: 'Специализация: +15% к критическому удару', critChance: 0.15, requiredLevel: 4, requires: 'archer_precision', specialization: true },
-        { id: 'archer_ranger', name: 'Следопыт', icon: '🌲', description: 'Специализация: +8 к атаке и +3 к защите', attack: 8, defense: 3, requiredLevel: 4, requires: 'archer_power', specialization: true }
+        { id: 'archer_sniper', name: 'Снайпер', icon: '🏹', description: '+15% к шансу крита; критический урон ×2,5', critChance: 0.15, requiredLevel: 4, requires: 'archer_precision', specialization: true },
+        { id: 'archer_ranger', name: 'Следопыт', icon: '🌲', description: '+8 к атаке и +3 к защите; 30% шанс кровотечения', attack: 8, defense: 3, requiredLevel: 4, requires: 'archer_power', specialization: true }
     ]
 });
 

@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 
 const particleSystem = new ParticleSystem();
@@ -281,10 +281,11 @@ export function playerAttack() {
     
     const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
     const baseDamage = calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10));
-    const damage = isCrit ? Math.floor(baseDamage * 2) : baseDamage;
+    const damage = isCrit ? Math.floor(baseDamage * getCriticalMultiplier(player)) : baseDamage;
     
     applyDamage(enemy, damage);
     const weaponEffect = triggerWeaponEffect(player, enemy);
+    const rangerBleed = triggerRangerEffect(player, enemy);
     
     addDamageText(
         battleState.enemySprite.x,
@@ -300,7 +301,7 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -521,7 +522,7 @@ function enemyTurn() {
         battleState.enemySprite.isAttacking = false;
         
         showBattleMessage(result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
-            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}`);
+            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}`);
         
         setTimeout(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -529,6 +530,11 @@ function enemyTurn() {
                 SoundSystem.playSound('defeat');
                 isProcessing = false;
                 battleDefeat();
+                return;
+            }
+            if (enemy.health <= 0) {
+                isProcessing = false;
+                battleVictory();
                 return;
             }
             

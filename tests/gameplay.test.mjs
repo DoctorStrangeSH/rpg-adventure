@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -506,5 +506,57 @@ test('all classes can choose only their valid specialization after its prerequis
         assert.equal(unlockTalent(player, specialization), true);
         assert.equal(unlockTalent(player, competing), false);
     }
+});
+
+test('berserker power activates at critical health and disappears after healing', () => {
+    const player = gameState.createPlayer('warrior');
+    player.talents = ['warrior_force', 'warrior_berserker'];
+    const full = getEffectiveCombatStats(player).attack;
+    player.health = Math.floor(player.maxHealth * 0.35);
+    assert.equal(getEffectiveCombatStats(player).attack, Math.floor(full * 1.3));
+    player.health = player.maxHealth;
+    assert.equal(getEffectiveCombatStats(player).attack, full);
+});
+
+test('sentinel counters guarded attacks but not unguarded hits or healing turns', () => {
+    const player = gameState.createPlayer('warrior');
+    player.talents = ['warrior_guard', 'warrior_sentinel'];
+    const enemy = { health: 100, maxHealth: 100, attack: 36, defense: 0 };
+    const guarded = applyEnemyAction(enemy, player, 'attack', 0, 0.5);
+    assert.ok(guarded.reflected > 0);
+    assert.equal(enemy.health, 100 - guarded.reflected);
+    assert.equal(applyEnemyAction(enemy, player, 'attack', 0, 0).reflected, 0);
+    assert.equal(applyEnemyAction(enemy, player, 'recover').reflected, 0);
+});
+
+test('arcanist strengthens skill damage and rune warden mitigates incoming hits', () => {
+    const mage = gameState.createPlayer('mage');
+    const skill = CLASSES.mage.skills[0];
+    const ordinary = { health: 300, defense: 0 };
+    const normalDamage = useSkillEffect(mage, ordinary, skill).damage;
+    mage.talents = ['mage_focus', 'mage_arcanist'];
+    const empowered = { health: 300, defense: 0 };
+    assert.ok(useSkillEffect(mage, empowered, skill).damage > normalDamage);
+    mage.talents = ['mage_ward', 'mage_warden'];
+    const enemy = { health: 100, maxHealth: 100, attack: 35, defense: 0 };
+    const guardedDamage = applyEnemyAction(enemy, mage, 'attack').damage;
+    mage.talents = ['mage_ward'];
+    mage.health = mage.maxHealth;
+    assert.ok(applyEnemyAction(enemy, mage, 'attack').damage > guardedDamage);
+});
+
+test('sniper critical multiplier and ranger bleeding respect talent and resistance', () => {
+    const player = gameState.createPlayer('archer');
+    assert.equal(getCriticalMultiplier(player), 2);
+    player.talents = ['archer_precision', 'archer_sniper'];
+    assert.equal(getCriticalMultiplier(player), 2.5);
+    const enemy = { health: 100, maxHealth: 100 };
+    assert.equal(triggerRangerEffect(player, enemy, 0), false);
+    player.talents = ['archer_power', 'archer_ranger'];
+    assert.equal(triggerRangerEffect(player, enemy, 0.3), false);
+    assert.equal(triggerRangerEffect(player, enemy, 0.2), true);
+    assert.equal(enemy.effects.bleedTurns, 2);
+    const immune = { health: 100, resistances: { bleed: 1 } };
+    assert.equal(triggerRangerEffect(player, immune, 0.1), false);
 });
 

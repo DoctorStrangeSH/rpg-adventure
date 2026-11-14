@@ -7,6 +7,7 @@ import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase } from '../systems/combat.js';
+import { grantItem, rollLoot } from '../systems/loot.js';
 
 const particleSystem = new ParticleSystem();
 let damageTexts = [];
@@ -570,7 +571,10 @@ export function battleVictory() {
     
     window.updateAchievements?.();
     
-    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!`);
+    const lootId = rollLoot(battleState.isBossBattle);
+    const lootQuantity = lootId ? grantItem(player, lootId) : 0;
+    const lootText = lootQuantity ? ` 🎁 Добыча: ${getItem(lootId).name}!` : '';
+    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}`);
     
     if (player.experience >= player.maxExperience) {
         window.levelUp?.();

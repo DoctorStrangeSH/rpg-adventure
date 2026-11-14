@@ -11,6 +11,8 @@ import { getLocation } from '../js/data/locations.js';
 import { completeLocation, getLocationState, resetLocationState } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
+import { grantItem, rollLoot } from '../js/systems/loot.js';
+import { buyItem } from '../js/ui/shop.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -307,5 +309,60 @@ test('negative experience reward cannot reduce level or progress', () => {
     assert.equal(applyExperience(player, -100), 0);
     assert.equal(player.level, 1);
     assert.equal(player.experience, 0);
+});
+
+test('loot drop chances are deterministic and bosses always drop something', () => {
+    assert.equal(rollLoot(false, () => 0.5), null);
+    assert.equal(rollLoot(false, () => 0.01), 'iron_sword');
+    assert.equal(rollLoot(true, () => 0.01), 'dragon_sword');
+    assert.equal(rollLoot(true, () => 0.8), 'mana_potion');
+    assert.equal(rollLoot(true, () => NaN), null);
+});
+
+test('item grants stack safely without allowing unknown items or negative quantities', () => {
+    const player = gameState.createPlayer('warrior');
+    assert.equal(grantItem(player, 'health_potion', 2), 2);
+    assert.equal(player.inventory[0].quantity, 5);
+    assert.equal(grantItem(player, 'unknown'), 0);
+    assert.equal(grantItem(player, 'health_potion', -2), 0);
+    assert.equal(grantItem(player, 'dragon_sword'), 1);
+    assert.deepEqual(player.inventory.at(-1), { id: 'dragon_sword', quantity: 1 });
+});
+
+test('shop purchases are atomic and never overspend gold', () => {
+    const player = gameState.createPlayer('warrior');
+    const startingGold = player.gold;
+    buyItem('unknown');
+    buyItem('dragon_sword');
+    assert.equal(player.gold, startingGold);
+    buyItem('health_potion');
+    assert.equal(player.gold, startingGold - getItem('health_potion').price);
+    assert.equal(player.inventory[0].quantity, 4);
+});
+
+test('defeated boss grants loot only once', () => {
+    const player = gameState.createPlayer('warrior');
+    const battle = getBattleState();
+    const originalRandom = Math.random;
+    const originalQuery = document.querySelector;
+    const originalLocation = window.getLocationState;
+    Math.random = () => 0.01;
+    document.querySelector = () => null;
+    window.getLocationState = () => ({ inLocation: true });
+    battle.isActive = true;
+    battle.isBossBattle = true;
+    battle.currentEnemy = { health: 0, expReward: 10, goldReward: 10 };
+    try {
+        battleVictory();
+        battleVictory();
+        assert.equal(player.inventory.find(item => item.id === 'dragon_sword')?.quantity, 1);
+    } finally {
+        Math.random = originalRandom;
+        document.querySelector = originalQuery;
+        window.getLocationState = originalLocation;
+        battle.isActive = false;
+        battle.isBossBattle = false;
+        battle.currentEnemy = null;
+    }
 });
 

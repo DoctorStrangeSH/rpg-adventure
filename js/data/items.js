@@ -5,6 +5,7 @@ export const ITEMS = {
         name: 'Зелье здоровья',
         icon: '❤️',
         type: 'consumable',
+        rarity: 'common',
         heal: 50,
         price: 30
     },
@@ -13,6 +14,7 @@ export const ITEMS = {
         name: 'Зелье маны',
         icon: '💙',
         type: 'consumable',
+        rarity: 'common',
         manaHeal: 30,
         price: 25
     },
@@ -21,6 +23,7 @@ export const ITEMS = {
         name: 'Большое зелье здоровья',
         icon: '💖',
         type: 'consumable',
+        rarity: 'uncommon',
         heal: 100,
         price: 60
     },
@@ -29,6 +32,7 @@ export const ITEMS = {
         name: 'Железный меч',
         icon: '⚔️',
         type: 'weapon',
+        rarity: 'uncommon',
         attackBonus: 15,
         price: 200
     },
@@ -37,6 +41,7 @@ export const ITEMS = {
         name: 'Драконий меч',
         icon: '🐉',
         type: 'weapon',
+        rarity: 'legendary',
         attackBonus: 40,
         price: 1000
     },
@@ -45,6 +50,7 @@ export const ITEMS = {
         name: 'Кожаная броня',
         icon: '🛡️',
         type: 'armor',
+        rarity: 'common',
         defenseBonus: 8,
         price: 80
     }
@@ -57,3 +63,11 @@ export function getItem(itemId) {
 export function getItemsByType(type) {
     return Object.values(ITEMS).filter(item => item.type === type);
 }
+
+export const RARITIES = {
+    common: { name: 'Обычный', color: '#cbd5e1' },
+    uncommon: { name: 'Необычный', color: '#6ee7b7' },
+    rare: { name: 'Редкий', color: '#93c5fd' },
+    epic: { name: 'Эпический', color: '#d8b4fe' },
+    legendary: { name: 'Легендарный', color: '#fbbf24' }
+};

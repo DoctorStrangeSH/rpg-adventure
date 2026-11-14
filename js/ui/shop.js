@@ -1,6 +1,7 @@
 // Экран магазина
 import { gameState } from '../core/state.js';
-import { ITEMS, getItemsByType, getItem } from '../data/items.js';
+import { getItemsByType, getItem, RARITIES } from '../data/items.js';
+import { grantItem } from '../systems/loot.js';
 
 export function updateShopScreen() {
     const player = gameState.player;
@@ -37,6 +38,7 @@ function createShopItem(item, player) {
         <div class="shop-item">
             <div class="item-icon">${item.icon}</div>
             <div class="item-name">${item.name}</div>
+            <div class="item-rarity" style="color:${RARITIES[item.rarity]?.color || RARITIES.common.color}">${RARITIES[item.rarity]?.name || RARITIES.common.name}</div>
             <div class="item-stats">
                 ${item.attackBonus ? `⚔️ +${item.attackBonus} атаки` : ''}
                 ${item.defenseBonus ? `🛡️ +${item.defenseBonus} защиты` : ''}
@@ -57,25 +59,18 @@ export function buyItem(itemId) {
     const player = gameState.player;
     const itemData = getItem(itemId);
     
-    if (!itemData) return;
+    if (!player || !itemData || !Number.isSafeInteger(itemData.price) || itemData.price < 0) return;
     
     if (player.gold < itemData.price) {
         window.showNotification('Недостаточно золота!', 'error');
         return;
     }
     
-    player.gold -= itemData.price;
-    
-    const existingItem = player.inventory.find(item => item.id === itemId);
-    
-    if (existingItem) {
-        existingItem.quantity++;
-    } else {
-        player.inventory.push({
-            id: itemId,
-            quantity: 1
-        });
+    if (!grantItem(player, itemId)) {
+        window.showNotification?.('Не удалось добавить предмет в инвентарь', 'error');
+        return;
     }
+    player.gold -= itemData.price;
     
     window.showNotification(`Вы купили ${itemData.name}!`, 'success');
     

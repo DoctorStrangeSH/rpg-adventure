@@ -3,6 +3,7 @@ import { gameState } from '../core/state.js';
 import { getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getBattleState } from '../ui/battle.js';
+import { grantItem } from './loot.js';
 
 let locationState = {
     currentLocation: null,
@@ -183,16 +184,7 @@ export function completeLocation() {
     if (player.experience >= player.maxExperience) window.levelUp?.();
     
     location.rewards.items.forEach(rewardItem => {
-        const existingItem = player.inventory.find(item => item.id === rewardItem.id);
-        
-        if (existingItem) {
-            existingItem.quantity += rewardItem.quantity;
-        } else {
-            player.inventory.push({
-                id: rewardItem.id,
-                quantity: rewardItem.quantity
-            });
-        }
+        grantItem(player, rewardItem.id, rewardItem.quantity);
     });
     
     // Открываем следующую локацию

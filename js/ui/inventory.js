@@ -1,6 +1,6 @@
 // Экран инвентаря
 import { gameState } from '../core/state.js';
-import { ITEMS, getItem } from '../data/items.js';
+import { getItem, RARITIES } from '../data/items.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -52,6 +52,7 @@ function createInventoryItem(item, index, player) {
         <div class="inventory-item ${isEquipped ? 'equipped' : ''}" onclick="window.useInventoryItem(${index})">
             <div class="item-icon">${itemData.icon}</div>
             <div class="item-name">${itemData.name}</div>
+            <div class="item-rarity" style="color:${RARITIES[itemData.rarity]?.color || RARITIES.common.color}">${RARITIES[itemData.rarity]?.name || RARITIES.common.name}</div>
             <div class="item-quantity">x${item.quantity}</div>
             ${isEquipped ? '<div class="equipped-badge">✓</div>' : ''}
         </div>

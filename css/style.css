@@ -1376,3 +1376,4 @@ body {
 .talent-card { gap: 12px; }
 .talent-button { margin-left: auto; padding: 9px 12px; border: 1px solid var(--gold); border-radius: 9px; background: rgba(240, 190, 85, .13); color: var(--gold); cursor: pointer; font: inherit; }
 .talent-button:disabled { opacity: .55; cursor: default; }
+.talent-specialization { border-color: rgba(240, 190, 85, .55); background: linear-gradient(120deg, rgba(240, 190, 85, .09), transparent); }

@@ -13,7 +13,7 @@ import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot } from '../js/systems/loot.js';
 import { buyItem } from '../js/ui/shop.js';
-import { getTalentPoints, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
+import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -475,5 +475,36 @@ test('legacy character saves receive empty talents without losing level progress
     assert.equal(gameState.load(), true);
     assert.deepEqual(gameState.player.talents, []);
     assert.equal(getTalentPoints(gameState.player), 2);
+});
+
+test('specializations require level and prerequisite and permanently exclude the other branch', () => {
+    const player = gameState.createPlayer('warrior');
+    player.level = 3;
+    assert.equal(unlockTalent(player, 'warrior_force'), true);
+    assert.equal(getTalentAvailability(player, 'warrior_berserker').reason, 'Нужен 4 уровень');
+    player.level = 4;
+    assert.equal(unlockTalent(player, 'warrior_berserker'), true);
+    assert.equal(getTalentBonuses(player).attack, 17);
+    assert.equal(unlockTalent(player, 'warrior_guard'), true);
+    player.level = 8;
+    assert.equal(getTalentAvailability(player, 'warrior_sentinel').reason, 'Другая специализация выбрана');
+    assert.equal(unlockTalent(player, 'warrior_sentinel'), false);
+    gameState.save();
+    assert.equal(gameState.load(), true);
+    assert.equal(unlockTalent(gameState.player, 'warrior_sentinel'), false);
+});
+
+test('all classes can choose only their valid specialization after its prerequisite', () => {
+    for (const [classId, prerequisite, specialization, competing] of [
+        ['mage', 'mage_focus', 'mage_arcanist', 'mage_warden'],
+        ['archer', 'archer_precision', 'archer_sniper', 'archer_ranger']
+    ]) {
+        const player = gameState.createPlayer(classId);
+        player.level = 5;
+        assert.equal(unlockTalent(player, specialization), false);
+        assert.equal(unlockTalent(player, prerequisite), true);
+        assert.equal(unlockTalent(player, specialization), true);
+        assert.equal(unlockTalent(player, competing), false);
+    }
 });
 

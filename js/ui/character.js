@@ -4,7 +4,7 @@ import { CLASSES } from '../data/classes.js';
 import { SoundSystem } from '../systems/sound.js';
 import { applyExperience } from '../systems/progression.js';
 import { escapeHtml } from '../core/html.js';
-import { TALENTS, getTalentPoints, unlockTalent } from '../systems/talents.js';
+import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
 import { getEffectiveCombatStats } from '../systems/combat.js';
 
 export function updateCharacterScreen() {
@@ -42,14 +42,14 @@ export function updateCharacterScreen() {
         <div class="section-title">🌟 Таланты • свободных очков: ${getTalentPoints(player)}</div>
         <div class="skills-section">
             ${TALENTS[player.class].map(talent => `
-                <div class="skill-card talent-card">
+                <div class="skill-card talent-card ${talent.specialization ? 'talent-specialization' : ''}">
                     <div class="skill-icon">${talent.icon}</div>
                     <div class="skill-info">
                         <div class="skill-name">${talent.name}</div>
-                        <div class="skill-description">${talent.description}</div>
+                        <div class="skill-description">${talent.description}${talent.specialization ? ' • Уникальная ветка' : ''}</div>
                     </div>
-                    <button class="talent-button" onclick="window.chooseTalent('${talent.id}')" ${player.talents?.includes(talent.id) || !getTalentPoints(player) ? 'disabled' : ''}>
-                        ${player.talents?.includes(talent.id) ? 'Изучено' : 'Изучить'}
+                    <button class="talent-button" onclick="window.chooseTalent('${talent.id}')" ${!getTalentAvailability(player, talent.id).available ? 'disabled' : ''}>
+                        ${getTalentAvailability(player, talent.id).reason}
                     </button>
                 </div>
             `).join('')}

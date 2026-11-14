@@ -19,7 +19,8 @@ export const CLASSES = {
                 icon: '💥',
                 description: 'Наносит 200% урона',
                 manaCost: 10,
-                damageMultiplier: 2.0
+                damageMultiplier: 2.0,
+                weaken: true
             },
             {
                 id: 'shield_wall',
@@ -50,7 +51,8 @@ export const CLASSES = {
                 icon: '🔥',
                 description: 'Наносит 250% урона',
                 manaCost: 20,
-                damageMultiplier: 2.5
+                damageMultiplier: 2.5,
+                burn: true
             },
             {
                 id: 'frost_nova',
@@ -82,7 +84,8 @@ export const CLASSES = {
                 description: 'Наносит 150% урона дважды',
                 manaCost: 15,
                 damageMultiplier: 1.5,
-                hits: 2
+                hits: 2,
+                bleed: true
             },
             {
                 id: 'poison_arrow',

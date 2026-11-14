@@ -36,22 +36,44 @@ export function useSkillEffect(player, enemy, skill) {
             damage += applyDamage(enemy, calculateDamage(player.attack, enemy.defense, 0, multiplier));
         }
     }
-    enemy.effects ||= {};
-    if (skill.freeze) enemy.effects.freezeTurns = 1;
-    if (skill.poison) enemy.effects.poisonTurns = 3;
+    if (skill.freeze) applyStatusEffect(enemy, 'freeze', 1);
+    if (skill.poison) applyStatusEffect(enemy, 'poison', 3);
+    if (skill.burn) applyStatusEffect(enemy, 'burn', 2);
+    if (skill.bleed) applyStatusEffect(enemy, 'bleed', 2);
+    if (skill.weaken) applyStatusEffect(enemy, 'weaken', 2);
     return { damage, hits, guardReduction: skill.defenseBonus ? 0.75 : 0 };
+}
+
+export function applyStatusEffect(enemy, type, turns) {
+    const resistance = Math.max(0, Math.min(1, Number(enemy.resistances?.[type]) || 0));
+    const duration = Math.ceil(Math.max(0, turns) * (1 - resistance));
+    if (!duration) return false;
+    enemy.effects ||= {};
+    const key = `${type}Turns`;
+    enemy.effects[key] = Math.max(enemy.effects[key] || 0, duration);
+    return true;
 }
 
 export function tickEnemyEffects(enemy) {
     const effects = enemy.effects || {};
     let poisonDamage = 0;
+    let burnDamage = 0;
+    let bleedDamage = 0;
     if (effects.poisonTurns > 0) {
         poisonDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.05)));
         effects.poisonTurns--;
     }
+    if (effects.burnTurns > 0) {
+        burnDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.04)));
+        effects.burnTurns--;
+    }
+    if (effects.bleedTurns > 0) {
+        bleedDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.03)));
+        effects.bleedTurns--;
+    }
     const frozen = effects.freezeTurns > 0;
     if (frozen) effects.freezeTurns--;
-    return { poisonDamage, frozen };
+    return { poisonDamage, burnDamage, bleedDamage, frozen };
 }
 
 // Deterministic with an injected roll, so tactics are reproducible in tests.
@@ -101,7 +123,9 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
         enemy.health += healed;
         return { damage: 0, healed, manaBurned: 0 };
     }
-    const multiplier = action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1;
+    const weakened = enemy.effects?.weakenTurns > 0;
+    const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1) * (weakened ? 0.75 : 1);
+    if (weakened) enemy.effects.weakenTurns--;
     const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, player.defense, variance, multiplier) * (1 - reduction)));
     applyDamage(player, damage);
     const manaBurned = action === 'mana_burn' ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / 3))) : 0;

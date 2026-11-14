@@ -172,6 +172,9 @@ export function updateBattleUI() {
     const activeEffects = [
         enemy.effects?.freezeTurns > 0 ? `❄️ Заморозка: ${enemy.effects.freezeTurns}` : null,
         enemy.effects?.poisonTurns > 0 ? `☠️ Яд: ${enemy.effects.poisonTurns}` : null,
+        enemy.effects?.burnTurns > 0 ? `🔥 Горение: ${enemy.effects.burnTurns}` : null,
+        enemy.effects?.bleedTurns > 0 ? `🩸 Кровотечение: ${enemy.effects.bleedTurns}` : null,
+        enemy.effects?.weakenTurns > 0 ? `🔻 Ослабление: ${enemy.effects.weakenTurns}` : null,
         battleState.guardReduction > 0 ? '🛡️ Защитная стойка' : null
     ].filter(Boolean);
     
@@ -344,8 +347,15 @@ export function playerSkill(skillId) {
     if (result.guardReduction) battleState.guardReduction = result.guardReduction;
     gameState.save();
     
-    const effect = skill.freeze ? ' Враг заморожен!' : skill.poison ? ' Враг отравлен!' :
-        result.guardReduction ? ' Следующий удар ослаблен!' : '';
+    const statuses = [skill.freeze && enemy.effects?.freezeTurns && 'заморозка',
+        skill.poison && enemy.effects?.poisonTurns && 'яд',
+        skill.burn && enemy.effects?.burnTurns && 'горение',
+        skill.bleed && enemy.effects?.bleedTurns && 'кровотечение',
+        skill.weaken && enemy.effects?.weakenTurns && 'ослабление']
+        .filter(Boolean).join(', ');
+    const effect = statuses ? ` Эффект: ${statuses}.` :
+        result.guardReduction ? ' Следующий удар ослаблен!' :
+        (skill.freeze || skill.poison || skill.burn || skill.bleed || skill.weaken) ? ' Противник сопротивляется эффекту!' : '';
     showBattleMessage(`${skill.name}! ${result.damage ? `Урон: ${result.damage}.` : ''}${effect}`);
     updateBattleUI();
     
@@ -436,6 +446,9 @@ function enemyTurn() {
     const effects = tickEnemyEffects(enemy);
     if (effects.poisonDamage) {
         showBattleMessage(`Яд наносит ${effects.poisonDamage} урона!`);
+    }
+    if (effects.burnDamage || effects.bleedDamage) {
+        showBattleMessage(`Горение и кровотечение: ${effects.burnDamage + effects.bleedDamage} урона!`);
     }
     if (enemy.health <= 0) {
         battleVictory();

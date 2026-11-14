@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 
 globalThis.localStorage = {
@@ -164,5 +164,36 @@ test('phase change clears obsolete boss warning', () => {
     assert.equal(next.phaseChanged, true);
     assert.equal(next.action, 'attack');
     assert.equal(boss.intent, null);
+});
+
+test('fire and bleeding deal periodic damage and expire', () => {
+    const enemy = { health: 100, maxHealth: 100 };
+    applyStatusEffect(enemy, 'burn', 2);
+    applyStatusEffect(enemy, 'bleed', 2);
+    const first = tickEnemyEffects(enemy);
+    assert.equal(first.burnDamage, 4);
+    assert.equal(first.bleedDamage, 3);
+    tickEnemyEffects(enemy);
+    const expired = tickEnemyEffects(enemy);
+    assert.equal(expired.burnDamage + expired.bleedDamage, 0);
+});
+
+test('immunity blocks a condition and resistance shortens duration', () => {
+    const enemy = { resistances: { freeze: 1, poison: 0.5 } };
+    assert.equal(applyStatusEffect(enemy, 'freeze', 1), false);
+    assert.equal(enemy.effects, undefined);
+    assert.equal(applyStatusEffect(enemy, 'poison', 3), true);
+    assert.equal(enemy.effects.poisonTurns, 2);
+});
+
+test('weakening reduces the next two enemy attacks', () => {
+    const enemy = { attack: 20, effects: { weakenTurns: 2 } };
+    const player = { health: 100, defense: 0, mana: 0 };
+    const first = applyEnemyAction(enemy, player, 'attack').damage;
+    const second = applyEnemyAction(enemy, player, 'attack').damage;
+    const third = applyEnemyAction(enemy, player, 'attack').damage;
+    assert.equal(first, 15);
+    assert.equal(second, 15);
+    assert.equal(third, 20);
 });
 

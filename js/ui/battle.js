@@ -499,7 +499,9 @@ function enemyTurn() {
     const action = plan.action;
     const actionName = {
         attack: 'атакует', heavy: 'готовит мощный удар',
-        mana_burn: 'готовит истощение маны', recover: 'восстанавливается'
+        mana_burn: 'готовит истощение маны', recover: 'восстанавливается',
+        ambush: 'устраивает засаду', crush: 'наносит сокрушительный удар сквозь броню',
+        siphon: 'высасывает жизненные силы', flame_breath: 'извергает пламя'
     }[action];
     showBattleMessage(`${enemy.name} ${actionName}!`);
     
@@ -527,7 +529,7 @@ function enemyTurn() {
         battleState.enemySprite.isAttacking = false;
         
         showBattleMessage(reborn ? '🔥 Корона феникса спасает вас от гибели! Здоровье восстановлено.' : result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
-            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}`);
+            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}`);
         
         setTimeout(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -574,7 +576,7 @@ export function battleVictory() {
     player.stats.kills++;
     player.stats.wins++;
     
-    if (battleState.isBossBattle) {
+    if (battleState.isBossBattle && !enemy.miniBoss) {
         player.stats.bossesKilled = (player.stats.bossesKilled || 0) + 1;
     }
     
@@ -588,7 +590,7 @@ export function battleVictory() {
     const lootId = rollLoot(battleState.isBossBattle);
     const lootQuantity = lootId ? grantItem(player, lootId) : 0;
     const lootText = lootQuantity ? ` 🎁 Добыча: ${getItem(lootId).name}!` : '';
-    const relicId = awardRelic(player, enemy.elite === true, battleState.isBossBattle);
+    const relicId = awardRelic(player, enemy.elite === true || enemy.miniBoss === true, battleState.isBossBattle && !enemy.miniBoss);
     const relicText = relicId ? ` 🌟 Реликвия: ${RELICS[relicId].name}!` : '';
     showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}${relicText}`);
     

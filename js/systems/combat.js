@@ -117,6 +117,13 @@ export function tickEnemyEffects(enemy) {
 export function chooseEnemyAction(enemy, player, roll = Math.random()) {
     const behavior = enemy.behavior || (enemy.id === 'dragon' ? 'boss' : 'standard');
     const healthRatio = enemy.maxHealth > 0 ? enemy.health / enemy.maxHealth : 1;
+    if (behavior === 'mini_boss') {
+        const signatures = {
+            goblin_king: 'ambush', mountain_giant: 'crush',
+            death_knight: 'siphon', ancient_dragon: 'flame_breath'
+        };
+        return roll < 0.4 ? (signatures[enemy.id] || 'heavy') : roll < 0.65 ? 'heavy' : 'attack';
+    }
     if (behavior === 'boss') {
         return roll < 0.4 ? 'heavy' : roll < 0.7 ? 'mana_burn' : 'attack';
     }
@@ -162,12 +169,14 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     }
     const weakened = enemy.effects?.weakenTurns > 0;
     const enraged = enemy.eliteAffix === 'enraged' && enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.5;
-    const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1) *
+    const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 :
+        action === 'ambush' ? 1.25 : action === 'crush' ? 1.2 : action === 'flame_breath' ? 1.15 : 1) *
         (weakened ? 0.75 : 1) * (enraged ? 1.4 : 1);
     if (weakened) enemy.effects.weakenTurns--;
     const runeReduction = hasSpecialization(player, 'mage_warden') ? 0.15 : 0;
     const effectiveReduction = 1 - (1 - Math.min(1, Math.max(0, reduction))) * (1 - runeReduction);
-    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, getEffectiveCombatStats(player).defense, variance, multiplier) * (1 - effectiveReduction)));
+    const effectiveDefense = getEffectiveCombatStats(player).defense * (action === 'crush' ? 0.5 : 1);
+    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, effectiveDefense, variance, multiplier) * (1 - effectiveReduction)));
     applyDamage(player, damage);
     // Retaliation is tied to an actual guard, not passive defense or recovery.
     const reflected = hasSpecialization(player, 'warrior_sentinel') && reduction > 0
@@ -175,9 +184,13 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     const lifeStolen = enemy.eliteAffix === 'vampiric' && enemy.health > 0
         ? Math.min(Math.max(0, enemy.maxHealth - enemy.health), Math.floor(damage * 0.25)) : 0;
     if (lifeStolen) enemy.health += lifeStolen;
-    const manaBurned = action === 'mana_burn' ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / 3))) : 0;
+    const soulDrain = action === 'siphon' && enemy.health > 0
+        ? Math.min(Math.max(0, enemy.maxHealth - enemy.health), Math.max(1, Math.floor(damage * 0.3))) : 0;
+    if (soulDrain) enemy.health += soulDrain;
+    const manaBurned = action === 'mana_burn' || action === 'flame_breath'
+        ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / (action === 'flame_breath' ? 2 : 3)))) : 0;
     player.mana -= manaBurned;
-    return { damage, healed: 0, manaBurned, reflected, lifeStolen, enraged };
+    return { damage, healed: 0, manaBurned, reflected, lifeStolen, soulDrain, enraged };
 }
 
 // Set bonuses are derived from equipped IDs, never permanently added to base

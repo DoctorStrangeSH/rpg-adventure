@@ -624,6 +624,47 @@ test('sealed vault rewards only unowned relics and fallback treasure is bounded'
     assert.equal(player.health, 1);
 });
 
+test('dungeon minibosses retain their identity and each uses a signature action', () => {
+    const cases = [
+        ['forest', 'goblin_king', 'ambush'],
+        ['mountains', 'mountain_giant', 'crush'],
+        ['ruins', 'death_knight', 'siphon'],
+        ['dragon_lair', 'ancient_dragon', 'flame_breath']
+    ];
+    for (const [locationId, bossId, signature] of cases) {
+        const stage = getLocation(locationId).stages[4];
+        assert.equal(stage.boss.miniBoss, true);
+        const enemy = { ...stage.boss, behavior: 'mini_boss' };
+        assert.equal(enemy.id, bossId);
+        assert.equal(chooseEnemyAction(enemy, { mana: 20 }, 0.1), signature);
+        assert.equal(chooseEnemyAction(enemy, { mana: 20 }, 0.9), 'attack');
+        assert.equal(getLocation(locationId).stages[9].boss.miniBoss, undefined);
+    }
+});
+
+test('miniboss crushing ignores some armor and life siphon cannot over-heal', () => {
+    const warrior = gameState.createPlayer('warrior');
+    const attacker = { attack: 55, health: 30, maxHealth: 50 };
+    const normal = applyEnemyAction(attacker, warrior, 'attack').damage;
+    warrior.health = warrior.maxHealth;
+    const crushed = applyEnemyAction(attacker, warrior, 'crush').damage;
+    assert.ok(crushed > normal);
+    warrior.health = warrior.maxHealth;
+    const healed = applyEnemyAction(attacker, warrior, 'siphon');
+    assert.ok(healed.soulDrain > 0);
+    assert.ok(attacker.health <= attacker.maxHealth);
+    assert.ok(attacker.health > 30);
+});
+
+test('ancient dragon flame breath drains only available mana', () => {
+    const mage = gameState.createPlayer('mage');
+    mage.mana = 3;
+    const enemy = { attack: 80, health: 100, maxHealth: 100 };
+    const result = applyEnemyAction(enemy, mage, 'flame_breath');
+    assert.equal(result.manaBurned, 3);
+    assert.equal(mage.mana, 0);
+});
+
 test('safe dungeon route preserves enemy balance and rewards', () => {
     const original = { name: 'Волк', health: 100, maxHealth: 100, attack: 20, expReward: 30, goldReward: 10 };
     const safe = applyRouteToEnemy(original, 'safe', 0);

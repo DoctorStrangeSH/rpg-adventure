@@ -198,6 +198,7 @@ function generateStages(totalStages, locationLevel, enemies, bosses) {
         if (i % 5 === 0 && i % 10 !== 0) {
             stage.boss = {
                 ...bosses.miniBoss,
+                miniBoss: true,
                 // Усиливаем босса в зависимости от этапа
                 health: Math.floor(bosses.miniBoss.health * (1 + i * 0.3)),
                 attack: Math.floor(bosses.miniBoss.attack * (1 + i * 0.2)),

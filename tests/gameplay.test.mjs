@@ -4,7 +4,8 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects } from '../js/systems/combat.js';
+import { CLASSES } from '../js/data/classes.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -73,5 +74,40 @@ test('combat potion only consumes a charge when health is missing', () => {
     assert.equal(consumeHealingPotion(player, potion, potionData), 20);
     assert.equal(player.health, player.maxHealth);
     assert.equal(potion.quantity, 2);
+});
+
+test('archer rapid shot hits twice', () => {
+    const player = gameState.createPlayer('archer');
+    const enemy = { health: 100, maxHealth: 100, defense: 2 };
+    const result = useSkillEffect(player, enemy, CLASSES.archer.skills[0]);
+    assert.equal(result.hits, 2);
+    assert.equal(enemy.health, 100 - result.damage);
+    assert.ok(result.damage > 0);
+});
+
+test('mage frost makes enemy skip exactly one turn', () => {
+    const player = gameState.createPlayer('mage');
+    const enemy = { health: 100, maxHealth: 100, defense: 2 };
+    useSkillEffect(player, enemy, CLASSES.mage.skills[1]);
+    assert.equal(tickEnemyEffects(enemy).frozen, true);
+    assert.equal(tickEnemyEffects(enemy).frozen, false);
+});
+
+test('poison deals damage for three turns and then expires', () => {
+    const player = gameState.createPlayer('archer');
+    const enemy = { health: 100, maxHealth: 100, defense: 2 };
+    useSkillEffect(player, enemy, CLASSES.archer.skills[1]);
+    assert.equal(tickEnemyEffects(enemy).poisonDamage, 5);
+    assert.equal(tickEnemyEffects(enemy).poisonDamage, 5);
+    assert.equal(tickEnemyEffects(enemy).poisonDamage, 5);
+    assert.equal(tickEnemyEffects(enemy).poisonDamage, 0);
+});
+
+test('warrior shield skill grants damage reduction without direct damage', () => {
+    const player = gameState.createPlayer('warrior');
+    const enemy = { health: 100, maxHealth: 100, defense: 2 };
+    const result = useSkillEffect(player, enemy, CLASSES.warrior.skills[1]);
+    assert.equal(enemy.health, 100);
+    assert.equal(result.guardReduction, 0.75);
 });
 

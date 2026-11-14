@@ -92,6 +92,7 @@ export function startStageBattle() {
     battleState.turn = 'player';
     battleState.isLocationBattle = true;
     battleState.isBossBattle = false;
+    battleState.guardReduction = 0;
     gameState.player.stats.battles++;
     gameState.save();
     
@@ -144,6 +145,7 @@ export function startBossFight(bossData) {
     battleState.turn = 'player';
     battleState.isBossBattle = true;
     battleState.isLocationBattle = true;
+    battleState.guardReduction = 0;
     gameState.player.stats.battles++;
     gameState.save();
     

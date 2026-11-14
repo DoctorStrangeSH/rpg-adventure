@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects } from '../systems/combat.js';
 
 const particleSystem = new ParticleSystem();
 let damageTexts = [];
@@ -24,7 +24,8 @@ let battleState = {
     turn: 'player',
     isDungeonBattle: false,
     isBossBattle: false,
-    isLocationBattle: false
+    isLocationBattle: false,
+    guardReduction: 0
 };
 
 export function initBattle() {
@@ -64,6 +65,7 @@ export function startBattle(location) {
     battleState.turn = 'player';
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
+    battleState.guardReduction = 0;
     isProcessing = false;
     player.stats.battles++;
     gameState.save();
@@ -164,7 +166,7 @@ export function updateBattleUI() {
     
     if (!enemy) return;
     
-    const hasMana = player.mana >= (CLASSES[player.class]?.skills?.[0]?.manaCost ?? Infinity);
+    const skills = CLASSES[player.class]?.skills || [];
     const isBoss = battleState.isBossBattle || false;
     const canAct = battleState.turn === 'player' && !isProcessing;
     
@@ -208,9 +210,12 @@ export function updateBattleUI() {
             <button class="battle-btn defend" onclick="window.playerDefend()" ${!canAct ? 'disabled' : ''}>
                 🛡️ Защита
             </button>
-            <button class="battle-btn skill" onclick="window.playerSkill()" ${!canAct || !hasMana ? 'disabled' : ''}>
-                ✨ Навык
-            </button>
+            ${skills.map(skill => `
+                <button class="battle-btn skill" onclick="window.playerSkill('${skill.id}')"
+                        title="${skill.description}" ${!canAct || player.mana < skill.manaCost ? 'disabled' : ''}>
+                    ${skill.icon} ${skill.name} · ${skill.manaCost} MP
+                </button>
+            `).join('')}
             <button class="battle-btn item" onclick="window.playerUseItem()" ${!canAct ? 'disabled' : ''}>
                 🧪 Зелье
             </button>
@@ -318,7 +323,7 @@ export function playerDefend() {
     }, 1000);
 }
 
-export function playerSkill() {
+export function playerSkill(skillId) {
     if (isProcessing) return;
     if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
@@ -327,7 +332,7 @@ export function playerSkill() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     const classData = CLASSES[player.class];
-    const skill = classData?.skills?.[0];
+    const skill = classData?.skills?.find(value => value.id === skillId);
     if (!skill) return;
     
     if (player.mana < skill.manaCost) {
@@ -342,11 +347,13 @@ export function playerSkill() {
     
     battleState.playerSprite.isAttacking = true;
     
-    const damage = calculateDamage(player.attack, enemy.defense, 0, skill.damageMultiplier);
-    applyDamage(enemy, damage);
+    const result = useSkillEffect(player, enemy, skill);
+    if (result.guardReduction) battleState.guardReduction = result.guardReduction;
     gameState.save();
     
-    showBattleMessage(`${skill.name}! Нанесено ${damage} урона!`);
+    const effect = skill.freeze ? ' Враг заморожен!' : skill.poison ? ' Враг отравлен!' :
+        result.guardReduction ? ' Следующий удар ослаблен!' : '';
+    showBattleMessage(`${skill.name}! ${result.damage ? `Урон: ${result.damage}.` : ''}${effect}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -432,6 +439,22 @@ function enemyTurn() {
     const enemy = battleState.currentEnemy;
     
     if (!battleState.isActive || !enemy) return;
+    const effects = tickEnemyEffects(enemy);
+    if (effects.poisonDamage) {
+        showBattleMessage(`Яд наносит ${effects.poisonDamage} урона!`);
+    }
+    if (enemy.health <= 0) {
+        battleVictory();
+        return;
+    }
+    if (effects.frozen) {
+        battleState.guardReduction = 0;
+        battleState.turn = 'player';
+        isProcessing = false;
+        showBattleMessage(`${enemy.name} пропускает ход из-за заморозки!`);
+        updateBattleUI();
+        return;
+    }
     
     battleState.enemySprite.isAttacking = true;
     
@@ -439,7 +462,8 @@ function enemyTurn() {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         SoundSystem.playSound('hit');
         
-        const damage = calculateDamage(enemy.attack, player.defense, Math.floor(Math.random() * 5));
+        const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, player.defense, Math.floor(Math.random() * 5)) * (1 - battleState.guardReduction)));
+        battleState.guardReduction = 0;
         applyDamage(player, damage);
         gameState.save();
         
@@ -567,6 +591,7 @@ export function exitBattle() {
     battleState.isDungeonBattle = false;
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
+    battleState.guardReduction = 0;
     isProcessing = false;
     
     window.showScreen('main-menu');

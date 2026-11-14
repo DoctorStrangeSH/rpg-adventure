@@ -6,7 +6,7 @@ import { applyExperience } from '../systems/progression.js';
 import { escapeHtml } from '../core/html.js';
 import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
 import { getEffectiveCombatStats } from '../systems/combat.js';
-import { RELICS, MAX_ACTIVE_RELICS, toggleRelic } from '../systems/relics.js';
+import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, getActiveRelicSynergies, toggleRelic } from '../systems/relics.js';
 
 export function updateCharacterScreen() {
     const player = gameState.player;
@@ -61,12 +61,18 @@ export function updateCharacterScreen() {
             ${(player.relics || []).length ? player.relics.filter(id => RELICS[id]).map(id => `
                 <div class="skill-card talent-card">
                     <div class="skill-icon">${RELICS[id].icon}</div>
-                    <div class="skill-info"><div class="skill-name">${RELICS[id].name}</div><div class="skill-description">${RELICS[id].description}</div></div>
+                    <div class="skill-info"><div class="skill-name">${RELICS[id].name} • ${RELIC_RARITIES[RELICS[id].rarity].name}</div><div class="skill-description">${RELICS[id].description}</div></div>
                     <button class="talent-button" onclick="window.toggleCharacterRelic('${id}')" ${!player.activeRelics?.includes(id) && (player.activeRelics?.length || 0) >= MAX_ACTIVE_RELICS ? 'disabled' : ''}>
                         ${player.activeRelics?.includes(id) ? 'Снять' : 'Надеть'}
                     </button>
                 </div>
             `).join('') : '<p class="skill-description">Реликвии можно найти у элитных врагов и боссов.</p>'}
+            ${getActiveRelicSynergies(player).map(synergy => `
+                <div class="skill-card"><div class="skill-icon">🔗</div><div class="skill-info">
+                    <div class="skill-name">Синергия: ${synergy.name}</div>
+                    <div class="skill-description">${synergy.description}</div>
+                </div></div>
+            `).join('')}
         </div>
         
         <div class="section-title">✨ Навыки</div>

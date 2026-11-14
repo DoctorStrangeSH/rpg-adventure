@@ -16,7 +16,7 @@ import { buyItem } from '../js/ui/shop.js';
 import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
 import { rollAdventureEvent, resolveAdventureEvent } from '../js/systems/adventureEvents.js';
 import { getRoute, applyRouteToEnemy } from '../js/systems/dungeonRoutes.js';
-import { RELICS, MAX_ACTIVE_RELICS, awardRelic, toggleRelic, getRelicBonuses } from '../js/systems/relics.js';
+import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, awardRelic, toggleRelic, getRelicBonuses, getActiveRelicSynergies } from '../js/systems/relics.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -679,7 +679,7 @@ test('only two owned relics can be active and duplicate toggles do not stack', (
     assert.equal(toggleRelic(player, 'ash_heart'), true);
     assert.equal(getRelicBonuses(player).attack, 0);
     assert.equal(toggleRelic(player, 'eagle_eye'), true);
-    assert.equal(getRelicBonuses(player).critChance, 0.07);
+    assert.equal(getRelicBonuses(player).critChance, 0.1); // Бонус «Бдительный страж».
 });
 
 test('relic effects apply to combat without changing saved base stats', () => {
@@ -697,5 +697,38 @@ test('relic effects apply to combat without changing saved base stats', () => {
     gameState.save();
     assert.equal(gameState.load(), true);
     assert.deepEqual(gameState.player.relics, player.relics);
+});
+
+test('relic rarity weights favor common drops and bosses can award legendary finds', () => {
+    const commonPlayer = gameState.createPlayer('warrior');
+    const commonId = awardRelic(commonPlayer, true, false, 0);
+    assert.equal(RELICS[commonId].rarity, 'common');
+    const legendaryPlayer = gameState.createPlayer('warrior');
+    const legendaryId = awardRelic(legendaryPlayer, false, true, 0.599);
+    assert.equal(RELICS[legendaryId].rarity, 'legendary');
+    assert.equal(RELIC_RARITIES.legendary.name, 'Легендарная');
+});
+
+test('two matching relics unlock a synergy only while both are equipped', () => {
+    const player = gameState.createPlayer('mage');
+    player.relics = ['ash_heart', 'arcane_spark', 'stone_oath'];
+    player.activeRelics = ['ash_heart', 'arcane_spark'];
+    assert.deepEqual(getActiveRelicSynergies(player).map(synergy => synergy.id), ['ember_magic']);
+    assert.equal(getRelicBonuses(player).skillPower, 0.25);
+    assert.equal(getRelicBonuses(player).attack, 6);
+    toggleRelic(player, 'arcane_spark');
+    assert.deepEqual(getActiveRelicSynergies(player), []);
+    assert.equal(getRelicBonuses(player).skillPower, 0);
+});
+
+test('unknown, duplicate and unowned relic IDs cannot produce phantom synergies', () => {
+    const player = gameState.createPlayer('warrior');
+    player.relics = ['stone_oath', 'eagle_eye'];
+    player.activeRelics = ['stone_oath', 'stone_oath', 'eagle_eye', 'phoenix_crown'];
+    assert.equal(getActiveRelicSynergies(player).length, 1);
+    assert.equal(getRelicBonuses(player).defense, 10);
+    assert.equal(getRelicBonuses(player).critChance, 0.1);
+    player.relics = ['stone_oath'];
+    assert.deepEqual(getActiveRelicSynergies(player), []);
 });
 

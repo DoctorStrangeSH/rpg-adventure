@@ -6,9 +6,8 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
-import { getEffectiveCombatStats } from '../systems/combat.js';
 
 const particleSystem = new ParticleSystem();
 const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
@@ -280,7 +279,7 @@ export function playerAttack() {
     
     battleState.playerSprite.isAttacking = true;
     
-    const isCrit = Math.random() < 0.15;
+    const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
     const baseDamage = calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10));
     const damage = isCrit ? Math.floor(baseDamage * 2) : baseDamage;
     

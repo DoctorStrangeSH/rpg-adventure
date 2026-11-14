@@ -4,6 +4,8 @@ import { CLASSES } from '../data/classes.js';
 import { SoundSystem } from '../systems/sound.js';
 import { applyExperience } from '../systems/progression.js';
 import { escapeHtml } from '../core/html.js';
+import { TALENTS, getTalentPoints, unlockTalent } from '../systems/talents.js';
+import { getEffectiveCombatStats } from '../systems/combat.js';
 
 export function updateCharacterScreen() {
     const player = gameState.player;
@@ -11,6 +13,7 @@ export function updateCharacterScreen() {
     
     const content = document.getElementById('character-content');
     const classData = CLASSES[player.class];
+    const combatStats = getEffectiveCombatStats(player);
     
     content.innerHTML = `
         <div class="character-header">
@@ -30,10 +33,26 @@ export function updateCharacterScreen() {
         
         <div class="section-title">⚔️ Атрибуты</div>
         <div class="attributes-grid">
-            ${createAttributeCard('⚔️', 'Атака', player.attack)}
-            ${createAttributeCard('🛡️', 'Защита', player.defense)}
+            ${createAttributeCard('⚔️', 'Атака', combatStats.attack)}
+            ${createAttributeCard('🛡️', 'Защита', combatStats.defense)}
             ${createAttributeCard('💨', 'Скорость', player.speed)}
             ${createAttributeCard('⭐', 'Уровень', player.level)}
+        </div>
+
+        <div class="section-title">🌟 Таланты • свободных очков: ${getTalentPoints(player)}</div>
+        <div class="skills-section">
+            ${TALENTS[player.class].map(talent => `
+                <div class="skill-card talent-card">
+                    <div class="skill-icon">${talent.icon}</div>
+                    <div class="skill-info">
+                        <div class="skill-name">${talent.name}</div>
+                        <div class="skill-description">${talent.description}</div>
+                    </div>
+                    <button class="talent-button" onclick="window.chooseTalent('${talent.id}')" ${player.talents?.includes(talent.id) || !getTalentPoints(player) ? 'disabled' : ''}>
+                        ${player.talents?.includes(talent.id) ? 'Изучено' : 'Изучить'}
+                    </button>
+                </div>
+            `).join('')}
         </div>
         
         <div class="section-title">✨ Навыки</div>
@@ -48,6 +67,15 @@ export function updateCharacterScreen() {
             ${createStatCard('👹 Убийств', player.stats.kills)}
         </div>
     `;
+}
+
+export function chooseTalent(id) {
+    const player = gameState.player;
+    if (!unlockTalent(player, id)) return false;
+    gameState.save();
+    updateCharacterScreen();
+    window.showNotification?.('🌟 Новый талант изучен!', 'success');
+    return true;
 }
 
 function createStatBar(label, value, max, type) {

@@ -1373,3 +1373,6 @@ body {
     padding: 3px 8px;
     border-radius: 10px;
 }
+.talent-card { gap: 12px; }
+.talent-button { margin-left: auto; padding: 9px 12px; border: 1px solid var(--gold); border-radius: 9px; background: rgba(240, 190, 85, .13); color: var(--gold); cursor: pointer; font: inherit; }
+.talent-button:disabled { opacity: .55; cursor: default; }

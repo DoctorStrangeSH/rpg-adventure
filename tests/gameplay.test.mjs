@@ -13,6 +13,7 @@ import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot } from '../js/systems/loot.js';
 import { buyItem } from '../js/ui/shop.js';
+import { getTalentPoints, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -430,15 +431,49 @@ test('ordinary weapons and invalid proc rolls never create status effects', () =
     assert.equal(enemy.effects, undefined);
 });
 
-
-test('matching weapon and armor activate a set bonus used by combat stats', () => {
+test('equipment sets activate only with both pieces and do not stack base stats', () => {
     const player = gameState.createPlayer('warrior');
+    const initialAttack = player.attack;
     player.equipment.weapon = 'ember_sword';
     assert.equal(getEquipmentSetBonuses(player).attack, 0);
     player.equipment.armor = 'guardian_armor';
-    const result = getEffectiveCombatStats(player);
-    assert.equal(result.attack, player.attack + 6);
-    assert.equal(result.activeSets[0].name, 'Страж пепла');
-    player.equipment.weapon = 'blood_dagger';
-    assert.equal(getEquipmentSetBonuses(player).activeSets.length, 0);
+    assert.equal(getEquipmentSetBonuses(player).attack, 6);
+    assert.equal(getEffectiveCombatStats(player).attack, initialAttack + 6);
+    assert.equal(getEffectiveCombatStats(player).attack, initialAttack + 6);
+    assert.equal(player.attack, initialAttack);
+    player.equipment.armor = null;
+    assert.equal(getEffectiveCombatStats(player).attack, initialAttack);
+    player.equipment = { weapon: 'frost_blade', armor: 'frost_armor' };
+    assert.equal(getEquipmentSetBonuses(player).defense, 7);
+    player.equipment = { weapon: 'blood_dagger', armor: 'blood_armor' };
+    assert.equal(getEquipmentSetBonuses(player).attack, 4);
+    assert.equal(getEquipmentSetBonuses(player).defense, 3);
 });
+
+test('class talents require a level, reject duplicates and other classes, and change combat stats', () => {
+    const player = gameState.createPlayer('warrior');
+    assert.equal(getTalentPoints(player), 0);
+    assert.equal(unlockTalent(player, 'warrior_force'), false);
+    player.level = 2;
+    assert.equal(unlockTalent(player, 'mage_focus'), false);
+    assert.equal(unlockTalent(player, 'warrior_force'), true);
+    assert.equal(unlockTalent(player, 'warrior_force'), false);
+    assert.equal(getTalentPoints(player), 0);
+    assert.equal(getTalentBonuses(player).attack, 5);
+    assert.equal(getEffectiveCombatStats(player).attack, player.attack + 5);
+    gameState.save();
+    assert.equal(gameState.load(), true);
+    assert.deepEqual(gameState.player.talents, ['warrior_force']);
+    assert.equal(getEffectiveCombatStats(gameState.player).attack, player.attack + 5);
+});
+
+test('legacy character saves receive empty talents without losing level progress', () => {
+    const player = gameState.createPlayer('mage');
+    player.level = 3;
+    delete player.talents;
+    gameState.save();
+    assert.equal(gameState.load(), true);
+    assert.deepEqual(gameState.player.talents, []);
+    assert.equal(getTalentPoints(gameState.player), 2);
+});
+

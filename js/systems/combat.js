@@ -1,5 +1,6 @@
 // Pure combat rules: shared by battles and automated regression tests.
 import { getItem } from '../data/items.js';
+import { getTalentBonuses } from './talents.js';
 
 export function triggerWeaponEffect(player, enemy, roll = Math.random()) {
     if (!enemy || enemy.health <= 0 || !player?.equipment?.weapon) return null;
@@ -141,8 +142,8 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     return { damage, healed: 0, manaBurned };
 }
 
- 
-// Set bonuses are computed from equipment, never added to saved base stats.
+// Set bonuses are derived from equipped IDs, never permanently added to base
+// stats. Equipping, unequipping and loading saves cannot stack the bonus.
 export function getEquipmentSetBonuses(player) {
     const equipped = Object.values(player?.equipment || {}).filter(Boolean);
     const sets = [
@@ -160,9 +161,11 @@ export function getEquipmentSetBonuses(player) {
 
 export function getEffectiveCombatStats(player) {
     const bonuses = getEquipmentSetBonuses(player);
+    const talents = getTalentBonuses(player);
     return {
-        attack: Math.max(0, (Number(player?.attack) || 0) + bonuses.attack),
-        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense),
+        attack: Math.max(0, (Number(player?.attack) || 0) + bonuses.attack + talents.attack),
+        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense),
+        critChance: Math.min(1, 0.15 + talents.critChance),
         activeSets: bonuses.activeSets
     };
 }

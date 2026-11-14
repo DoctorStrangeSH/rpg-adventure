@@ -49,6 +49,7 @@ class GameState {
             username: window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'Игрок',
             class: classId,
             level: 1,
+            talents: [],
             experience: 0,
             maxExperience: 100,
             health: classData.stats.health,
@@ -107,6 +108,7 @@ class GameState {
             Array.isArray(saved.player.inventory) &&
             saved.player.equipment && typeof saved.player.equipment === 'object') {
             this.data = { player: saved.player, screen: 'main-menu' };
+            if (!Array.isArray(this.player.talents)) this.player.talents = [];
             restoreUnlockedLocations(this.player);
             return true;
         }

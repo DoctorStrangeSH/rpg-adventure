@@ -4,6 +4,16 @@ import { CLASSES } from '../data/classes.js';
 import { QUESTS } from '../data/quests.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { Storage } from './storage.js';
+import { LOCATIONS } from '../data/locations.js';
+
+function restoreUnlockedLocations(player) {
+    const ids = new Set(Array.isArray(player.unlockedLocations) ? player.unlockedLocations : ['forest']);
+    ids.add('forest');
+    LOCATIONS.forEach(location => {
+        location.unlocked = location.type === 'safe' || ids.has(location.id);
+    });
+    player.unlockedLocations = [...ids];
+}
 
 class GameState {
     constructor() {
@@ -49,6 +59,7 @@ class GameState {
             defense: classData.stats.defense,
             speed: classData.stats.speed,
             gold: 100,
+            unlockedLocations: ['forest'],
             inventory: [
                 { id: 'health_potion', quantity: 3 },
                 { id: 'mana_potion', quantity: 2 }
@@ -79,6 +90,7 @@ class GameState {
             },
             createdAt: new Date().toISOString()
         };
+        restoreUnlockedLocations(this.player);
         
         return this.player;
     }
@@ -95,6 +107,7 @@ class GameState {
             Array.isArray(saved.player.inventory) &&
             saved.player.equipment && typeof saved.player.equipment === 'object') {
             this.data = { player: saved.player, screen: 'main-menu' };
+            restoreUnlockedLocations(this.player);
             return true;
         }
         return false;

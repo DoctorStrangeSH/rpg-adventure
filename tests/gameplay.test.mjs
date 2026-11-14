@@ -7,6 +7,8 @@ import { escapeHtml } from '../js/core/html.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
+import { getLocation } from '../js/data/locations.js';
+import { completeLocation, getLocationState, resetLocationState } from '../js/systems/dungeon.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -244,6 +246,38 @@ test('a completed battle pays rewards only once', () => {
         window.getLocationState = previousLocation;
         battle.currentEnemy = null;
         battle.isActive = false;
+    }
+});
+
+test('unlocked locations survive saving and loading', () => {
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations.push('mountains');
+    gameState.save();
+    assert.equal(gameState.load(), true);
+    assert.equal(getLocation('mountains').unlocked, true);
+    gameState.createPlayer('mage');
+    assert.equal(getLocation('mountains').unlocked, false);
+});
+
+test('location completion rewards only once and unlocks next area', () => {
+    const player = gameState.createPlayer('warrior');
+    const location = getLocation('forest');
+    const run = getLocationState();
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.inLocation = true;
+    const startingGold = player.gold;
+    const previousTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = () => 0;
+    try {
+        completeLocation();
+        completeLocation();
+        assert.equal(player.gold, startingGold + location.rewards.gold);
+        assert.equal(player.stats.dungeonsCompleted, 1);
+        assert.ok(player.unlockedLocations.includes('mountains'));
+    } finally {
+        globalThis.setTimeout = previousTimeout;
+        resetLocationState();
     }
 });
 

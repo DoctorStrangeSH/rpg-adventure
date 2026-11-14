@@ -8,14 +8,15 @@ let locationState = {
     currentLocation: null,
     currentStage: 0,
     enemiesDefeated: 0,
-    inLocation: false
+    inLocation: false,
+    runId: 0
 };
 
 export function startLocation(locationId) {
     const player = gameState.player;
     const location = getLocation(locationId);
     
-    if (!location) {
+    if (!player || !location) {
         window.showNotification('Локация не найдена!', 'error');
         return;
     }
@@ -34,22 +35,25 @@ export function startLocation(locationId) {
         window.showNotification('Вы мертвы! Восстановите здоровье в деревне.', 'error');
         return;
     }
+    if (locationState.inLocation || getBattleState().isActive) return;
     
     locationState.currentLocation = location;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.inLocation = true;
+    const runId = ++locationState.runId;
     
     // Показываем экран боя
     window.showScreen('battle-screen');
     
     // Сразу начинаем первый бой
     setTimeout(() => {
-        startStageBattle();
+        if (locationState.inLocation && locationState.runId === runId) startStageBattle();
     }, 500);
 }
 
 export function startStageBattle() {
+    if (!locationState.inLocation || getBattleState().isActive) return;
     const location = locationState.currentLocation;
     
     if (!location || !location.stages) {
@@ -124,6 +128,7 @@ function getLocationIndex(locationId) {
 }
 
 export function startBossFight(bossData) {
+    if (!locationState.inLocation || getBattleState().isActive) return;
     window.showNotification(`👹 ПОЯВИЛСЯ БОСС: ${bossData.name}!`, 'error');
     
     const enemy = {
@@ -169,7 +174,8 @@ export function completeLocation() {
     const location = locationState.currentLocation;
     const player = gameState.player;
     
-    if (!location) return;
+    if (!location || !locationState.inLocation) return;
+    const runId = ++locationState.runId;
     
     // Выдаём награды
     player.experience += location.rewards.exp;
@@ -190,6 +196,11 @@ export function completeLocation() {
     
     // Открываем следующую локацию
     const nextLocation = unlockNextLocation(location.id);
+    if (nextLocation && !player.unlockedLocations?.includes(nextLocation.id)) {
+        player.unlockedLocations ||= ['forest'];
+        player.unlockedLocations.push(nextLocation.id);
+    }
+    player.stats.dungeonsCompleted = (player.stats.dungeonsCompleted || 0) + 1;
     
     locationState.inLocation = false;
     locationState.currentLocation = null;
@@ -210,12 +221,14 @@ export function completeLocation() {
     window.updateMapScreen?.();
     
     setTimeout(() => {
+        if (locationState.runId !== runId || locationState.inLocation || getBattleState().isActive) return;
         window.exitBattle();
         window.showScreen('map-screen');
     }, 3000);
 }
 
 export function fleeLocation() {
+    locationState.runId++;
     locationState.inLocation = false;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
@@ -227,6 +240,7 @@ export function fleeLocation() {
 }
 
 export function resetLocationState() {
+    locationState.runId++;
     locationState.inLocation = false;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
@@ -239,12 +253,18 @@ export function getLocationState() {
 
 // Вызывается после победы над обычным врагом
 export function handleVictory() {
+    if (!locationState.inLocation || !locationState.currentLocation) return;
     locationState.enemiesDefeated++;
     
     const location = locationState.currentLocation;
     const stage = location.stages[locationState.currentStage];
+    if (!stage) return;
+    const runId = locationState.runId;
+    const stageIndex = locationState.currentStage;
     
     setTimeout(() => {
+        if (!locationState.inLocation || locationState.runId !== runId ||
+            locationState.currentStage !== stageIndex || getBattleState().isActive) return;
         if (locationState.enemiesDefeated >= stage.enemiesCount) {
             if (stage.boss) {
                 // Бой с боссом
@@ -264,6 +284,7 @@ export function handleVictory() {
 
 // Вызывается после победы над боссом
 export function handleBossVictory() {
+    if (!locationState.inLocation || !locationState.currentLocation) return;
     const location = locationState.currentLocation;
     
     // Проверяем, был ли это последний этап

@@ -714,6 +714,58 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    max-height: min(62%, 470px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(180deg, rgba(13, 17, 36, 0.96), rgba(9, 11, 25, 0.98));
+    border-top: 1px solid rgba(255, 218, 148, 0.25);
+    scrollbar-width: thin;
+}
+
+.combat-overview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.combat-entity {
+    min-width: 0;
+    padding: 9px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.combat-entity-title {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.combat-meter {
+    height: 7px;
+    margin-top: 7px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.combat-meter-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #a82f49, #ee6472);
+}
+
+.combat-meter.enemy .combat-meter-fill {
+    background: linear-gradient(90deg, #bc4b2e, #f4aa5b);
+}
+
+.combat-mana {
+    color: #99c8ff;
+    margin-top: 6px;
+    font-size: 11px;
 }
 
 .battle-buttons {
@@ -758,6 +810,29 @@ body {
     color: white;
     font-weight: bold;
     box-shadow: var(--shadow);
+}
+
+.battle-btn small {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: normal;
+    line-height: 1.25;
+    opacity: 0.85;
+}
+
+@media (max-width: 480px) {
+    .battle-ui {
+        bottom: 0;
+        padding: 10px;
+        max-height: 66%;
+        gap: 6px;
+    }
+    .battle-buttons { gap: 7px; }
+    .battle-btn { padding: 10px 6px; font-size: 13px; min-height: 44px; }
+    .combat-entity { padding: 7px; }
+    .combat-entity-title { font-size: 11px; }
+    .battle-effects { margin-bottom: 4px; }
 }
 
 .battle-btn:hover {

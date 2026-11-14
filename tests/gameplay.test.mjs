@@ -6,6 +6,7 @@ import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
+import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -195,5 +196,54 @@ test('weakening reduces the next two enemy attacks', () => {
     assert.equal(first, 15);
     assert.equal(second, 15);
     assert.equal(third, 20);
+});
+
+test('battle interface shows both class skills and combat resources', () => {
+    const player = gameState.createPlayer('mage');
+    player.mana = 15;
+    const battle = getBattleState();
+    battle.currentEnemy = { name: 'Волк', icon: '🐺', health: 20, maxHealth: 30, effects: { burnTurns: 2 } };
+    battle.turn = 'player';
+    const panel = { innerHTML: '' };
+    const previous = document.getElementById;
+    document.getElementById = () => panel;
+    try {
+        updateBattleUI();
+        assert.match(panel.innerHTML, /Огненный шар/);
+        assert.match(panel.innerHTML, /Ледяная нова/);
+        assert.match(panel.innerHTML, /Мана: 15/);
+        assert.match(panel.innerHTML, /Горение: 2/);
+        assert.match(panel.innerHTML, /Здоровье врага/);
+    } finally {
+        document.getElementById = previous;
+        battle.currentEnemy = null;
+    }
+});
+
+test('a completed battle pays rewards only once', () => {
+    const player = gameState.createPlayer('warrior');
+    const battle = getBattleState();
+    battle.isActive = true;
+    battle.isBossBattle = false;
+    battle.currentEnemy = { health: 0, expReward: 20, goldReward: 10 };
+    const previousQuery = document.querySelector;
+    const previousLocation = window.getLocationState;
+    document.querySelector = () => null;
+    window.getLocationState = () => ({ inLocation: true });
+    try {
+        battleVictory();
+        const exp = player.experience;
+        const gold = player.gold;
+        battleVictory();
+        assert.equal(player.stats.wins, 1);
+        assert.equal(player.stats.kills, 1);
+        assert.equal(player.experience, exp);
+        assert.equal(player.gold, gold);
+    } finally {
+        document.querySelector = previousQuery;
+        window.getLocationState = previousLocation;
+        battle.currentEnemy = null;
+        battle.isActive = false;
+    }
 });
 

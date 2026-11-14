@@ -164,7 +164,7 @@ export function updateBattleUI() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    if (!enemy) return;
+    if (!battleUI || !enemy || !player) return;
     
     const skills = CLASSES[player.class]?.skills || [];
     const isBoss = battleState.isBossBattle || false;
@@ -209,6 +209,21 @@ export function updateBattleUI() {
     }
     
     battleUI.innerHTML = `
+        <div class="combat-overview" aria-label="Состояние участников боя">
+            <div class="combat-entity">
+                <div class="combat-entity-title"><span>${CLASSES[player.class]?.icon || '⚔️'} Герой</span><span>❤️ ${Math.ceil(player.health)} / ${player.maxHealth}</span></div>
+                <div class="combat-meter" role="progressbar" aria-label="Здоровье героя" aria-valuenow="${Math.ceil(player.health)}" aria-valuemin="0" aria-valuemax="${player.maxHealth}">
+                    <span class="combat-meter-fill" style="width:${Math.max(0, Math.min(100, player.health / player.maxHealth * 100))}%"></span>
+                </div>
+                <div class="combat-mana">💙 Мана: ${Math.floor(player.mana)} / ${player.maxMana}</div>
+            </div>
+            <div class="combat-entity">
+                <div class="combat-entity-title"><span>${enemy.icon || '👹'} ${enemy.name}</span><span>❤️ ${Math.ceil(enemy.health)} / ${Math.ceil(enemy.maxHealth)}</span></div>
+                <div class="combat-meter enemy" role="progressbar" aria-label="Здоровье врага" aria-valuenow="${Math.ceil(enemy.health)}" aria-valuemin="0" aria-valuemax="${Math.ceil(enemy.maxHealth)}">
+                    <span class="combat-meter-fill" style="width:${Math.max(0, Math.min(100, enemy.health / enemy.maxHealth * 100))}%"></span>
+                </div>
+            </div>
+        </div>
         ${stageInfo}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
         ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
@@ -223,7 +238,8 @@ export function updateBattleUI() {
             ${skills.map(skill => `
                 <button class="battle-btn skill" onclick="window.playerSkill('${skill.id}')"
                         title="${skill.description}" ${!canAct || player.mana < skill.manaCost ? 'disabled' : ''}>
-                    ${skill.icon} ${skill.name} · ${skill.manaCost} MP
+                    <span>${skill.icon} ${skill.name} · ${skill.manaCost} MP</span>
+                    <small>${skill.description}</small>
                 </button>
             `).join('')}
             <button class="battle-btn item" onclick="window.playerUseItem()" ${!canAct ? 'disabled' : ''}>

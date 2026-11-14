@@ -4,13 +4,16 @@ import { getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getBattleState } from '../ui/battle.js';
 import { grantItem } from './loot.js';
+import { rollAdventureEvent, resolveAdventureEvent } from './adventureEvents.js';
 
 let locationState = {
     currentLocation: null,
     currentStage: 0,
     enemiesDefeated: 0,
     inLocation: false,
-    runId: 0
+    runId: 0,
+    pendingEvent: null,
+    visitedEventStages: new Set()
 };
 
 export function startLocation(locationId) {
@@ -42,6 +45,8 @@ export function startLocation(locationId) {
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.inLocation = true;
+    locationState.pendingEvent = null;
+    locationState.visitedEventStages = new Set();
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -67,6 +72,14 @@ export function startStageBattle() {
     if (!stage) {
         console.error('No stage found at index:', locationState.currentStage);
         completeLocation();
+        return;
+    }
+
+    // Every fifth stage offers a one-time detour between battles. It is not
+    // re-rolled when the player chooses and returns to the same stage.
+    if (locationState.currentStage > 0 && (locationState.currentStage + 1) % 5 === 0 &&
+        !locationState.visitedEventStages.has(locationState.currentStage)) {
+        presentAdventureEvent();
         return;
     }
     
@@ -116,6 +129,43 @@ export function startStageBattle() {
         const bossText = stage.boss ? ' 👹 БОСС!' : '';
         window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}`);
     });
+}
+
+function presentAdventureEvent() {
+    if (locationState.pendingEvent) return;
+    const event = rollAdventureEvent();
+    const stage = locationState.currentStage;
+    locationState.pendingEvent = { id: event.id, stage, runId: locationState.runId };
+    const ui = document.getElementById('battle-ui');
+    if (!ui) { // If no UI is mounted, continue without blocking the run.
+        locationState.visitedEventStages.add(stage);
+        locationState.pendingEvent = null;
+        startStageBattle();
+        return;
+    }
+    ui.innerHTML = `<section class="adventure-event" aria-label="Событие приключения">
+        <div class="adventure-event-icon">${event.icon}</div>
+        <h3>${event.name}</h3><p>${event.description}</p>
+        ${event.choices.map(choice => `<button class="battle-btn" onclick="window.chooseAdventureEvent('${choice.id}')">${choice.label}</button>`).join('')}
+    </section>`;
+    window.showBattleMessage?.(`🧭 Событие: ${event.name}`);
+}
+
+export function chooseAdventureEvent(choiceId) {
+    const pending = locationState.pendingEvent;
+    if (!pending || !locationState.inLocation || pending.runId !== locationState.runId ||
+        pending.stage !== locationState.currentStage || getBattleState().isActive) return false;
+    const outcome = resolveAdventureEvent(gameState.player, pending.id, choiceId);
+    if (!outcome) {
+        window.showNotification?.('Недостаточно золота или неверный выбор.', 'error');
+        return false;
+    }
+    locationState.visitedEventStages.add(pending.stage);
+    locationState.pendingEvent = null;
+    gameState.save();
+    window.showNotification?.(outcome.message, 'info');
+    startStageBattle();
+    return true;
 }
 
 function getLocationIndex(locationId) {
@@ -196,6 +246,7 @@ export function completeLocation() {
     player.stats.dungeonsCompleted = (player.stats.dungeonsCompleted || 0) + 1;
     
     locationState.inLocation = false;
+    locationState.pendingEvent = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -223,6 +274,7 @@ export function completeLocation() {
 export function fleeLocation() {
     locationState.runId++;
     locationState.inLocation = false;
+    locationState.pendingEvent = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -235,6 +287,7 @@ export function fleeLocation() {
 export function resetLocationState() {
     locationState.runId++;
     locationState.inLocation = false;
+    locationState.pendingEvent = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -296,6 +349,7 @@ export function handleDefeat() {
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.inLocation = false;
+    locationState.pendingEvent = null;
     locationState.currentLocation = null;
     
     window.showNotification('Вы погибли! Прогресс локации сброшен. Начните заново.', 'error');

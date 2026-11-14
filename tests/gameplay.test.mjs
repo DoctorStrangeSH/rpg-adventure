@@ -14,6 +14,7 @@ import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot } from '../js/systems/loot.js';
 import { buyItem } from '../js/ui/shop.js';
 import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
+import { rollAdventureEvent, resolveAdventureEvent } from '../js/systems/adventureEvents.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -558,5 +559,37 @@ test('sniper critical multiplier and ranger bleeding respect talent and resistan
     assert.equal(enemy.effects.bleedTurns, 2);
     const immune = { health: 100, resistances: { bleed: 1 } };
     assert.equal(triggerRangerEffect(player, immune, 0.1), false);
+});
+
+test('adventure event selection is deterministic and always yields a valid encounter', () => {
+    assert.equal(rollAdventureEvent(0).id, 'cache');
+    assert.equal(rollAdventureEvent(0.4).id, 'shrine');
+    assert.equal(rollAdventureEvent(0.99).id, 'traveler');
+});
+
+test('adventure events offer safe exit and bounded risk without killing the player', () => {
+    const player = gameState.createPlayer('warrior');
+    const gold = player.gold;
+    assert.equal(resolveAdventureEvent(player, 'cache', 'safe').gold, 0);
+    assert.equal(player.gold, gold);
+    assert.equal(resolveAdventureEvent(player, 'cache', 'risk', 0.1).gold, 40);
+    player.health = 3;
+    assert.equal(resolveAdventureEvent(player, 'cache', 'risk', 0.95).health, -2);
+    assert.equal(player.health, 1);
+    assert.equal(resolveAdventureEvent(player, 'unknown', 'risk'), null);
+    assert.equal(resolveAdventureEvent(player, 'cache', 'invalid'), null);
+});
+
+test('traveling merchant requires funds and never produces negative gold', () => {
+    const player = gameState.createPlayer('mage');
+    player.gold = 19;
+    assert.equal(resolveAdventureEvent(player, 'traveler', 'risk', 0), null);
+    assert.equal(player.gold, 19);
+    player.gold = 20;
+    player.health = 10;
+    const outcome = resolveAdventureEvent(player, 'traveler', 'risk', 0);
+    assert.equal(outcome.gold, -20);
+    assert.equal(player.gold, 0);
+    assert.equal(player.health, 55);
 });
 

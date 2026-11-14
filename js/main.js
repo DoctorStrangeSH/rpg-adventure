@@ -36,7 +36,8 @@ import {
     getLocationState,
     handleVictory,
     handleBossVictory,
-    handleDefeat
+    handleDefeat,
+    chooseAdventureEvent
 } from './systems/dungeon.js';
 
 // Инициализация Telegram
@@ -111,6 +112,7 @@ window.getLocationState = getLocationState;
 window.handleVictory = handleVictory;
 window.handleBossVictory = handleBossVictory;
 window.handleDefeat = handleDefeat;
+window.chooseAdventureEvent = chooseAdventureEvent;
 
 // Уведомления
 window.showNotification = function(message, type = 'info') {

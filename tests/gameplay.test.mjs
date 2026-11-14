@@ -29,6 +29,7 @@ test('unknown character classes are rejected', () => {
 
 test('equipping the same weapon twice does not stack stats', () => {
     const player = gameState.createPlayer('warrior');
+    player.level = 2;
     const weapon = Object.values(ITEMS).find(item => item.type === 'weapon');
     player.inventory.push({ id: weapon.id, quantity: 1 });
     const index = player.inventory.length - 1;
@@ -313,9 +314,10 @@ test('negative experience reward cannot reduce level or progress', () => {
 
 test('loot drop chances are deterministic and bosses always drop something', () => {
     assert.equal(rollLoot(false, () => 0.5), null);
-    assert.equal(rollLoot(false, () => 0.01), 'iron_sword');
+    assert.equal(rollLoot(false, () => 0.01), 'guardian_armor');
     assert.equal(rollLoot(true, () => 0.01), 'dragon_sword');
     assert.equal(rollLoot(true, () => 0.8), 'mana_potion');
+    assert.equal(rollLoot(true, () => 0.1), 'moonblade');
     assert.equal(rollLoot(true, () => NaN), null);
 });
 
@@ -364,5 +366,33 @@ test('defeated boss grants loot only once', () => {
         battle.isBossBattle = false;
         battle.currentEnemy = null;
     }
+});
+
+test('level-gated equipment does not modify stats until unlocked', () => {
+    const player = gameState.createPlayer('warrior');
+    grantItem(player, 'guardian_armor');
+    const index = player.inventory.findIndex(item => item.id === 'guardian_armor');
+    const defense = player.defense;
+    useInventoryItem(index);
+    assert.equal(player.equipment.armor, null);
+    assert.equal(player.defense, defense);
+    player.level = 4;
+    useInventoryItem(index);
+    assert.equal(player.equipment.armor, 'guardian_armor');
+    assert.equal(player.defense, defense + 17);
+    useInventoryItem(index);
+    assert.equal(player.defense, defense + 17);
+    unequipItem('armor');
+    assert.equal(player.defense, defense);
+});
+
+test('inventory rejects zero-quantity and negative-index items', () => {
+    const player = gameState.createPlayer('warrior');
+    const originalHealth = player.health - 20;
+    player.health = originalHealth;
+    player.inventory[0].quantity = 0;
+    useInventoryItem(0);
+    useInventoryItem(-1);
+    assert.equal(player.health, originalHealth);
 });
 

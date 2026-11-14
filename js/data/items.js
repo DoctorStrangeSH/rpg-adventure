@@ -34,6 +34,7 @@ export const ITEMS = {
         type: 'weapon',
         rarity: 'uncommon',
         attackBonus: 15,
+        requiredLevel: 2,
         price: 200
     },
     dragon_sword: {
@@ -43,6 +44,7 @@ export const ITEMS = {
         type: 'weapon',
         rarity: 'legendary',
         attackBonus: 40,
+        requiredLevel: 8,
         price: 1000
     },
     leather_armor: {
@@ -53,11 +55,21 @@ export const ITEMS = {
         rarity: 'common',
         defenseBonus: 8,
         price: 80
+    },
+    guardian_armor: {
+        id: 'guardian_armor', name: 'Доспех стража', icon: '🛡️',
+        type: 'armor', rarity: 'rare', defenseBonus: 17,
+        requiredLevel: 4, price: 450
+    },
+    moonblade: {
+        id: 'moonblade', name: 'Лунный клинок', icon: '🌙',
+        type: 'weapon', rarity: 'epic', attackBonus: 28,
+        requiredLevel: 6, price: 750
     }
 };
 
 export function getItem(itemId) {
-    return ITEMS[itemId];
+    return Object.hasOwn(ITEMS, itemId) ? ITEMS[itemId] : undefined;
 }
 
 export function getItemsByType(type) {

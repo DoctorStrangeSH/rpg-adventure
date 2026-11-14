@@ -47,12 +47,21 @@ function createInventoryItem(item, index, player) {
     if (!itemData) return '';
     
     const isEquipped = (player.equipment.weapon === item.id || player.equipment.armor === item.id);
+    const currentItem = itemData.type === 'weapon' || itemData.type === 'armor'
+        ? getItem(player.equipment[itemData.type]) : null;
+    const currentBonus = itemData.type === 'weapon' ? (currentItem?.attackBonus || 0) : (currentItem?.defenseBonus || 0);
+    const newBonus = itemData.type === 'weapon' ? (itemData.attackBonus || 0) : (itemData.defenseBonus || 0);
+    const statLabel = itemData.type === 'weapon' ? '⚔️ Атака' : '🛡️ Защита';
+    const difference = newBonus - currentBonus;
+    const levelLocked = (itemData.requiredLevel || 1) > player.level;
     
     return `
         <div class="inventory-item ${isEquipped ? 'equipped' : ''}" onclick="window.useInventoryItem(${index})">
             <div class="item-icon">${itemData.icon}</div>
             <div class="item-name">${itemData.name}</div>
             <div class="item-rarity" style="color:${RARITIES[itemData.rarity]?.color || RARITIES.common.color}">${RARITIES[itemData.rarity]?.name || RARITIES.common.name}</div>
+            ${['weapon', 'armor'].includes(itemData.type) ? `<div class="item-stats">${statLabel}: +${newBonus} <span style="color:${difference >= 0 ? '#6ee7b7' : '#fca5a5'}">(${difference >= 0 ? '+' : ''}${difference})</span></div>` : ''}
+            ${itemData.requiredLevel ? `<div class="item-stats">${levelLocked ? '🔒 ' : ''}Уровень ${itemData.requiredLevel}</div>` : ''}
             <div class="item-quantity">x${item.quantity}</div>
             ${isEquipped ? '<div class="equipped-badge">✓</div>' : ''}
         </div>
@@ -61,10 +70,10 @@ function createInventoryItem(item, index, player) {
 
 export function useInventoryItem(index) {
     const player = gameState.player;
-    if (!player || !Number.isInteger(index)) return;
+    if (!player || !Number.isInteger(index) || index < 0) return;
     const item = player.inventory[index];
     
-    if (!item) return;
+    if (!item || !Number.isSafeInteger(item.quantity) || item.quantity < 1) return;
     
     const itemData = getItem(item.id);
     if (!itemData) return;
@@ -74,11 +83,13 @@ export function useInventoryItem(index) {
             if (!useConsumable(player, item, itemData, index)) return;
             break;
         case 'weapon':
-            equipItem(player, item, 'weapon');
+            if (!equipItem(player, item, 'weapon')) return;
             break;
         case 'armor':
-            equipItem(player, item, 'armor');
+            if (!equipItem(player, item, 'armor')) return;
             break;
+        default:
+            return;
     }
     
     gameState.save();
@@ -113,9 +124,13 @@ function useConsumable(player, item, itemData, index) {
 
 function equipItem(player, item, slot) {
     const itemData = getItem(item.id);
+    if ((itemData.requiredLevel || 1) > player.level) {
+        window.showNotification(`Требуется ${itemData.requiredLevel} уровень!`, 'error');
+        return false;
+    }
     if (player.equipment[slot] === item.id) {
         window.showNotification('Предмет уже экипирован', 'info');
-        return;
+        return false;
     }
     
     // Снимаем старый предмет
@@ -141,6 +156,7 @@ function equipItem(player, item, slot) {
     }
     
     window.showNotification(`${itemData.name} экипирован!`, 'success');
+    return true;
 }
 
 export function unequipItem(slot) {

@@ -33,6 +33,7 @@ function createShopSection(title, type, player) {
 
 function createShopItem(item, player) {
     const canAfford = player.gold >= item.price;
+    const requiredLevel = item.requiredLevel || 1;
     
     return `
         <div class="shop-item">
@@ -46,6 +47,7 @@ function createShopItem(item, player) {
                 ${item.manaHeal ? `💙 +${item.manaHeal} MP` : ''}
             </div>
             <div class="item-price">💰 ${item.price}</div>
+            ${requiredLevel > 1 ? `<div class="item-stats">${player.level < requiredLevel ? '🔒 ' : ''}Экипировка с ${requiredLevel} уровня</div>` : ''}
             <button class="shop-btn" 
                     onclick="window.buyItem('${item.id}')"
                     ${!canAfford ? 'disabled' : ''}>

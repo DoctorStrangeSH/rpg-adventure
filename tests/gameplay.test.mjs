@@ -617,6 +617,38 @@ test('danger route increases enemy difficulty and rewards with a rare elite enco
     assert.equal(elite.elite, true);
     assert.ok(elite.health > dangerous.health);
     assert.ok(elite.expReward > dangerous.expReward);
-    assert.ok(elite.name.includes('Элитный'));
+    assert.ok(elite.name.startsWith('⚡'));
+});
+
+test('elite affixes are reproducible and armored elites gain real defense', () => {
+    const base = { name: 'Гоблин', health: 100, maxHealth: 100, attack: 20, defense: 5, expReward: 10, goldReward: 10 };
+    assert.equal(applyRouteToEnemy(base, 'danger', 0.01).eliteAffix, 'vampiric');
+    assert.equal(applyRouteToEnemy(base, 'danger', 0.09).eliteAffix, 'enraged');
+    const armored = applyRouteToEnemy(base, 'danger', 0.18);
+    assert.equal(armored.eliteAffix, 'armored');
+    assert.equal(armored.defense, 17);
+    assert.equal(base.defense, 5);
+});
+
+test('vampiric elites heal from actual attacks but not beyond maximum health', () => {
+    const player = gameState.createPlayer('warrior');
+    const enemy = { health: 40, maxHealth: 100, attack: 20, eliteAffix: 'vampiric' };
+    const attack = applyEnemyAction(enemy, player, 'attack');
+    assert.ok(attack.lifeStolen > 0);
+    assert.equal(enemy.health, 40 + attack.lifeStolen);
+    enemy.health = 99;
+    assert.equal(applyEnemyAction(enemy, player, 'attack').lifeStolen, 1);
+    assert.equal(enemy.health, 100);
+});
+
+test('enraged elites deal more damage at half health without affecting normal enemies', () => {
+    const player = gameState.createPlayer('warrior');
+    const enemy = { health: 100, maxHealth: 100, attack: 30, eliteAffix: 'enraged' };
+    const normal = applyEnemyAction(enemy, player, 'attack').damage;
+    enemy.health = 50;
+    player.health = player.maxHealth;
+    const angry = applyEnemyAction(enemy, player, 'attack');
+    assert.equal(angry.enraged, true);
+    assert.ok(angry.damage > normal);
 });
 

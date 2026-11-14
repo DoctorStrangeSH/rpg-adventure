@@ -147,7 +147,9 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
         return { damage: 0, healed, manaBurned: 0, reflected: 0 };
     }
     const weakened = enemy.effects?.weakenTurns > 0;
-    const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1) * (weakened ? 0.75 : 1);
+    const enraged = enemy.eliteAffix === 'enraged' && enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.5;
+    const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 : 1) *
+        (weakened ? 0.75 : 1) * (enraged ? 1.4 : 1);
     if (weakened) enemy.effects.weakenTurns--;
     const runeReduction = hasSpecialization(player, 'mage_warden') ? 0.15 : 0;
     const effectiveReduction = 1 - (1 - Math.min(1, Math.max(0, reduction))) * (1 - runeReduction);
@@ -156,9 +158,12 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     // Retaliation is tied to an actual guard, not passive defense or recovery.
     const reflected = hasSpecialization(player, 'warrior_sentinel') && reduction > 0
         ? applyDamage(enemy, Math.max(1, Math.floor(damage * 0.25))) : 0;
+    const lifeStolen = enemy.eliteAffix === 'vampiric' && enemy.health > 0
+        ? Math.min(Math.max(0, enemy.maxHealth - enemy.health), Math.floor(damage * 0.25)) : 0;
+    if (lifeStolen) enemy.health += lifeStolen;
     const manaBurned = action === 'mana_burn' ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / 3))) : 0;
     player.mana -= manaBurned;
-    return { damage, healed: 0, manaBurned, reflected };
+    return { damage, healed: 0, manaBurned, reflected, lifeStolen, enraged };
 }
 
 // Set bonuses are derived from equipped IDs, never permanently added to base

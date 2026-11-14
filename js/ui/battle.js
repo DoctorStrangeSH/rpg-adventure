@@ -522,7 +522,7 @@ function enemyTurn() {
         battleState.enemySprite.isAttacking = false;
         
         showBattleMessage(result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
-            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}`);
+            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}`);
         
         setTimeout(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;

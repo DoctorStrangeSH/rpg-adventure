@@ -14,13 +14,18 @@ export function applyRouteToEnemy(enemy, routeId, roll = Math.random()) {
     if (!route || !enemy) return null;
     const isElite = routeId === 'danger' && Number.isFinite(roll) && roll >= 0 && roll < 0.2;
     const eliteMultiplier = isElite ? 1.3 : 1;
+    const affixes = ['vampiric', 'enraged', 'armored'];
+    const affix = isElite ? affixes[Math.min(2, Math.floor(roll / 0.2 * affixes.length))] : null;
+    const affixNames = { vampiric: 'Кровопийца', enraged: 'Яростный', armored: 'Бронированный' };
     return {
         ...enemy,
-        name: isElite ? `⚡ Элитный ${enemy.name}` : enemy.name,
+        name: isElite ? `⚡ ${affixNames[affix]} ${enemy.name}` : enemy.name,
         elite: isElite,
+        eliteAffix: affix,
         health: Math.max(1, Math.floor(enemy.health * route.enemyHealth * eliteMultiplier)),
         maxHealth: Math.max(1, Math.floor(enemy.maxHealth * route.enemyHealth * eliteMultiplier)),
         attack: Math.max(1, Math.floor(enemy.attack * route.enemyAttack * eliteMultiplier)),
+        defense: Math.max(0, Math.floor((enemy.defense || 0) + (affix === 'armored' ? 12 : 0))),
         expReward: Math.floor(enemy.expReward * route.reward * eliteMultiplier),
         goldReward: Math.floor(enemy.goldReward * route.reward * eliteMultiplier)
     };

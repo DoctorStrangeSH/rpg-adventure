@@ -595,6 +595,35 @@ test('traveling merchant requires funds and never produces negative gold', () =>
     assert.equal(player.health, 55);
 });
 
+test('moonwell adjusts mana without exceeding its bounds', () => {
+    const player = gameState.createPlayer('mage');
+    player.mana = 1;
+    const restored = resolveAdventureEvent(player, 'moonwell', 'risk', 0.1);
+    assert.equal(restored.mana, Math.min(35, player.maxMana - 1));
+    assert.ok(player.mana <= player.maxMana);
+    const drained = resolveAdventureEvent(player, 'moonwell', 'risk', 0.9);
+    assert.equal(drained.mana, -10);
+    player.mana = 0;
+    assert.equal(resolveAdventureEvent(player, 'moonwell', 'risk', 0.9).mana, 0);
+});
+
+test('sealed vault rewards only unowned relics and fallback treasure is bounded', () => {
+    const player = gameState.createPlayer('warrior');
+    const first = resolveAdventureEvent(player, 'vault', 'risk', 0.1);
+    assert.ok(first.relicId);
+    assert.notEqual(RELICS[first.relicId].rarity, 'common');
+    const second = resolveAdventureEvent(player, 'vault', 'risk', 0.1);
+    assert.notEqual(second.relicId, first.relicId);
+    player.relics = Object.values(RELICS).filter(relic => relic.rarity !== 'common').map(relic => relic.id);
+    const goldBefore = player.gold;
+    assert.equal(resolveAdventureEvent(player, 'vault', 'risk', 0.1).gold, 75);
+    assert.equal(player.gold, goldBefore + 75);
+    player.health = 2;
+    const cursed = resolveAdventureEvent(player, 'vault', 'risk', 0.9);
+    assert.equal(cursed.relicId, null);
+    assert.equal(player.health, 1);
+});
+
 test('safe dungeon route preserves enemy balance and rewards', () => {
     const original = { name: 'Волк', health: 100, maxHealth: 100, attack: 20, expReward: 30, goldReward: 10 };
     const safe = applyRouteToEnemy(original, 'safe', 0);

@@ -125,6 +125,7 @@ export function startStageBattle() {
     battleState.isLocationBattle = true;
     battleState.isBossBattle = false;
     battleState.guardReduction = 0;
+    battleState.relicEffects = { phoenixRebirthUsed: false };
     gameState.player.stats.battles++;
     gameState.save();
     
@@ -251,6 +252,7 @@ export function startBossFight(bossData) {
     battleState.isBossBattle = true;
     battleState.isLocationBattle = true;
     battleState.guardReduction = 0;
+    battleState.relicEffects = { phoenixRebirthUsed: false };
     gameState.player.stats.battles++;
     gameState.save();
     

@@ -39,3 +39,17 @@ test('spectral wolf pounce atlas has four equal cropped frames', () => {
     assert.equal(image.height, 200);
     assert.equal(image.colorType, 6);
 });
+
+test('gothic goblin has a transparent idle cutout', () => {
+    assert.deepEqual(readPngSize('../assets/characters/enemies/goblin-idle.png'), {
+        width: 400, height: 533, colorType: 6
+    });
+});
+
+test('gothic goblin dagger attack atlas contains four equal cells', () => {
+    const image = readPngSize('../assets/characters/enemies/goblin-attack.png');
+    assert.equal(image.width, 1088);
+    assert.equal(image.width / 4, 272);
+    assert.equal(image.height, 363);
+    assert.equal(image.colorType, 6);
+});

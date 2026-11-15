@@ -107,17 +107,29 @@ test('elemental affinities scale direct damage and damage-over-time for class sk
     assert.equal(tickEnemyEffects(resistant).poisonDamage, 5);
 });
 
-test('frost nova deals ice damage and dragon affinity affects it without bypassing freeze immunity', () => {
+test('frost nova and thermal shock use ice affinity without bypassing freeze immunity', () => {
     const mage = gameState.createPlayer('mage');
+    const vulnerable = {
+        health: 200, maxHealth: 200, defense: 0,
+        effects: { burnTurns: 2 },
+        damageModifiers: { ice: 1.25 }
+    };
+    const combo = useSkillEffect(mage, vulnerable, CLASSES.mage.skills[1]);
+    assert.equal(combo.element, 'ice');
+    assert.equal(combo.thermalShockDamage, 20);
+    assert.equal(combo.damage, 38);
+
     const dragon = {
         health: 200, maxHealth: 200, defense: 0,
+        effects: { burnTurns: 2 },
         resistances: { freeze: 1 },
         damageModifiers: { ice: 1.25 }
     };
     const result = useSkillEffect(mage, dragon, CLASSES.mage.skills[1]);
     assert.equal(result.damage, 18);
-    assert.equal(result.element, 'ice');
+    assert.equal(result.thermalShockDamage, 0);
     assert.equal(dragon.effects?.freezeTurns, undefined);
+    assert.equal(dragon.effects.burnTurns, 2);
 });
 
 test('enchanted weapons use their element for basic attacks', () => {
@@ -167,7 +179,8 @@ test('fire followed by frost causes capped thermal shock and consumes burn', () 
     const before = enemy.health;
     const result = useSkillEffect(mage, enemy, CLASSES.mage.skills[1]);
     assert.equal(result.thermalShockDamage, 16);
-    assert.equal(enemy.health, before - 16);
+    assert.equal(result.damage, 31);
+    assert.equal(enemy.health, before - result.damage);
     assert.equal(enemy.effects.burnTurns, 0);
     assert.equal(tickEnemyEffects(enemy).frozen, true);
     assert.equal(useSkillEffect(mage, enemy, CLASSES.mage.skills[1]).thermalShockDamage, 0);
@@ -178,7 +191,7 @@ test('thermal shock respects freeze immunity and never overkills or exceeds cap'
     const immune = { health: 100, maxHealth: 100, defense: 0, effects: { burnTurns: 2 }, resistances: { freeze: 1 } };
     assert.equal(useSkillEffect(mage, immune, CLASSES.mage.skills[1]).thermalShockDamage, 0);
     assert.equal(immune.effects.burnTurns, 2);
-    const large = { health: 10, maxHealth: 1000, defense: 0, effects: { burnTurns: 2 } };
+    const large = { health: 25, maxHealth: 1000, defense: 0, effects: { burnTurns: 2 } };
     assert.equal(useSkillEffect(mage, large, CLASSES.mage.skills[1]).thermalShockDamage, 10);
     assert.equal(large.health, 0);
 });

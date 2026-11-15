@@ -508,7 +508,7 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
         Number.isFinite(healthLimit) && healthLimit > 0
         ? Math.max(0, Math.min(healthLimit - player.health,
             Math.max(1, Math.floor(damage * retaliation.fraction)),
-            Math.max(1, Math.floor(healthLimit * 0.1)))) : 0;
+            Math.max(1, Math.floor(healthLimit * retaliation.maxHealthFraction)))) : 0;
     if (armorHealed) player.health += armorHealed;
     return { damage, healed: 0, manaBurned, reflected, lifeStolen, soulDrain, enraged, armorEffect, armorHealed };
 }

@@ -63,7 +63,7 @@ export const ITEMS = {
         requiredLevel: 4, price: 450, setId: 'emberguard'
     },
     frost_armor: { id: 'frost_armor', name: 'Кираса ледяного дозора', icon: '🧊', type: 'armor', rarity: 'epic', defenseBonus: 19, requiredLevel: 6, price: 820, setId: 'frostwarden', onDamaged: { type: 'freeze', chance: 0.15, turns: 1 } },
-    blood_armor: { id: 'blood_armor', name: 'Кожаный панцирь охотника', icon: '🩸', type: 'armor', rarity: 'rare', defenseBonus: 13, requiredLevel: 3, price: 390, setId: 'bloodhunter', onDamaged: { type: 'heal', chance: 0.25, fraction: 0.2 } },
+    blood_armor: { id: 'blood_armor', name: 'Кожаный панцирь охотника', icon: '🩸', type: 'armor', rarity: 'rare', defenseBonus: 13, requiredLevel: 3, price: 390, setId: 'bloodhunter', onDamaged: { type: 'heal', chance: 0.25, fraction: 0.2, maxHealthFraction: 0.1 } },
     moonblade: {
         id: 'moonblade', name: 'Лунный клинок', icon: '🌙',
         type: 'weapon', rarity: 'epic', attackBonus: 28,
@@ -104,3 +104,24 @@ export const RARITIES = {
     epic: { name: 'Эпический', color: '#d8b4fe' },
     legendary: { name: 'Легендарный', color: '#fbbf24' }
 };
+
+const STATUS_NAMES = { burn: '🔥 Поджог', bleed: '🩸 Кровотечение', freeze: '❄️ Заморозка' };
+
+// Player-facing ability descriptions are derived from gameplay data, so the
+// inventory does not silently drift when combat balance numbers change.
+export function getItemAbilityDescription(item) {
+    if (!item || typeof item !== 'object') return '';
+    if (item.onCrit?.type === 'echo') {
+        return `🐉 Эхо дракона: крит наносит ещё ${Math.round(item.onCrit.fraction * 100)}% урона (до ${Math.round(item.onCrit.maxTargetHealthFraction * 100)}% HP врага)`;
+    }
+    if (item.onDamaged?.type === 'heal') {
+        return `🩸 Ответное лечение: ${Math.round(item.onDamaged.chance * 100)}% шанс вернуть ${Math.round(item.onDamaged.fraction * 100)}% урона (до ${Math.round((item.onDamaged.maxHealthFraction || 0.1) * 100)}% HP)`;
+    }
+    if (item.onDamaged?.type === 'freeze') {
+        return `❄️ Ответная заморозка: ${Math.round(item.onDamaged.chance * 100)}% после удара по герою`;
+    }
+    if (item.onHit) {
+        return `${STATUS_NAMES[item.onHit.type] || 'Эффект оружия'}: ${Math.round(item.onHit.chance * 100)}% за попадание`;
+    }
+    return '';
+}

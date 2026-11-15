@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
-import { ITEMS, getItem } from '../js/data/items.js';
+import { ITEMS, getItem, getItemAbilityDescription } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
 import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType } from '../js/systems/combat.js';
@@ -1488,6 +1488,16 @@ test('dragon echo does not overkill, chain, or activate for ordinary weapons', (
     assert.equal(triggerDragonSwordEcho(player, plain, -1, true), 0);
     assert.equal(triggerDragonSwordEcho(player, plain, NaN, true), 0);
     assert.equal(plain.health, 100);
+});
+
+test('equipment ability descriptions match active numeric properties', () => {
+    assert.match(getItemAbilityDescription(getItem('dragon_sword')), /25%.*8%/);
+    assert.match(getItemAbilityDescription(getItem('frost_armor')), /15%/);
+    assert.match(getItemAbilityDescription(getItem('blood_armor')), /25%.*20%.*10%/);
+    assert.match(getItemAbilityDescription(getItem('frost_blade')), /18%/);
+    assert.match(getItemAbilityDescription(getItem('ember_sword')), /30%/);
+    assert.equal(getItemAbilityDescription(getItem('iron_sword')), '');
+    assert.equal(getItemAbilityDescription(null), '');
 });
 
 test('relics drop only from eligible victories and do not duplicate', () => {

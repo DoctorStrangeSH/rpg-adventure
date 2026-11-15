@@ -25,3 +25,17 @@ test('gothic skeleton attack atlas has four equal transparent cells', () => {
     assert.equal(image.height, 363);
     assert.equal(image.colorType, 6);
 });
+
+test('spectral wolf idle uses the wide quadruped silhouette and alpha', () => {
+    assert.deepEqual(readPngSize('../assets/characters/enemies/wolf-idle.png'), {
+        width: 960, height: 540, colorType: 6
+    });
+});
+
+test('spectral wolf pounce atlas has four equal cropped frames', () => {
+    const image = readPngSize('../assets/characters/enemies/wolf-attack.png');
+    assert.equal(image.width, 1088);
+    assert.equal(image.width / 4, 272);
+    assert.equal(image.height, 200);
+    assert.equal(image.colorType, 6);
+});

@@ -42,3 +42,16 @@ export function rollLoot(isBoss = false, random = Math.random, bossId = null) {
     if (tier < 0.72) return 'big_health_potion';
     return 'mana_potion';
 }
+
+// Deep chests can only drop after a major boss milestone (stage 20, 30, ...).
+// One roll controls both eligibility and contents for reproducible rewards.
+export function rollDeepChest(stageNumber, roll = Math.random()) {
+    if (!Number.isInteger(stageNumber) || stageNumber < 20 || stageNumber % 10 !== 0 ||
+        !Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
+    const chance = stageNumber >= 40 ? 0.55 : stageNumber >= 30 ? 0.45 : 0.35;
+    if (roll >= chance) return null;
+    const tierRoll = roll / chance;
+    if (stageNumber >= 40) return tierRoll < 0.25 ? 'moonblade' : tierRoll < 0.75 ? 'frost_blade' : 'dragon_sword';
+    if (stageNumber >= 30) return tierRoll < 0.4 ? 'moonblade' : tierRoll < 0.9 ? 'frost_blade' : 'dragon_sword';
+    return tierRoll < 0.7 ? 'moonblade' : 'frost_blade';
+}

@@ -2,8 +2,9 @@
 import { gameState } from '../core/state.js';
 import { getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
+import { getItem } from '../data/items.js';
 import { getBattleState } from '../ui/battle.js';
-import { grantItem } from './loot.js';
+import { grantItem, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
@@ -22,7 +23,8 @@ let locationState = {
     checkedSecretStages: new Set(),
     pendingSecretRoom: null,
     pendingCheckpoint: null,
-    visitedCheckpointStages: new Set()
+    visitedCheckpointStages: new Set(),
+    claimedDeepChestStages: new Set()
 };
 
 export function getExpeditionDepthModifiers(stageNumber) {
@@ -80,6 +82,7 @@ export function startLocation(locationId) {
     locationState.pendingSecretRoom = null;
     locationState.pendingCheckpoint = null;
     locationState.visitedCheckpointStages = new Set(resumeStage ? [resumeStage] : []);
+    locationState.claimedDeepChestStages = new Set();
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -525,6 +528,18 @@ export function handleBossVictory() {
     if (!locationState.inLocation || !locationState.currentLocation) return;
     const location = locationState.currentLocation;
     
+    // A victorious major boss can reveal one rare chest. Mark the stage before
+    // awarding loot, so a duplicate victory callback cannot duplicate items.
+    const stageNumber = locationState.currentStage + 1;
+    if (!locationState.claimedDeepChestStages.has(stageNumber)) {
+        locationState.claimedDeepChestStages.add(stageNumber);
+        const itemId = rollDeepChest(stageNumber);
+        if (itemId && grantItem(gameState.player, itemId, 1) === 1) {
+            gameState.save();
+            window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
+        }
+    }
+
     // Проверяем, был ли это последний этап
     if (locationState.currentStage >= location.stages.length - 1) {
         completeLocation();

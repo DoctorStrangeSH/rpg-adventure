@@ -12,7 +12,7 @@ import { getMapCheckpointLabel } from '../js/ui/map.js';
 import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute, chooseDungeonCheckpoint, getDungeonCheckpoint, getExpeditionDepthModifiers } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
-import { grantItem, rollLoot } from '../js/systems/loot.js';
+import { grantItem, rollLoot, rollDeepChest } from '../js/systems/loot.js';
 import { buyItem } from '../js/ui/shop.js';
 import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses } from '../js/systems/talents.js';
 import { rollAdventureEvent, resolveAdventureEvent } from '../js/systems/adventureEvents.js';
@@ -1059,6 +1059,22 @@ test('moonwell adjusts mana without exceeding its bounds', () => {
     assert.equal(drained.mana, -10);
     player.mana = 0;
     assert.equal(resolveAdventureEvent(player, 'moonwell', 'risk', 0.9).mana, 0);
+});
+
+test('rare depth chests unlock only at major milestones and respect drop thresholds', () => {
+    assert.equal(rollDeepChest(10, 0), null);
+    assert.equal(rollDeepChest(19, 0), null);
+    assert.equal(rollDeepChest(21, 0), null);
+    assert.equal(rollDeepChest(20, 0.35), null);
+    assert.equal(rollDeepChest(20, 0.01), 'moonblade');
+    assert.equal(rollDeepChest(20, 0.3), 'frost_blade');
+    assert.equal(rollDeepChest(30, 0.44), 'dragon_sword');
+    assert.equal(rollDeepChest(40, 0.1), 'moonblade');
+    assert.equal(rollDeepChest(40, 0.3), 'frost_blade');
+    assert.equal(rollDeepChest(40, 0.5), 'dragon_sword');
+    assert.equal(rollDeepChest(40, 0.55), null);
+    assert.equal(rollDeepChest(40, -1), null);
+    assert.equal(rollDeepChest(40, NaN), null);
 });
 
 test('sealed vault rewards only unowned relics and fallback treasure is bounded', () => {

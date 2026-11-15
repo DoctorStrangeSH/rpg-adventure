@@ -319,7 +319,7 @@ export function chooseAdventureEvent(choiceId) {
         pending.stage !== locationState.currentStage || getBattleState().isActive) return false;
     const outcome = resolveAdventureEvent(gameState.player, pending.id, choiceId);
     if (!outcome) {
-        window.showNotification?.('Недостаточно золота или неверный выбор.', 'error');
+        window.showNotification?.('Недостаточно ресурсов для выбранного действия или неверный выбор.', 'error');
         return false;
     }
     locationState.visitedEventStages.add(pending.stage);

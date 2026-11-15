@@ -298,13 +298,17 @@ export function chooseEnemyAction(enemy, player, roll = Math.random()) {
     const healthRatio = getCombatRatio(enemy.health, enemy.maxHealth);
     const playerHealthRatio = getCombatRatio(player?.health, player?.maxHealth);
     const playerManaRatio = getCombatRatio(player?.mana, player?.maxMana, player?.mana > 0 ? 1 : 0);
+    // Recognize equipped armor instead of guessing protection from class alone.
+    const armorBonus = getItem(player?.equipment?.armor)?.defenseBonus || 0;
 
     if (behavior === 'mini_boss') {
         const signatures = {
             goblin_king: 'ambush', mountain_giant: 'crush',
             death_knight: 'siphon', ancient_dragon: 'flame_breath'
         };
-        return roll < 0.4 ? (signatures[enemy.id] || 'heavy') : roll < 0.65 ? 'heavy' : 'attack';
+        // The giant is more likely to use its armor-piercing crush on heavily armored heroes.
+        const signatureChance = enemy.id === 'mountain_giant' && armorBonus >= 15 ? 0.6 : 0.4;
+        return roll < signatureChance ? (signatures[enemy.id] || 'heavy') : roll < 0.65 ? 'heavy' : 'attack';
     }
     if (behavior === 'boss') {
         if (playerManaRatio >= 0.5 && roll < 0.4) return 'mana_burn';
@@ -315,10 +319,14 @@ export function chooseEnemyAction(enemy, player, roll = Math.random()) {
         if (healthRatio < 0.45 && roll < 0.5) return 'recover';
     }
     if (behavior === 'opportunist') {
-        if (playerManaRatio >= 0.4 && roll < 0.45) return 'mana_burn';
+        // Goblins prioritize mana disruption against mages while leaving exhausted targets alone.
+        if (playerManaRatio >= (player?.class === 'mage' ? 0.25 : 0.4) &&
+            roll < (player?.class === 'mage' ? 0.6 : 0.45)) return 'mana_burn';
         if (playerHealthRatio <= 0.35 && roll < 0.2) return 'heavy';
     }
     if (behavior === 'aggressive') {
+        // Agile but lightly armored archers are exposed to earlier pounces.
+        if (player?.class === 'archer' && armorBonus < 13 && playerHealthRatio <= 0.65 && roll < 0.45) return 'pounce';
         if (playerHealthRatio <= 0.4 && roll < 0.6) return 'pounce';
         if (roll < 0.35) return 'heavy';
     }

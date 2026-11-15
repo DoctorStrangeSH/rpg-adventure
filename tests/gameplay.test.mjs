@@ -317,6 +317,29 @@ test('enemy archetypes react to player health, mana and their own active debuffs
     assert.equal(chooseEnemyAction(lowHealthSkeleton, manaRich, 0.1), 'recover');
 });
 
+test('enemy tactics respond to class and equipped armor without changing base behaviors', () => {
+    const goblin = { behavior: 'opportunist', health: 40, maxHealth: 40 };
+    const mage = { class: 'mage', health: 100, maxHealth: 100, mana: 30, maxMana: 100 };
+    const warrior = { ...mage, class: 'warrior' };
+    assert.equal(chooseEnemyAction(goblin, mage, 0.5), 'mana_burn');
+    assert.equal(chooseEnemyAction(goblin, warrior, 0.5), 'attack');
+    assert.equal(chooseEnemyAction(goblin, { ...mage, mana: 0 }, 0.1), 'attack');
+
+    const wolf = { behavior: 'aggressive', health: 40, maxHealth: 40 };
+    const archer = { class: 'archer', health: 60, maxHealth: 100, equipment: { armor: 'leather_armor' } };
+    assert.equal(chooseEnemyAction(wolf, archer, 0.4), 'pounce');
+    assert.equal(chooseEnemyAction(wolf, { ...archer, equipment: { armor: 'guardian_armor' } }, 0.4), 'attack');
+    assert.equal(chooseEnemyAction(wolf, { ...archer, class: 'warrior' }, 0.4), 'attack');
+    assert.equal(planEnemyTurn(wolf, archer, 0.4).warned, true);
+    assert.equal(wolf.intent, 'pounce');
+
+    const giant = { id: 'mountain_giant', behavior: 'mini_boss' };
+    assert.equal(chooseEnemyAction(giant, { class: 'warrior', equipment: { armor: 'guardian_armor' } }, 0.5), 'crush');
+    assert.equal(chooseEnemyAction(giant, { class: 'warrior', equipment: { armor: 'leather_armor' } }, 0.5), 'heavy');
+    assert.equal(planEnemyTurn(giant, { equipment: { armor: 'guardian_armor' } }, 0.5).warned, true);
+    assert.equal(giant.intent, 'crush');
+});
+
 test('bosses and tactician elites adapt after two consecutive successful hits of one damage type', () => {
     const boss = { behavior: 'boss', health: 100, maxHealth: 100, damageModifiers: { fire: 1.2 } };
     assert.equal(recordEnemyDamageType(boss, 'fire', 20), false);

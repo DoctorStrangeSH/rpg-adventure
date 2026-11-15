@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -241,6 +241,7 @@ export function updateBattleUI() {
         ${enemy.intent && player.class === 'mage' ? '<div class="battle-tactic">❄️ Маг: ледяная нова может сорвать подготовку врага.</div>' : ''}
         ${player.class === 'mage' && enemy.effects?.burnTurns > 0 ? '<div class="battle-tactic">🔥❄️ Комбинация: ледяная нова по горящему врагу вызывает термошок (до 30 урона)!</div>' : ''}
         ${player.class === 'archer' && (enemy.effects?.poisonTurns > 0 || enemy.effects?.bleedTurns > 0) ? '<div class="battle-tactic">☠️🩸 Комбинация: яд и кровотечение вместе наносят дополнительный урон каждый ход (до 12)!</div>' : ''}
+        ${player.class === 'warrior' && enemy.effects?.weakenTurns > 0 ? '<div class="battle-tactic">⚔️ Комбинация: обычная атака по ослабленному врагу наносит на 25% больше урона, расходуя один ход ослабления.</div>' : ''}
         ${equippedRelicNames.length ? `<div class="battle-relics">💎 Реликвии: ${equippedRelicNames.join(' · ')}${synergies.length ? ` <span>🔗 ${synergies.map(entry => entry.name).join(', ')}</span>` : ''}</div>` : ''}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
         ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
@@ -296,7 +297,8 @@ export function playerAttack() {
     
     const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
     const tacticalBonus = getClassTacticalBonus(player, enemy);
-    const baseDamage = calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10), tacticalBonus.attackMultiplier);
+    const warriorOpening = consumeWarriorOpening(player, enemy);
+    const baseDamage = calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10), tacticalBonus.attackMultiplier * (warriorOpening ? 1.25 : 1));
     const damage = isCrit ? Math.floor(baseDamage * getCriticalMultiplier(player)) : baseDamage;
     
     applyDamage(enemy, damage);
@@ -317,7 +319,7 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;

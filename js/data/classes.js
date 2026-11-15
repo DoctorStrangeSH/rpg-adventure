@@ -17,7 +17,7 @@ export const CLASSES = {
                 id: 'power_strike',
                 name: 'Мощный удар',
                 icon: '💥',
-                description: 'Наносит 200% урона',
+                description: '200% урона и ослабление. Следующая обычная атака может стать добивающей (+25%)',
                 manaCost: 10,
                 damageMultiplier: 2.0,
                 weaken: true

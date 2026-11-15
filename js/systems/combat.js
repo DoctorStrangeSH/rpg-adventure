@@ -16,6 +16,14 @@ export function getClassTacticalBonus(player, enemy) {
     return { attackMultiplier: 1, guardReduction: 0.5 };
 }
 
+// A warrior can trade the remaining weakening duration for a stronger basic
+// strike. The effect is consumed once and cannot be exploited by other classes.
+export function consumeWarriorOpening(player, enemy) {
+    if (player?.class !== 'warrior' || !enemy || enemy.health <= 0 || !(enemy.effects?.weakenTurns > 0)) return false;
+    enemy.effects.weakenTurns--;
+    return true;
+}
+
 export function getEnemyTacticHint(enemy) {
     if (!enemy) return '';
     if (enemy.intent === 'heavy') return '⚠️ Следующая атака будет сокрушительной. Защищайтесь!';

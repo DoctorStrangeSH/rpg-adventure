@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -168,6 +168,27 @@ test('warrior shield skill grants damage reduction without direct damage', () =>
     const result = useSkillEffect(player, enemy, CLASSES.warrior.skills[1]);
     assert.equal(enemy.health, 100);
     assert.equal(result.guardReduction, 0.75);
+});
+
+test('warrior consumes weakening to empower one basic attack', () => {
+    const warrior = gameState.createPlayer('warrior');
+    const enemy = { health: 200, maxHealth: 200, defense: 2 };
+    useSkillEffect(warrior, enemy, CLASSES.warrior.skills[0]);
+    assert.equal(enemy.effects.weakenTurns, 2);
+    assert.equal(consumeWarriorOpening(warrior, enemy), true);
+    assert.equal(enemy.effects.weakenTurns, 1);
+    assert.ok(calculateDamage(20, 2, 0, 1.25) > calculateDamage(20, 2));
+    assert.equal(consumeWarriorOpening(warrior, enemy), true);
+    assert.equal(consumeWarriorOpening(warrior, enemy), false);
+});
+
+test('warrior opening cannot be spent by other classes or on defeated targets', () => {
+    const enemy = { health: 20, effects: { weakenTurns: 2 } };
+    assert.equal(consumeWarriorOpening({ class: 'mage' }, enemy), false);
+    assert.equal(enemy.effects.weakenTurns, 2);
+    enemy.health = 0;
+    assert.equal(consumeWarriorOpening({ class: 'warrior' }, enemy), false);
+    assert.equal(enemy.effects.weakenTurns, 2);
 });
 
 test('different enemy archetypes choose distinct tactics', () => {

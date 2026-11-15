@@ -332,6 +332,7 @@ export function playerAttack() {
     const damageFeedback = getDamageFeedback(enemy, damageType);
     
     applyDamage(enemy, damage);
+    if (damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);
     const archerMarks = addArcherMark(player, enemy, damage);
     recordEnemyDamageType(enemy, damageType, damage);
     const weaponEffect = triggerWeaponEffect(player, enemy);
@@ -417,6 +418,7 @@ export function playerSkill(skillId) {
     battleState.playerSprite.isAttacking = true;
     
     const result = useSkillEffect(player, enemy, skill);
+    if (result.damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);
     const weaponEffect = result.damage > 0 ? triggerWeaponEffect(player, enemy) : null;
     if (result.guardReduction) battleState.guardReduction = result.guardReduction;
     gameState.save();
@@ -582,6 +584,7 @@ function enemyTurn() {
         
         const result = applyEnemyAction(enemy, player, action, Math.floor(Math.random() * 5), battleState.guardReduction);
         const damage = result.damage;
+        if (damage > 0) battleState.playerSprite?.receiveHit(battleState.animationFrame);
         const parried = resolveWarriorParry(player, enemy, guardedWindup, battleState.guardReduction);
         const reborn = tryPhoenixRebirth(player, battleState.relicEffects);
         battleState.guardReduction = 0;

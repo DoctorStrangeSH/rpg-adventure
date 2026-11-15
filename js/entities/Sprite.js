@@ -23,6 +23,20 @@ export function getAttackFrame(elapsed, frames = 4, ticksPerFrame = 7) {
     return Math.max(0, Math.min(frames - 1, Math.floor(elapsed / ticksPerFrame)));
 }
 
+// A short two-beat impact: recoil away from the attacker, then settle.
+// Computed from render ticks, so no delayed callback can affect the next fight.
+export function getHitFeedback(elapsed, duration = 16) {
+    if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed >= duration) {
+        return { recoil: 0, flash: false, active: false };
+    }
+    const progress = elapsed / duration;
+    return {
+        recoil: Math.sin(progress * Math.PI) * 9,
+        flash: elapsed < 5 || (elapsed >= 7 && elapsed < 10),
+        active: true
+    };
+}
+
 export class Sprite {
     constructor(type, x, y) {
         this.type = type;
@@ -33,6 +47,11 @@ export class Sprite {
         this.isAttacking = false;
         this.isHit = false;
         this.attackStartFrame = null;
+        this.hitStartFrame = null;
+    }
+
+    receiveHit(frame) {
+        this.hitStartFrame = frame;
     }
     
     draw(ctx, frame) {
@@ -49,8 +68,13 @@ export class Sprite {
             ctx.translate(20, 0);
         }
         
-        if (this.isHit) {
-            ctx.translate(0, 10);
+        const hit = getHitFeedback(frame - (this.hitStartFrame ?? Number.NEGATIVE_INFINITY));
+        if (hit.active) {
+            ctx.translate(this.type === 'warrior' || this.type === 'mage' || this.type === 'archer'
+                ? -hit.recoil : hit.recoil, 0);
+            if (hit.flash) ctx.filter = 'brightness(1.9) saturate(0.5)';
+        } else {
+            this.hitStartFrame = null;
         }
         
         this.drawSprite(ctx, frame);

@@ -88,6 +88,23 @@ export function triggerWeaponEffect(player, enemy, roll = Math.random()) {
     if (roll >= chance) return null;
     return applyStatusEffect(enemy, effect.type, effect.turns) ? effect.type : null;
 }
+// Dragon Sword sends one bounded follow-up strike on a critical basic attack.
+// The echo is direct physical damage: it cannot recursively crit or reapply
+// weapon ailments, and it respects the target's remaining health.
+export function triggerDragonSwordEcho(player, enemy, dealtDamage, critical) {
+    if (!critical || !enemy || !(enemy.health > 0) || !Number.isFinite(dealtDamage) || dealtDamage <= 0) return 0;
+    const enchantment = getItem(player?.equipment?.weapon)?.onCrit;
+    if (enchantment?.type !== 'echo') return 0;
+    const targetMax = Number(enemy.maxHealth);
+    const cap = Number.isFinite(targetMax) && targetMax > 0
+        ? Math.max(1, Math.floor(targetMax * enchantment.maxTargetHealthFraction))
+        : Math.max(1, Math.floor(dealtDamage * enchantment.fraction));
+    const strike = Math.max(1, Math.min(Math.floor(dealtDamage * enchantment.fraction), cap));
+    const actual = Math.min(enemy.health, strike);
+    applyDamage(enemy, actual);
+    return actual;
+}
+
 export const DAMAGE_TYPE_LABELS = {
     physical: 'физический урон',
     fire: 'огонь',

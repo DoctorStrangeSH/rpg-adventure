@@ -44,6 +44,7 @@ export const ITEMS = {
         type: 'weapon',
         rarity: 'legendary',
         attackBonus: 40,
+        onCrit: { type: 'echo', fraction: 0.25, maxTargetHealthFraction: 0.08 },
         requiredLevel: 8,
         price: 1000
     },

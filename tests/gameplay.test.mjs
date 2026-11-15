@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType } from '../js/systems/combat.js';
+import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -1461,6 +1461,33 @@ test('bloodhunter armor does not heal without armor, on immunity-like recovery, 
     hero.health = 1;
     assert.equal(applyEnemyAction(enemy, hero, 'attack', 0, 0, 0).armorHealed, 0);
     assert.equal(hero.health, 0);
+});
+
+test('dragon sword critical echo adds a bounded second strike only on a crit', () => {
+    const player = gameState.createPlayer('warrior');
+    player.equipment.weapon = 'dragon_sword';
+    const enemy = { health: 300, maxHealth: 300 };
+    assert.equal(triggerDragonSwordEcho(player, enemy, 100, false), 0);
+    assert.equal(enemy.health, 300);
+    assert.equal(triggerDragonSwordEcho(player, enemy, 100, true), 24);
+    assert.equal(enemy.health, 276);
+    assert.equal(getItem('dragon_sword').onCrit.type, 'echo');
+});
+
+test('dragon echo does not overkill, chain, or activate for ordinary weapons', () => {
+    const player = gameState.createPlayer('mage');
+    player.equipment.weapon = 'dragon_sword';
+    const low = { health: 4, maxHealth: 100 };
+    assert.equal(triggerDragonSwordEcho(player, low, 200, true), 4);
+    assert.equal(low.health, 0);
+    assert.equal(triggerDragonSwordEcho(player, low, 200, true), 0);
+    player.equipment.weapon = 'iron_sword';
+    const plain = { health: 100, maxHealth: 100 };
+    assert.equal(triggerDragonSwordEcho(player, plain, 100, true), 0);
+    player.equipment.weapon = 'dragon_sword';
+    assert.equal(triggerDragonSwordEcho(player, plain, -1, true), 0);
+    assert.equal(triggerDragonSwordEcho(player, plain, NaN, true), 0);
+    assert.equal(plain.health, 100);
 });
 
 test('relics drop only from eligible victories and do not duplicate', () => {

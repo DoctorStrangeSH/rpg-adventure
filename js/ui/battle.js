@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -261,7 +261,7 @@ export function updateBattleUI() {
                 ⚔️ Атаковать
             </button>
             <button class="battle-btn defend" onclick="window.playerDefend()" ${!canAct ? 'disabled' : ''}>
-                🛡️ Защита
+                🛡️ Защита${player.class === 'warrior' && enemy.intent ? ' · Парирование' : ''}
             </button>
             ${skills.map(skill => `
                 <button class="battle-btn skill" onclick="window.playerSkill('${skill.id}')"
@@ -527,6 +527,7 @@ function enemyTurn() {
         updateBattleUI();
         return;
     }
+    const guardedWindup = Boolean(enemy.intent);
     const plan = planEnemyTurn(enemy, player);
     if (plan.phaseChanged) showBattleMessage(`⚡ ${enemy.name} переходит в фазу ${plan.phase}!`);
     if (plan.warned) {
@@ -564,6 +565,7 @@ function enemyTurn() {
         
         const result = applyEnemyAction(enemy, player, action, Math.floor(Math.random() * 5), battleState.guardReduction);
         const damage = result.damage;
+        const parried = resolveWarriorParry(player, enemy, guardedWindup, battleState.guardReduction);
         const reborn = tryPhoenixRebirth(player, battleState.relicEffects);
         battleState.guardReduction = 0;
         gameState.save();
@@ -583,7 +585,7 @@ function enemyTurn() {
         showBattleMessage(reborn ? '🔥 Корона феникса спасает вас от гибели! Здоровье восстановлено.' :
             result.cleansed ? `${enemy.name} очищается от эффекта: ${cleansedNames[result.cleansed] || result.cleansed}!` :
             result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
-            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}${result.armorEffect === 'freeze' ? ' ❄️ Ледяная броня заморозила врага!' : ''}${result.armorHealed ? ` 🩸 Кровавый доспех: +${result.armorHealed} HP!` : ''}`);
+            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}${result.armorEffect === 'freeze' ? ' ❄️ Ледяная броня заморозила врага!' : ''}${result.armorHealed ? ` 🩸 Кровавый доспех: +${result.armorHealed} HP!` : ''}${parried ? ` ⚔️ Идеальный блок! Контрудар: ${parried} урона!` : ''}`);
         
         setTimeout(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;

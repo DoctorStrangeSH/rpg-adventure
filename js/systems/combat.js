@@ -24,6 +24,21 @@ export function consumeWarriorOpening(player, enemy) {
     return true;
 }
 
+
+// A deliberate guard against a telegraphed strike gives warriors a small,
+// bounded riposte. Unannounced hits and passive guard effects do not qualify.
+export function resolveWarriorParry(player, enemy, guardedWindup, guardReduction) {
+    if (player?.class !== 'warrior' || !guardedWindup || guardReduction < 0.75 ||
+        !enemy || !(enemy.health > 0)) return 0;
+    const attack = getEffectiveCombatStats(player).attack;
+    const maxHealth = Number(enemy.maxHealth);
+    if (!Number.isFinite(attack) || attack <= 0 || !Number.isFinite(maxHealth) || maxHealth <= 0) return 0;
+    const riposte = Math.max(1, Math.min(Math.floor(attack * 0.45), Math.max(1, Math.floor(maxHealth * 0.08))));
+    const actual = Math.min(enemy.health, riposte);
+    applyDamage(enemy, actual);
+    return actual;
+}
+
 export function hasEliteAffix(enemy, id) {
     return Array.isArray(enemy?.eliteAffixes) ? enemy.eliteAffixes.includes(id) : enemy?.eliteAffix === id;
 }

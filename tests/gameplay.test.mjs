@@ -8,6 +8,7 @@ import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDama
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
+import { getMapCheckpointLabel } from '../js/ui/map.js';
 import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute, chooseDungeonCheckpoint, getDungeonCheckpoint } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
@@ -1317,6 +1318,17 @@ test('leaving a dungeon with the battle back button clears the active run', () =
         window.showScreen = originalShow;
         window.updateMainMenu = originalUpdateMenu;
     }
+});
+
+test('map makes valid saved expeditions visible and hides stale checkpoints', () => {
+    const hero = gameState.createPlayer('warrior');
+    const forest = getLocation('forest');
+    hero.dungeonCheckpoints = { forest: 4 };
+    assert.match(getMapCheckpointLabel(hero, forest), /этапа 5/);
+    hero.dungeonCheckpoints.forest = forest.stages.length;
+    assert.equal(getMapCheckpointLabel(hero, forest), '');
+    assert.equal(getMapCheckpointLabel(hero, getLocation('village')), '');
+    assert.equal(getMapCheckpointLabel(hero, null), '');
 });
 
 test('saved expedition checkpoints resume only valid stages', () => {

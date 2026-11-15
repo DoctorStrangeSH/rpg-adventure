@@ -841,6 +841,37 @@ test('equipment sets activate only with both pieces and do not stack base stats'
     assert.equal(getEquipmentSetBonuses(player).defense, 3);
 });
 
+test('complete equipment sets improve matching weapon proc chance by ten points', () => {
+    const player = gameState.createPlayer('warrior');
+    const cases = [
+        ['ember_sword', 'guardian_armor', 'burn', 0.3],
+        ['frost_blade', 'frost_armor', 'freeze', 0.18],
+        ['blood_dagger', 'blood_armor', 'bleed', 0.35]
+    ];
+    for (const [weapon, armor, effect, baseChance] of cases) {
+        player.equipment = { weapon, armor: null };
+        const partial = { health: 100, maxHealth: 100 };
+        assert.equal(triggerWeaponEffect(player, partial, baseChance + 0.05), null);
+        player.equipment.armor = armor;
+        const complete = { health: 100, maxHealth: 100 };
+        assert.equal(triggerWeaponEffect(player, complete, baseChance + 0.05), effect);
+        assert.equal(triggerWeaponEffect(player, complete, baseChance + 0.1), null);
+        player.equipment.armor = 'leather_armor';
+        assert.equal(triggerWeaponEffect(player, { health: 100, maxHealth: 100 }, baseChance + 0.05), null);
+    }
+});
+
+test('complete sets never bypass freeze immunity or mutate weapon chance', () => {
+    const player = gameState.createPlayer('mage');
+    player.equipment = { weapon: 'frost_blade', armor: 'frost_armor' };
+    const immune = { health: 100, maxHealth: 100, resistances: { freeze: 1 } };
+    assert.equal(triggerWeaponEffect(player, immune, 0.2), null);
+    assert.equal(immune.effects, undefined);
+    assert.equal(getItem('frost_blade').onHit.chance, 0.18);
+    assert.equal(triggerWeaponEffect(player, { health: 100, maxHealth: 100 }, NaN), null);
+    assert.equal(triggerWeaponEffect(player, { health: 100, maxHealth: 100 }, 1), null);
+});
+
 test('class talents require a level, reject duplicates and other classes, and change combat stats', () => {
     const player = gameState.createPlayer('warrior');
     assert.equal(getTalentPoints(player), 0);

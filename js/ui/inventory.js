@@ -10,7 +10,9 @@ export function updateInventoryScreen() {
     const content = document.getElementById('inventory-content');
     
     const setBonuses = getEquipmentSetBonuses(player);
-    const setSummary = setBonuses.activeSets.length ? setBonuses.activeSets.map(set => set.name).join(', ') : 'Нет активных комплектов';
+    const setSummary = setBonuses.activeSets.length
+        ? setBonuses.activeSets.map(set => `${set.name} (+10 п.п. к шансу эффекта оружия)`).join(', ')
+        : 'Нет активных комплектов';
     content.innerHTML = `
         <div class="section-title">⚔️ Экипировка</div>
         <div class="equipment-slots">

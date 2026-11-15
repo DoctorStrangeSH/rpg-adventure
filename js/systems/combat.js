@@ -79,7 +79,13 @@ export function triggerRangerEffect(player, enemy, roll = Math.random()) {
 export function triggerWeaponEffect(player, enemy, roll = Math.random()) {
     if (!enemy || enemy.health <= 0 || !player?.equipment?.weapon) return null;
     const effect = getItem(player.equipment.weapon)?.onHit;
-    if (!effect || !Number.isFinite(roll) || roll < 0 || roll >= effect.chance) return null;
+    if (!effect || !Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
+    // A complete elemental set improves the proc chance of its matching weapon
+    // without altering the item data or saved base stats.
+    const weapon = getItem(player.equipment.weapon);
+    const fullSet = weapon?.setId && getEquipmentSetBonuses(player).activeSets.some(set => set.id === weapon.setId);
+    const chance = Math.min(1, effect.chance + (fullSet ? 0.1 : 0));
+    if (roll >= chance) return null;
     return applyStatusEffect(enemy, effect.type, effect.turns) ? effect.type : null;
 }
 export const DAMAGE_TYPE_LABELS = {

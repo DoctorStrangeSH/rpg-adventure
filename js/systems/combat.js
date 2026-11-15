@@ -450,7 +450,14 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     const runeReduction = hasSpecialization(player, 'mage_warden') ? 0.15 : 0;
     const effectiveReduction = 1 - (1 - Math.min(1, Math.max(0, reduction))) * (1 - runeReduction);
     const effectiveDefense = getEffectiveCombatStats(player).defense * (['crush', 'cataclysm'].includes(action) ? 0.5 : action === 'thorn_burst' ? 0.75 : 1);
-    const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, effectiveDefense, variance, multiplier) * (1 - effectiveReduction)));
+    const rawDamage = Math.max(1, Math.floor(calculateDamage(enemy.attack, effectiveDefense, variance, multiplier) * (1 - effectiveReduction)));
+    // A single signature attack should be terrifying, but not one-shot a
+    // fully healed hero. Ordinary attacks and miniboss moves stay unchanged.
+    const storySignature = enemy.behavior === 'boss' &&
+        ['thorn_burst', 'flame_breath', 'siphon', 'cataclysm'].includes(action);
+    const maxHealth = Number(player?.maxHealth);
+    const damage = storySignature && Number.isFinite(maxHealth) && maxHealth > 0
+        ? Math.min(rawDamage, Math.max(1, Math.floor(maxHealth * 0.8))) : rawDamage;
     applyDamage(player, damage);
     // Retaliation is tied to an actual guard, not passive defense or recovery.
     const reflected = hasSpecialization(player, 'warrior_sentinel') && reduction > 0

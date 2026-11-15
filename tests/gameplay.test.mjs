@@ -1315,6 +1315,35 @@ test('enraged elites deal more damage at half health without affecting normal en
     assert.ok(angry.damage > normal);
 });
 
+test('story boss signature spikes are survivable from full health for all three classes', () => {
+    const cases = [
+        ['forest_guardian', 'thorn_burst'], ['mountain_dragon', 'flame_breath'],
+        ['lich_king', 'siphon'], ['world_eater', 'cataclysm']
+    ];
+    for (const classId of ['warrior', 'mage', 'archer']) {
+        for (const [id, action] of cases) {
+            const hero = gameState.createPlayer(classId);
+            const enemy = { id, behavior: 'boss', attack: 2000, health: 200, maxHealth: 200 };
+            const result = applyEnemyAction(enemy, hero, action);
+            assert.ok(hero.health > 0, classId + ' must survive ' + action + ' from full HP');
+            assert.ok(result.damage <= Math.floor(hero.maxHealth * 0.8));
+            assert.ok(hero.mana >= 0);
+        }
+    }
+});
+
+test('boss signature damage cap still rewards guarding and does not affect normal attacks', () => {
+    const enemy = { id: 'world_eater', behavior: 'boss', attack: 80, health: 100, maxHealth: 100 };
+    const bare = gameState.createPlayer('warrior');
+    const guarded = gameState.createPlayer('warrior');
+    const hit = applyEnemyAction(enemy, bare, 'cataclysm').damage;
+    const blocked = applyEnemyAction(enemy, guarded, 'cataclysm', 0, 0.75).damage;
+    assert.ok(blocked < hit);
+    const ordinary = gameState.createPlayer('warrior');
+    const basic = applyEnemyAction({ ...enemy, attack: 2000 }, ordinary, 'attack').damage;
+    assert.ok(basic > ordinary.maxHealth * 0.8);
+});
+
 test('relics drop only from eligible victories and do not duplicate', () => {
     const player = gameState.createPlayer('warrior');
     assert.equal(awardRelic(player, false, false, 0), null);

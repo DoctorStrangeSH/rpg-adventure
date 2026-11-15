@@ -8,6 +8,7 @@ import { grantItem, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
+import { awardTravelerFavor, consumeTravelerFavor } from './expeditionFavor.js';
 
 let locationState = {
     currentLocation: null,
@@ -26,7 +27,8 @@ let locationState = {
     visitedCheckpointStages: new Set(),
     claimedDeepChestStages: new Set(),
     claimedUnbrokenBonusStages: new Set(),
-    resumedFromCheckpoint: false
+    resumedFromCheckpoint: false,
+    travelerFavorFights: 0
 };
 
 export function getUnbrokenExpeditionBonus(stageNumber, boss, resumed = false) {
@@ -99,6 +101,7 @@ export function startLocation(locationId) {
     locationState.claimedDeepChestStages = new Set();
     locationState.claimedUnbrokenBonusStages = new Set();
     locationState.resumedFromCheckpoint = resumeStage > 0;
+    locationState.travelerFavorFights = 0;
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -183,6 +186,9 @@ export function startStageBattle() {
     };
     const routeId = locationState.routeChoices[locationState.currentStage];
     if (routeId) enemy = applyRouteToEnemy(enemy, routeId);
+    const favor = consumeTravelerFavor(enemy, locationState.travelerFavorFights);
+    enemy = favor.enemy;
+    locationState.travelerFavorFights = favor.charges;
     
     const battleState = getBattleState();
     battleState.currentEnemy = enemy;
@@ -209,7 +215,7 @@ export function startStageBattle() {
         
         // Показываем информацию о этапе
         const bossText = stage.boss ? ' 👹 БОСС!' : '';
-        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}${depth.tier ? ` ⚠️ Глубина ${depth.tier + 1}: награды +${Math.round((depth.reward - 1) * 100)}%` : ''}`);
+        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}${depth.tier ? ` ⚠️ Глубина ${depth.tier + 1}: награды +${Math.round((depth.reward - 1) * 100)}%` : ''}${favor.protected ? ' 🛡️ Защита странника: атака врага −15%' : ''}`);
     });
 }
 
@@ -322,6 +328,7 @@ export function chooseAdventureEvent(choiceId) {
         window.showNotification?.('Недостаточно ресурсов для выбранного действия или неверный выбор.', 'error');
         return false;
     }
+    locationState.travelerFavorFights = awardTravelerFavor(locationState.travelerFavorFights, pending.id, choiceId);
     locationState.visitedEventStages.add(pending.stage);
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;

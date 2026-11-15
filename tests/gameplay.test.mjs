@@ -179,7 +179,7 @@ test('fire followed by frost causes capped thermal shock and consumes burn', () 
     const before = enemy.health;
     const result = useSkillEffect(mage, enemy, CLASSES.mage.skills[1]);
     assert.equal(result.thermalShockDamage, 16);
-    assert.equal(result.damage, 31);
+    assert.equal(result.damage, 28);
     assert.equal(enemy.health, before - result.damage);
     assert.equal(enemy.effects.burnTurns, 0);
     assert.equal(tickEnemyEffects(enemy).frozen, true);

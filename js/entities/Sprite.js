@@ -14,7 +14,7 @@ if (typeof Image !== 'undefined') {
         attack.src = `assets/characters/heroes/${hero}-attack.png`;
         HERO_ATTACK_IMAGES[hero] = attack;
     }
-    for (const enemy of ['skeleton', 'wolf']) {
+    for (const enemy of ['skeleton', 'wolf', 'goblin']) {
         const idle = new Image();
         idle.src = `assets/characters/enemies/${enemy}-idle.png`;
         HERO_IMAGES[enemy] = idle;
@@ -95,7 +95,7 @@ export class Sprite {
         if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
             const frameWidth = attackImage.naturalWidth / 4;
             const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame),
-                4, ['skeleton', 'wolf'].includes(this.type) ? 5 : 7);
+                4, ['skeleton', 'wolf', 'goblin'].includes(this.type) ? 5 : 7);
             const height = 112;
             const width = height * frameWidth / attackImage.naturalHeight;
             ctx.imageSmoothingEnabled = false;

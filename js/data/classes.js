@@ -71,7 +71,7 @@ export const CLASSES = {
         id: 'archer',
         name: 'Лучник',
         icon: '🏹',
-        description: 'Меткий стрелок',
+        description: 'Меткий стрелок: обычные атаки ставят до двух меток, усиливающих следующий навык на 15% каждая',
         stats: {
             health: 100,
             mana: 60,

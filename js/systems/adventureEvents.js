@@ -19,7 +19,7 @@ export const ADVENTURE_EVENTS = [
         choices: [{ id: 'risk', label: 'Взломать печать — редкая находка или ловушка' }, { id: 'safe', label: 'Не тревожить печать' }] },
     { id: 'spark_altar', icon: '⚡', name: 'Алтарь искр', description: 'Древний механизм предлагает обменять 15 здоровья на 30 маны. Решение необратимо.',
         choices: [{ id: 'risk', label: 'Отдать 15 здоровья за 30 маны' }, { id: 'safe', label: 'Не трогать механизм' }] },
-    { id: 'wounded_traveler', icon: '🩹', name: 'Раненый странник', description: 'Путник просит исцелить его магией. Помощь стоит 18 маны, а он предлагает 70 золота в благодарность.',
+    { id: 'wounded_traveler', icon: '🩹', name: 'Раненый странник', description: 'Путник просит исцелить его за 18 маны. Взамен он даст 70 золота и защитит героя в трёх следующих боях.',
         choices: [{ id: 'risk', label: 'Исцелить странника — 18 маны → 70 золота' }, { id: 'safe', label: 'Пожелать удачи и уйти' }] },
     { id: 'traveler', icon: '🧭', name: 'Заблудившийся торговец', description: 'Странник предлагает рискованную сделку.',
         choices: [{ id: 'risk', label: 'Обменять 20 золота на припасы' }, { id: 'safe', label: 'Отказаться' }] }
@@ -102,7 +102,7 @@ export function resolveAdventureEvent(player, eventId, choiceId, roll = Math.ran
         if (player.mana < 18) return null;
         mana = -18;
         gold = 70;
-        message = 'Странник благодарит за исцеление и дарит 70 золота.';
+        message = 'Странник дарит 70 золота и благословляет вас: атака врагов в трёх следующих боях −15%.';
     } else if (eventId === 'traveler') {
         if (player.gold < 20) return null;
         gold = -20;

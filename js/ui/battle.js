@@ -638,7 +638,8 @@ export function battleVictory() {
     
     window.updateAchievements?.();
     
-    const lootId = rollLoot(battleState.isBossBattle);
+    const lootId = rollLoot(battleState.isBossBattle, Math.random,
+        battleState.isBossBattle && !enemy.miniBoss ? enemy.id : null);
     const lootQuantity = lootId ? grantItem(player, lootId) : 0;
     const lootText = lootQuantity ? ` 🎁 Добыча: ${getItem(lootId).name}!` : '';
     const relicId = awardRelic(player, enemy.elite === true || enemy.miniBoss === true, battleState.isBossBattle && !enemy.miniBoss);

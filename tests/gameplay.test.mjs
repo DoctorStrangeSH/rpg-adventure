@@ -1344,6 +1344,34 @@ test('boss signature damage cap still rewards guarding and does not affect norma
     assert.ok(basic > ordinary.maxHealth * 0.8);
 });
 
+test('story bosses favor regional equipment without changing normal loot tables', () => {
+    const trophies = [
+        ['forest_guardian', 'guardian_armor'],
+        ['mountain_dragon', 'frost_blade'],
+        ['lich_king', 'blood_armor'],
+        ['world_eater', 'dragon_sword']
+    ];
+    for (const [bossId, expected] of trophies) {
+        assert.equal(rollLoot(true, () => 0.1, bossId), expected);
+        assert.ok(getItem(expected));
+        assert.equal(rollLoot(true, () => 0.7, bossId), 'big_health_potion');
+    }
+    assert.equal(rollLoot(true, () => 0.1, 'unknown'), 'moonblade');
+    assert.equal(rollLoot(false, () => 0.1, 'forest_guardian'), 'big_health_potion');
+    assert.equal(rollLoot(false, () => 0.5, 'forest_guardian'), null);
+    assert.equal(rollLoot(true, () => 1, 'world_eater'), null);
+    assert.equal(rollLoot(true, () => NaN, 'world_eater'), null);
+});
+
+test('repeated regional drops stack safely in one inventory slot', () => {
+    const player = gameState.createPlayer('warrior');
+    const item = rollLoot(true, () => 0.2, 'forest_guardian');
+    assert.equal(grantItem(player, item), 1);
+    assert.equal(grantItem(player, item), 1);
+    assert.equal(player.inventory.filter(entry => entry.id === item).length, 1);
+    assert.equal(player.inventory.find(entry => entry.id === item).quantity, 2);
+});
+
 test('relics drop only from eligible victories and do not duplicate', () => {
     const player = gameState.createPlayer('warrior');
     assert.equal(awardRelic(player, false, false, 0), null);

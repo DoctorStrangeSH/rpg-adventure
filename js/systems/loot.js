@@ -17,9 +17,21 @@ export function grantItem(player, itemId, quantity = 1) {
 
 // A small, predictable economy: ordinary enemies mostly award gold; bosses
 // always leave an item. RNG can be injected to make drops reproducible in tests.
-export function rollLoot(isBoss = false, random = Math.random) {
+const BOSS_TROPHIES = Object.freeze({
+    forest_guardian: 'guardian_armor',
+    mountain_dragon: 'frost_blade',
+    lich_king: 'blood_armor',
+    world_eater: 'dragon_sword'
+});
+
+// Story bosses favor loot tied to their region; the remaining rolls retain
+// the normal boss pool, so repeat encounters can still yield varied equipment.
+export function rollLoot(isBoss = false, random = Math.random, bossId = null) {
     const roll = random();
     if (!Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
+    if (isBoss && Object.hasOwn(BOSS_TROPHIES, bossId) && roll < 0.65) {
+        return BOSS_TROPHIES[bossId];
+    }
     if (!isBoss && roll >= 0.18) return null;
     const tier = isBoss ? roll : roll / 0.18;
     if (isBoss && tier < 0.06) return 'dragon_sword';

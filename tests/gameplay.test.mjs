@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem, getItemAbilityDescription } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType } from '../js/systems/combat.js';
+import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType, hasEliteAffix } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -1322,6 +1322,35 @@ test('elite affixes are reproducible and armored elites gain real defense', () =
     assert.equal(tactician.eliteAffix, 'tactician');
     assert.match(tactician.name, /Тактик/);
     assert.equal(base.defense, 5);
+});
+
+test('rare elite combinations are deterministic and activate both combat traits', () => {
+    const base = { name: 'Гоблин', health: 100, maxHealth: 100, attack: 30, defense: 5, expReward: 20, goldReward: 20 };
+    const bloodrage = applyRouteToEnemy(base, 'danger', 0.187);
+    assert.deepEqual(bloodrage.eliteAffixes, ['vampiric', 'enraged']);
+    assert.match(bloodrage.name, /Кровопийца Яростный/);
+    const hero = gameState.createPlayer('warrior');
+    bloodrage.health = Math.floor(bloodrage.maxHealth / 2);
+    const result = applyEnemyAction(bloodrage, hero, 'attack');
+    assert.equal(result.enraged, true);
+    assert.ok(result.lifeStolen > 0);
+
+    const tank = applyRouteToEnemy(base, 'danger', 0.192);
+    assert.deepEqual(tank.eliteAffixes, ['armored', 'tactician']);
+    assert.equal(tank.defense, 17);
+    assert.equal(recordEnemyDamageType(tank, 'fire', 10), false);
+    assert.equal(recordEnemyDamageType(tank, 'fire', 10), true);
+    assert.match(getEnemyTacticHint(tank), /адаптироваться/);
+    tank.pendingAdaptation = null;
+    assert.match(getEnemyTacticHint(tank), /бронёй.*запоминает/);
+
+    const armoredRage = applyRouteToEnemy(base, 'danger', 0.198);
+    assert.deepEqual(armoredRage.eliteAffixes, ['enraged', 'armored']);
+    assert.equal(armoredRage.defense, 17);
+    assert.ok(hasEliteAffix(armoredRage, 'enraged'));
+    assert.equal(hasEliteAffix({ eliteAffix: 'tactician' }, 'tactician'), true);
+    assert.deepEqual(applyRouteToEnemy(base, 'safe', 0).eliteAffixes, []);
+    assert.equal(base.eliteAffixes, undefined);
 });
 
 test('vampiric elites heal from actual attacks but not beyond maximum health', () => {

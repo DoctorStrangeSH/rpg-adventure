@@ -24,6 +24,10 @@ export function consumeWarriorOpening(player, enemy) {
     return true;
 }
 
+export function hasEliteAffix(enemy, id) {
+    return Array.isArray(enemy?.eliteAffixes) ? enemy.eliteAffixes.includes(id) : enemy?.eliteAffix === id;
+}
+
 export function getEnemyTacticHint(enemy) {
     if (!enemy) return '';
     if (enemy.intent === 'heavy') return '⚠️ Следующая атака будет сокрушительной. Защищайтесь!';
@@ -58,7 +62,9 @@ export function getEnemyTacticHint(enemy) {
         armored: 'Элитный враг защищён дополнительной бронёй.',
         tactician: 'Элитный тактик запоминает повторяющиеся типы урона и сопротивляется им.'
     };
-    if (enemy.eliteAffix && affixHints[enemy.eliteAffix]) return `⚡ ${affixHints[enemy.eliteAffix]}`;
+    const affixes = Array.isArray(enemy.eliteAffixes) ? enemy.eliteAffixes : [enemy.eliteAffix];
+    const hints = affixes.filter(id => affixHints[id]).map(id => affixHints[id]);
+    if (hints.length) return `⚡ ${hints.join(' ')}`;
     if (enemy.behavior === 'resilient' && getEnemyCleanseTarget(enemy)) {
         return '🛡️ Противник может снять с себя один опасный отрицательный эффект.';
     }
@@ -162,7 +168,7 @@ export function getWeaponDamageType(player) {
 // successful hits are enough to trigger one visible adaptation turn.
 export function recordEnemyDamageType(enemy, type, damage) {
     const canAdapt = enemy?.behavior === 'boss' || enemy?.behavior === 'mini_boss' ||
-        enemy?.eliteAffix === 'tactician';
+        hasEliteAffix(enemy, 'tactician');
     if (!canAdapt || !DAMAGE_TYPE_LABELS[type] || !(damage > 0)) return false;
 
     if (enemy.lastDamageType === type) enemy.damageTypeStreak = (enemy.damageTypeStreak || 1) + 1;
@@ -478,7 +484,7 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
         return { damage: 0, healed, manaBurned: 0, reflected: 0 };
     }
     const weakened = enemy.effects?.weakenTurns > 0;
-    const enraged = enemy.eliteAffix === 'enraged' && enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.5;
+    const enraged = hasEliteAffix(enemy, 'enraged') && enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.5;
     const multiplier = (action === 'heavy' ? 1.5 : action === 'pounce' ? 1.4 : action === 'mana_burn' ? 0.85 :
         action === 'ambush' ? 1.25 : action === 'crush' ? 1.2 : action === 'flame_breath' ? 1.15 :
         action === 'cataclysm' ? 1.8 : action === 'thorn_burst' ? 1.3 : 1) *
@@ -499,7 +505,7 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     // Retaliation is tied to an actual guard, not passive defense or recovery.
     const reflected = hasSpecialization(player, 'warrior_sentinel') && reduction > 0
         ? applyDamage(enemy, Math.max(1, Math.floor(damage * 0.25))) : 0;
-    const lifeStolen = enemy.eliteAffix === 'vampiric' && enemy.health > 0
+    const lifeStolen = hasEliteAffix(enemy, 'vampiric') && enemy.health > 0
         ? Math.min(Math.max(0, enemy.maxHealth - enemy.health), Math.floor(damage * 0.25)) : 0;
     if (lifeStolen) enemy.health += lifeStolen;
     const soulDrain = action === 'siphon' && enemy.health > 0

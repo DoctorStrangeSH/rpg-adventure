@@ -17,15 +17,22 @@ export function applyRouteToEnemy(enemy, routeId, roll = Math.random()) {
     const affixes = ['vampiric', 'enraged', 'armored', 'tactician'];
     const affix = isElite ? affixes[Math.min(affixes.length - 1, Math.floor(roll / 0.2 * affixes.length))] : null;
     const affixNames = { vampiric: 'Кровопийца', enraged: 'Яростный', armored: 'Бронированный', tactician: 'Тактик' };
+    // The rarest part of the elite roll produces predefined two-affix encounters.
+    // Keeping the pairing deterministic makes these fights reproducible in tests.
+    const comboIndex = isElite && roll >= 0.185 ? Math.min(2, Math.floor((roll - 0.185) / 0.005)) : -1;
+    const combos = [['vampiric', 'enraged'], ['armored', 'tactician'], ['enraged', 'armored']];
+    const eliteAffixes = isElite ? (comboIndex >= 0 ? combos[comboIndex] : [affix]) : [];
+    const name = eliteAffixes.map(id => affixNames[id]).join(' ');
     return {
         ...enemy,
-        name: isElite ? `⚡ ${affixNames[affix]} ${enemy.name}` : enemy.name,
+        name: isElite ? `⚡ ${name} ${enemy.name}` : enemy.name,
         elite: isElite,
-        eliteAffix: affix,
+        eliteAffix: eliteAffixes[0] || null,
+        eliteAffixes,
         health: Math.max(1, Math.floor(enemy.health * route.enemyHealth * eliteMultiplier)),
         maxHealth: Math.max(1, Math.floor(enemy.maxHealth * route.enemyHealth * eliteMultiplier)),
         attack: Math.max(1, Math.floor(enemy.attack * route.enemyAttack * eliteMultiplier)),
-        defense: Math.max(0, Math.floor((enemy.defense || 0) + (affix === 'armored' ? 12 : 0))),
+        defense: Math.max(0, Math.floor((enemy.defense || 0) + (eliteAffixes.includes('armored') ? 12 : 0))),
         expReward: Math.floor(enemy.expReward * route.reward * eliteMultiplier),
         goldReward: Math.floor(enemy.goldReward * route.reward * eliteMultiplier)
     };

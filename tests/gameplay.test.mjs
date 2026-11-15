@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -167,6 +167,36 @@ test('boss telegraphs heavy hit before performing it', () => {
     assert.equal(attack.warned, false);
     assert.equal(attack.action, 'heavy');
     assert.equal(boss.intent, null);
+});
+
+test('miniboss signature attacks are announced before they land', () => {
+    const enemy = { id: 'mountain_giant', behavior: 'mini_boss', health: 100, maxHealth: 100 };
+    const player = { mana: 10 };
+    const warning = planEnemyTurn(enemy, player, 0.1);
+    assert.equal(warning.warned, true);
+    assert.equal(warning.action, null);
+    assert.equal(enemy.intent, 'crush');
+    assert.match(getEnemyTacticHint(enemy), /игнорирует броню/);
+    const strike = planEnemyTurn(enemy, player, 0.95);
+    assert.equal(strike.action, 'crush');
+    assert.equal(enemy.intent, null);
+});
+
+test('ordinary miniboss attacks do not cause an extra warning turn', () => {
+    const enemy = { id: 'mountain_giant', behavior: 'mini_boss', health: 100, maxHealth: 100 };
+    const plan = planEnemyTurn(enemy, { mana: 10 }, 0.95);
+    assert.equal(plan.action, 'attack');
+    assert.equal(plan.warned, false);
+});
+
+test('freezing a charging enemy cancels its special attack', () => {
+    const enemy = { id: 'ancient_dragon', behavior: 'mini_boss', health: 100, maxHealth: 100 };
+    planEnemyTurn(enemy, { mana: 20 }, 0.1);
+    assert.equal(enemy.intent, 'flame_breath');
+    assert.equal(interruptEnemyWindup(enemy), true);
+    assert.equal(interruptEnemyWindup(enemy), false);
+    assert.equal(enemy.intent, null);
+    assert.equal(planEnemyTurn(enemy, { mana: 20 }, 0.95).action, 'attack');
 });
 
 test('phase change clears obsolete boss warning', () => {

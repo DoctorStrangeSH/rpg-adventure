@@ -10,6 +10,15 @@ export function hasSpecialization(player, id) {
 export function getEnemyTacticHint(enemy) {
     if (!enemy) return '';
     if (enemy.intent === 'heavy') return '⚠️ Следующая атака будет сокрушительной. Защищайтесь!';
+    if (enemy.intent) {
+        const warnings = {
+            ambush: '⚠️ Готовится засада. Защищайтесь или прервите подготовку заморозкой!',
+            crush: '⚠️ Великан замахивается! Удар частично игнорирует броню.',
+            siphon: '⚠️ Рыцарь смерти готовит похищение жизни.',
+            flame_breath: '⚠️ Дракон набирает воздух для огненного дыхания. Берегите ману!'
+        };
+        if (warnings[enemy.intent]) return warnings[enemy.intent];
+    }
     const miniBossHints = {
         goblin_king: 'Король гоблинов устраивает внезапные засады.',
         mountain_giant: 'Горный великан пробивает часть вашей брони.',
@@ -158,9 +167,28 @@ export function getBossPhase(enemy) {
     return ratio <= 0.25 ? 3 : ratio <= 0.6 ? 2 : 1;
 }
 
+export function interruptEnemyWindup(enemy) {
+    if (!enemy?.intent) return false;
+    enemy.intent = null;
+    return true;
+}
+
 // A dangerous boss attack is announced one turn in advance. Keeping the intent
 // on the enemy prevents the next decision from silently replacing the warning.
 export function planEnemyTurn(enemy, player, roll = Math.random()) {
+    if (enemy.behavior === 'mini_boss') {
+        if (enemy.intent) {
+            const action = enemy.intent;
+            enemy.intent = null;
+            return { action, warned: false, phaseChanged: false };
+        }
+        const action = chooseEnemyAction(enemy, player, roll);
+        if (['ambush', 'crush', 'siphon', 'flame_breath', 'heavy'].includes(action)) {
+            enemy.intent = action;
+            return { action: null, warned: true, phaseChanged: false };
+        }
+        return { action, warned: false, phaseChanged: false };
+    }
     if (enemy.behavior !== 'boss') return { action: chooseEnemyAction(enemy, player, roll), warned: false, phaseChanged: false };
     const phase = getBossPhase(enemy);
     const phaseChanged = enemy.phase !== undefined && phase !== enemy.phase;

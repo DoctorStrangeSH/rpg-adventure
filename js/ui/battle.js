@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -487,10 +487,11 @@ function enemyTurn() {
         return;
     }
     if (effects.frozen) {
+        const interrupted = interruptEnemyWindup(enemy);
         battleState.guardReduction = 0;
         battleState.turn = 'player';
         isProcessing = false;
-        showBattleMessage(`${enemy.name} пропускает ход из-за заморозки!`);
+        showBattleMessage(`${enemy.name} пропускает ход из-за заморозки!${interrupted ? ' Подготовка опасного удара сорвана!' : ''}`);
         updateBattleUI();
         return;
     }
@@ -499,7 +500,7 @@ function enemyTurn() {
     if (plan.warned) {
         battleState.turn = 'player';
         isProcessing = false;
-        showBattleMessage(`⚠️ ${enemy.name} готовит сокрушительный удар! Защищайтесь!`);
+        showBattleMessage(`⚠️ ${enemy.name} готовит особый удар! Защищайтесь или прервите подготовку!`);
         updateBattleUI();
         return;
     }

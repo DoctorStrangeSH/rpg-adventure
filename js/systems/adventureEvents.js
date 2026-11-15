@@ -30,10 +30,25 @@ export function rollAdventureEvent(roll = Math.random()) {
     return ADVENTURE_EVENTS[Math.floor(value * ADVENTURE_EVENTS.length)];
 }
 
+// A single source of truth for event costs, shared by the UI and resolver.
+export function getAdventureChoiceLock(player, eventId, choiceId) {
+    if (!player || choiceId !== 'risk') return null;
+    if (eventId === 'astral_study' && player.mana < 12) return 'Нужно 12 маны';
+    if (eventId === 'campfire' && player.gold < 25) return 'Нужно 25 золота';
+    if (eventId === 'traveler' && player.gold < 20) return 'Нужно 20 золота';
+    if (eventId === 'wounded_traveler' && player.mana < 18) return 'Нужно 18 маны';
+    if (eventId === 'spark_altar') {
+        if (player.health <= 15) return 'Нужно более 15 здоровья';
+        if (player.mana >= player.maxMana) return 'Запас маны уже полный';
+    }
+    return null;
+}
+
 export function resolveAdventureEvent(player, eventId, choiceId, roll = Math.random()) {
     const event = ADVENTURE_EVENTS.find(entry => entry.id === eventId);
     if (!player || !event || !event.choices.some(choice => choice.id === choiceId)) return null;
     if (choiceId === 'safe') return { message: 'Вы продолжили путь без происшествий.', gold: 0, health: 0, mana: 0, relicId: null };
+    if (getAdventureChoiceLock(player, eventId, choiceId)) return null;
     if (!Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
     const lucky = roll < 0.6;
     let gold = 0;

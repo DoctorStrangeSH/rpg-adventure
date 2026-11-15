@@ -842,6 +842,13 @@ body {
     box-shadow: var(--shadow);
 }
 
+.adventure-event .battle-btn:disabled {
+    opacity: 0.56;
+    cursor: not-allowed;
+    filter: grayscale(0.55);
+    transform: none;
+}
+
 .battle-btn small {
     display: block;
     margin-top: 3px;

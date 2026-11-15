@@ -5,7 +5,7 @@ import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
 import { getBattleState } from '../ui/battle.js';
 import { grantItem, rollDeepChest } from './loot.js';
-import { rollAdventureEvent, resolveAdventureEvent } from './adventureEvents.js';
+import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
 
@@ -308,7 +308,7 @@ function presentAdventureEvent() {
     ui.innerHTML = `<section class="adventure-event" aria-label="Событие приключения">
         <div class="adventure-event-icon">${event.icon}</div>
         <h3>${event.name}</h3><p>${event.description}</p>
-        ${event.choices.map(choice => `<button class="battle-btn" onclick="window.chooseAdventureEvent('${choice.id}')">${choice.label}</button>`).join('')}
+        ${event.choices.map(choice => { const lock = getAdventureChoiceLock(gameState.player, event.id, choice.id); return `<button class="battle-btn" ${lock ? 'disabled aria-disabled="true"' : `onclick="window.chooseAdventureEvent('${choice.id}')"`}>${choice.label}${lock ? `<small>🔒 ${lock}</small>` : ''}</button>`; }).join('')}
     </section>`;
     window.showBattleMessage?.(`🧭 Событие: ${event.name}`);
 }

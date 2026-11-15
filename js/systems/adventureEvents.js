@@ -21,13 +21,20 @@ export const ADVENTURE_EVENTS = [
         choices: [{ id: 'risk', label: 'Отдать 15 здоровья за 30 маны' }, { id: 'safe', label: 'Не трогать механизм' }] },
     { id: 'wounded_traveler', icon: '🩹', name: 'Раненый странник', description: 'Путник просит исцелить его за 18 маны. Взамен он даст 70 золота и защитит героя в трёх следующих боях.',
         choices: [{ id: 'risk', label: 'Исцелить странника — 18 маны → 70 золота' }, { id: 'safe', label: 'Пожелать удачи и уйти' }] },
+    { id: 'traveler_return', followUp: true, icon: '🎁', name: 'Возвращение странника', description: 'Спасённый путник догнал героя и принёс целебный отвар в благодарность.',
+        choices: [{ id: 'risk', label: 'Принять отвар — восстановить здоровье и ману' }, { id: 'safe', label: 'Поблагодарить и продолжить путь' }] },
     { id: 'traveler', icon: '🧭', name: 'Заблудившийся торговец', description: 'Странник предлагает рискованную сделку.',
         choices: [{ id: 'risk', label: 'Обменять 20 золота на припасы' }, { id: 'safe', label: 'Отказаться' }] }
 ];
 
+export function getAdventureEvent(eventId) {
+    return ADVENTURE_EVENTS.find(event => event.id === eventId) || null;
+}
+
 export function rollAdventureEvent(roll = Math.random()) {
     const value = Number.isFinite(roll) ? Math.max(0, Math.min(0.999999, roll)) : 0;
-    return ADVENTURE_EVENTS[Math.floor(value * ADVENTURE_EVENTS.length)];
+    const randomEvents = ADVENTURE_EVENTS.filter(event => !event.followUp);
+    return randomEvents[Math.floor(value * randomEvents.length)];
 }
 
 // A single source of truth for event costs, shared by the UI and resolver.
@@ -103,6 +110,10 @@ export function resolveAdventureEvent(player, eventId, choiceId, roll = Math.ran
         mana = -18;
         gold = 70;
         message = 'Странник дарит 70 золота и благословляет вас: атака врагов в трёх следующих боях −15%.';
+    } else if (eventId === 'traveler_return') {
+        health = Math.min(25, Math.max(0, player.maxHealth - player.health));
+        mana = Math.min(15, Math.max(0, player.maxMana - player.mana));
+        message = `Спасённый странник восстановил ${health} здоровья и ${mana} маны.`;
     } else if (eventId === 'traveler') {
         if (player.gold < 20) return null;
         gold = -20;

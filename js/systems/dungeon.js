@@ -5,7 +5,7 @@ import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
 import { getBattleState } from '../ui/battle.js';
 import { grantItem, rollDeepChest } from './loot.js';
-import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock } from './adventureEvents.js';
+import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
 import { awardTravelerFavor, consumeTravelerFavor } from './expeditionFavor.js';
@@ -28,7 +28,8 @@ let locationState = {
     claimedDeepChestStages: new Set(),
     claimedUnbrokenBonusStages: new Set(),
     resumedFromCheckpoint: false,
-    travelerFavorFights: 0
+    travelerFavorFights: 0,
+    travelerReturnPending: false
 };
 
 export function getUnbrokenExpeditionBonus(stageNumber, boss, resumed = false) {
@@ -102,6 +103,7 @@ export function startLocation(locationId) {
     locationState.claimedUnbrokenBonusStages = new Set();
     locationState.resumedFromCheckpoint = resumeStage > 0;
     locationState.travelerFavorFights = 0;
+    locationState.travelerReturnPending = false;
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -301,7 +303,9 @@ export function chooseDungeonRoute(routeId) {
 
 function presentAdventureEvent() {
     if (locationState.pendingEvent) return;
-    const event = rollAdventureEvent();
+    const event = locationState.travelerReturnPending
+        ? getAdventureEvent('traveler_return') : rollAdventureEvent();
+    if (locationState.travelerReturnPending) locationState.travelerReturnPending = false;
     const stage = locationState.currentStage;
     locationState.pendingEvent = { id: event.id, stage, runId: locationState.runId };
     const ui = document.getElementById('battle-ui');
@@ -329,6 +333,8 @@ export function chooseAdventureEvent(choiceId) {
         return false;
     }
     locationState.travelerFavorFights = awardTravelerFavor(locationState.travelerFavorFights, pending.id, choiceId);
+    if (pending.id === 'wounded_traveler' && choiceId === 'risk')
+        locationState.travelerReturnPending = true;
     locationState.visitedEventStages.add(pending.stage);
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;

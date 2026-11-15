@@ -71,13 +71,13 @@ export const ITEMS = {
     ember_sword: {
         id: 'ember_sword', name: 'Клинок тлеющих углей', icon: '🔥',
         type: 'weapon', rarity: 'rare', attackBonus: 20,
-        requiredLevel: 4, price: 480, setId: 'emberguard',
+        requiredLevel: 4, price: 480, setId: 'emberguard', damageType: 'fire',
         onHit: { type: 'burn', chance: 0.3, turns: 2 }
     },
     frost_blade: {
         id: 'frost_blade', name: 'Клинок вечной мерзлоты', icon: '❄️',
         type: 'weapon', rarity: 'epic', attackBonus: 24,
-        requiredLevel: 6, price: 780, setId: 'frostwarden',
+        requiredLevel: 6, price: 780, setId: 'frostwarden', damageType: 'ice',
         onHit: { type: 'freeze', chance: 0.18, turns: 1 }
     },
     blood_dagger: {

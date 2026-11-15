@@ -14,6 +14,7 @@ export const LOCATIONS = [
         stages: generateStages(30, 1, ['wolf', 'goblin'], {
             miniBoss: {
                 id: 'goblin_king',
+                damageModifiers: { fire: 1.1, ice: 1.25 },
                 name: '👹 Король гоблинов',
                 icon: '👹',
                 health: 200,
@@ -24,6 +25,7 @@ export const LOCATIONS = [
             },
             boss: {
                 id: 'forest_guardian',
+                damageModifiers: { fire: 1.25, physical: 0.9 },
                 name: '🌲 Древний хранитель леса',
                 icon: '🌲',
                 health: 500,
@@ -56,6 +58,7 @@ export const LOCATIONS = [
         stages: generateStages(40, 2, ['goblin', 'skeleton'], {
             miniBoss: {
                 id: 'mountain_giant',
+                damageModifiers: { ice: 1.25, physical: 0.9 },
                 name: '🏔️ Горный великан',
                 icon: '🏔️',
                 health: 600,
@@ -66,6 +69,7 @@ export const LOCATIONS = [
             },
             boss: {
                 id: 'mountain_dragon',
+                damageModifiers: { fire: 0.5, ice: 1.25, poison: 0.5 },
                 name: '🐉 Горный дракон',
                 icon: '🐉',
                 health: 1200,
@@ -98,6 +102,7 @@ export const LOCATIONS = [
         stages: generateStages(50, 3, ['skeleton', 'dragon'], {
             miniBoss: {
                 id: 'death_knight',
+                damageModifiers: { fire: 1.25, poison: 0.5 },
                 name: '💀 Рыцарь смерти',
                 icon: '💀',
                 health: 1000,
@@ -108,6 +113,7 @@ export const LOCATIONS = [
             },
             boss: {
                 id: 'lich_king',
+                damageModifiers: { fire: 1.2, ice: 0.85, poison: 0.5 },
                 name: '👑 Король-лич',
                 icon: '👑',
                 health: 2000,
@@ -140,6 +146,7 @@ export const LOCATIONS = [
         stages: generateStages(60, 4, ['dragon', 'skeleton'], {
             miniBoss: {
                 id: 'ancient_dragon',
+                damageModifiers: { fire: 0.5, ice: 1.35, poison: 0.5 },
                 name: '🐉 Древний дракон',
                 icon: '🐉',
                 health: 1500,
@@ -150,6 +157,7 @@ export const LOCATIONS = [
             },
             boss: {
                 id: 'world_eater',
+                damageModifiers: { fire: 0.6, ice: 1.15, poison: 0.75 },
                 name: '💀 Пожиратель миров',
                 icon: '💀',
                 health: 3000,

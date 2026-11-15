@@ -69,11 +69,56 @@ export function triggerWeaponEffect(player, enemy, roll = Math.random()) {
     if (!effect || !Number.isFinite(roll) || roll < 0 || roll >= effect.chance) return null;
     return applyStatusEffect(enemy, effect.type, effect.turns) ? effect.type : null;
 }
+export const DAMAGE_TYPE_LABELS = {
+    physical: 'физический урон',
+    fire: 'огонь',
+    ice: 'лёд',
+    poison: 'яд'
+};
+
+export function getDamageTypeMultiplier(enemy, type = 'physical') {
+    const value = Number(enemy?.damageModifiers?.[type]);
+    if (!Number.isFinite(value)) return 1;
+    return Math.max(0, Math.min(2.5, value));
+}
+
 export function calculateDamage(attack, defense, variance = 0, multiplier = 1) {
     const base = Math.max(0, Number(attack) || 0);
     const resistance = Math.max(0, Number(defense) || 0);
     const spread = Math.max(0, Math.floor(Number(variance) || 0));
     return Math.max(1, Math.floor(base * multiplier - resistance + spread));
+}
+
+export function calculateTypedDamage(attack, defense, variance = 0, multiplier = 1, enemy = null, type = 'physical') {
+    const baseDamage = calculateDamage(attack, defense, variance, multiplier);
+    const affinity = getDamageTypeMultiplier(enemy, type);
+    if (affinity === 0) return 0;
+    return Math.max(1, Math.floor(baseDamage * affinity));
+}
+
+export function getWeaponDamageType(player) {
+    return getItem(player?.equipment?.weapon)?.damageType || 'physical';
+}
+
+export function getDamageFeedback(enemy, type = 'physical') {
+    const multiplier = getDamageTypeMultiplier(enemy, type);
+    const label = DAMAGE_TYPE_LABELS[type] || DAMAGE_TYPE_LABELS.physical;
+    if (multiplier > 1) return 'Уязвимость: +' + Math.round((multiplier - 1) * 100) + '% к урону (' + label + ')';
+    if (multiplier < 1) return 'Сопротивление: −' + Math.round((1 - multiplier) * 100) + '% к урону (' + label + ')';
+    return '';
+}
+
+export function getEnemyDamageProfile(enemy) {
+    const profile = { weaknesses: [], resistances: [] };
+    for (const [type, rawValue] of Object.entries(enemy?.damageModifiers || {})) {
+        const multiplier = Number(rawValue);
+        if (!Number.isFinite(multiplier) || multiplier === 1) continue;
+        const label = DAMAGE_TYPE_LABELS[type] || type;
+        const percent = Math.round(Math.abs(multiplier - 1) * 100);
+        if (multiplier > 1) profile.weaknesses.push({ type, label, multiplier, percent });
+        else profile.resistances.push({ type, label, multiplier, percent });
+    }
+    return profile;
 }
 
 export function applyDamage(entity, damage) {
@@ -101,18 +146,24 @@ export function useSkillEffect(player, enemy, skill) {
     const multiplier = (skill.damageMultiplier ?? 1) * (hasSpecialization(player, 'mage_arcanist') ? 1.2 : 1) *
         (1 + getRelicBonuses(player).skillPower);
     let damage = 0;
-    // Utility abilities can deliberately skip direct damage.
+    const element = skill.element || 'physical';
+    // Utility abilities can deliberately skip direct damage. Elemental skills
+    // use the same affinity table as enchanted weapons and damage-over-time.
     if (skill.damageMultiplier || skill.hits || skill.poison) {
         for (let hit = 0; hit < hits; hit++) {
-            damage += applyDamage(enemy, calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, 0, multiplier));
+            damage += applyDamage(enemy, calculateTypedDamage(
+                getEffectiveCombatStats(player).attack, enemy.defense, 0, multiplier, enemy, element
+            ));
         }
     }
     // Ice striking a burning target causes a one-off thermal shock. It consumes
     // the remaining burn, and cannot trigger when the target resists freezing.
     const frozen = skill.freeze ? applyStatusEffect(enemy, 'freeze', 1) : false;
     const thermalShock = frozen && enemy.effects?.burnTurns > 0 && enemy.health > 0;
+    const thermalShockBase = thermalShock
+        ? Math.max(1, Math.min(30, Math.floor(enemy.maxHealth * 0.08))) : 0;
     const thermalShockDamage = thermalShock
-        ? Math.min(enemy.health, Math.max(1, Math.min(30, Math.floor(enemy.maxHealth * 0.08)))) : 0;
+        ? Math.min(enemy.health, Math.min(30, Math.max(1, Math.floor(thermalShockBase * getDamageTypeMultiplier(enemy, 'ice'))))) : 0;
     if (thermalShock) {
         enemy.effects.burnTurns = 0;
         damage += applyDamage(enemy, thermalShockDamage);
@@ -125,7 +176,10 @@ export function useSkillEffect(player, enemy, skill) {
     // used by ordinary burns apply, including complete immunity.
     const phoenixBurn = damage > 0 && enemy.health > 0 && hasActiveRelic(player, 'phoenix_crown')
         ? applyStatusEffect(enemy, 'burn', 2) : false;
-    return { damage, hits, guardReduction: skill.defenseBonus ? 0.75 : 0, phoenixBurn, thermalShockDamage };
+    return {
+        damage, hits, element, elementMultiplier: getDamageTypeMultiplier(enemy, element),
+        guardReduction: skill.defenseBonus ? 0.75 : 0, phoenixBurn, thermalShockDamage
+    };
 }
 
 export function tryPhoenixRebirth(player, battleRelics) {
@@ -155,19 +209,23 @@ export function tickEnemyEffects(enemy) {
     // only while both effects are active, with a strict damage cap.
     const exposed = effects.poisonTurns > 0 && effects.bleedTurns > 0;
     if (effects.poisonTurns > 0) {
-        poisonDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.05)));
+        const base = Math.max(1, Math.floor(enemy.maxHealth * 0.05));
+        poisonDamage = applyDamage(enemy, Math.max(1, Math.floor(base * getDamageTypeMultiplier(enemy, 'poison'))));
         effects.poisonTurns--;
     }
     if (effects.burnTurns > 0) {
-        burnDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.04)));
+        const base = Math.max(1, Math.floor(enemy.maxHealth * 0.04));
+        burnDamage = applyDamage(enemy, Math.max(1, Math.floor(base * getDamageTypeMultiplier(enemy, 'fire'))));
         effects.burnTurns--;
     }
     if (effects.bleedTurns > 0) {
-        bleedDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.03)));
+        const base = Math.max(1, Math.floor(enemy.maxHealth * 0.03));
+        bleedDamage = applyDamage(enemy, Math.max(1, Math.floor(base * getDamageTypeMultiplier(enemy, 'physical'))));
         effects.bleedTurns--;
     }
+    const woundPoisonBase = Math.max(1, Math.min(12, Math.floor(enemy.maxHealth * 0.02)));
     const woundPoisonDamage = exposed && enemy.health > 0
-        ? applyDamage(enemy, Math.min(enemy.health, Math.max(1, Math.min(12, Math.floor(enemy.maxHealth * 0.02))))) : 0;
+        ? applyDamage(enemy, Math.min(enemy.health, Math.max(1, Math.floor(woundPoisonBase * getDamageTypeMultiplier(enemy, 'poison'))))) : 0;
     const frozen = effects.freezeTurns > 0;
     if (frozen) effects.freezeTurns--;
     return { poisonDamage, burnDamage, bleedDamage, woundPoisonDamage, frozen };

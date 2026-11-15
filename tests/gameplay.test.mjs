@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening } from '../js/systems/combat.js';
+import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -75,6 +75,59 @@ test('combat damage respects defense, critical multiplier and minimum damage', (
     const enemy = { health: 10 };
     applyDamage(enemy, 100);
     assert.equal(enemy.health, 0);
+});
+
+test('elemental affinities scale direct damage and expose readable weakness profiles', () => {
+    const target = { health: 200, maxHealth: 200, defense: 0, damageModifiers: { fire: 1.4, poison: 0.5, physical: 0.85 } };
+    assert.equal(getDamageTypeMultiplier(target, 'fire'), 1.4);
+    assert.equal(getDamageTypeMultiplier(target, 'ice'), 1);
+    assert.equal(calculateTypedDamage(20, 0, 0, 1, target, 'fire'), 28);
+    assert.equal(calculateTypedDamage(20, 0, 0, 1, target, 'poison'), 10);
+    assert.equal(calculateTypedDamage(20, 0, 0, 1, target, 'physical'), 17);
+    assert.match(getDamageFeedback(target, 'fire'), /Уязвимость: \+40%/);
+    assert.match(getDamageFeedback(target, 'poison'), /Сопротивление: −50%/);
+    const profile = getEnemyDamageProfile(target);
+    assert.deepEqual(profile.weaknesses.map(entry => entry.type), ['fire']);
+    assert.deepEqual(profile.resistances.map(entry => entry.type), ['poison', 'physical']);
+});
+
+test('elemental affinities scale direct damage and damage-over-time for class skills', () => {
+    const mage = gameState.createPlayer('mage');
+    const skeleton = { health: 200, maxHealth: 200, defense: 0, resistances: { burn: 0 }, damageModifiers: { fire: 1.4, poison: 0.5 } };
+    const fire = useSkillEffect(mage, skeleton, CLASSES.mage.skills[0]);
+    assert.equal(fire.element, 'fire');
+    assert.equal(fire.damage, 70);
+    assert.equal(tickEnemyEffects(skeleton).burnDamage, 11);
+
+    const archer = gameState.createPlayer('archer');
+    const resistant = { health: 200, maxHealth: 200, defense: 0, damageModifiers: { poison: 0.5 } };
+    const poison = useSkillEffect(archer, resistant, CLASSES.archer.skills[1]);
+    assert.equal(poison.element, 'poison');
+    assert.equal(poison.damage, 3);
+    assert.equal(tickEnemyEffects(resistant).poisonDamage, 5);
+});
+
+test('frost nova deals ice damage and dragon affinity affects it without bypassing freeze immunity', () => {
+    const mage = gameState.createPlayer('mage');
+    const dragon = {
+        health: 200, maxHealth: 200, defense: 0,
+        resistances: { freeze: 1 },
+        damageModifiers: { ice: 1.25 }
+    };
+    const result = useSkillEffect(mage, dragon, CLASSES.mage.skills[1]);
+    assert.equal(result.damage, 18);
+    assert.equal(result.element, 'ice');
+    assert.equal(dragon.effects?.freezeTurns, undefined);
+});
+
+test('enchanted weapons use their element for basic attacks', () => {
+    const player = gameState.createPlayer('warrior');
+    player.equipment.weapon = 'ember_sword';
+    assert.equal(getWeaponDamageType(player), 'fire');
+    player.equipment.weapon = 'frost_blade';
+    assert.equal(getWeaponDamageType(player), 'ice');
+    player.equipment.weapon = null;
+    assert.equal(getWeaponDamageType(player), 'physical');
 });
 
 test('combat potion only consumes a charge when health is missing', () => {
@@ -320,7 +373,7 @@ test('battle interface shows both class skills and combat resources', () => {
     const player = gameState.createPlayer('mage');
     player.mana = 15;
     const battle = getBattleState();
-    battle.currentEnemy = { name: 'Волк', icon: '🐺', health: 20, maxHealth: 30, effects: { burnTurns: 2 } };
+    battle.currentEnemy = { name: 'Волк', icon: '🐺', health: 20, maxHealth: 30, effects: { burnTurns: 2 }, damageModifiers: { fire: 1.25, ice: 0.8 } };
     battle.turn = 'player';
     const panel = { innerHTML: '' };
     const previous = document.getElementById;
@@ -332,6 +385,8 @@ test('battle interface shows both class skills and combat resources', () => {
         assert.match(panel.innerHTML, /Мана: 15/);
         assert.match(panel.innerHTML, /Горение: 2/);
         assert.match(panel.innerHTML, /Здоровье врага/);
+        assert.match(panel.innerHTML, /Уязвим: огонь \(\+25%\)/);
+        assert.match(panel.innerHTML, /лёд \(−20%\)/);
     } finally {
         document.getElementById = previous;
         battle.currentEnemy = null;

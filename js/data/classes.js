@@ -49,17 +49,20 @@ export const CLASSES = {
                 id: 'fireball',
                 name: 'Огненный шар',
                 icon: '🔥',
-                description: 'Наносит 250% урона',
+                description: 'Наносит 250% огненного урона и поджигает врага',
                 manaCost: 20,
                 damageMultiplier: 2.5,
+                element: 'fire',
                 burn: true
             },
             {
                 id: 'frost_nova',
                 name: 'Ледяная нова',
                 icon: '❄️',
-                description: 'Замораживает врага. По горящей цели вызывает термошок',
+                description: 'Наносит 75% урона льдом и замораживает врага. По горящей цели вызывает термошок',
                 manaCost: 25,
+                damageMultiplier: 0.75,
+                element: 'ice',
                 freeze: true
             }
         ]
@@ -91,8 +94,10 @@ export const CLASSES = {
                 id: 'poison_arrow',
                 name: 'Ядовитая стрела',
                 icon: '☠️',
-                description: 'Отравляет врага. С кровотечением наносит дополнительный урон по ходам',
+                description: 'Наносит 65% урона ядом и отравляет врага. С кровотечением усиливает урон по ходам',
                 manaCost: 20,
+                damageMultiplier: 0.65,
+                element: 'poison',
                 poison: true
             }
         ]

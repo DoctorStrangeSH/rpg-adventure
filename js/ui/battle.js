@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -175,6 +175,15 @@ export function updateBattleUI() {
     const isBoss = battleState.isBossBattle || false;
     const canAct = battleState.turn === 'player' && !isProcessing;
     const tacticHint = getEnemyTacticHint(enemy);
+    const damageProfile = getEnemyDamageProfile(enemy);
+    const damageProfileHint = [
+        damageProfile.weaknesses.length
+            ? '🎯 Уязвим: ' + damageProfile.weaknesses.map(entry => entry.label + ' (+' + entry.percent + '%)').join(', ')
+            : null,
+        damageProfile.resistances.length
+            ? '🛡️ Сопротивление: ' + damageProfile.resistances.map(entry => entry.label + ' (−' + entry.percent + '%)').join(', ')
+            : null
+    ].filter(Boolean).join(' · ');
     const synergies = getActiveRelicSynergies(player);
     const equippedRelicNames = (player.activeRelics || []).filter(id => player.relics?.includes(id) && RELICS[id])
         .slice(0, 2).map(id => RELICS[id].name);
@@ -236,6 +245,7 @@ export function updateBattleUI() {
         ${stageInfo}
         <div class="battle-turn" role="status" aria-live="polite">${canAct ? '🟢 Ваш ход — выберите действие' : '⏳ Ход противника — ожидайте'}</div>
         ${tacticHint ? `<div class="battle-tactic" aria-label="Подсказка о враге">${tacticHint}</div>` : ''}
+        ${damageProfileHint ? `<div class="battle-tactic elemental-profile" aria-label="Стихийные уязвимости и сопротивления">${damageProfileHint}</div>` : ''}
         ${enemy.intent && player.class === 'warrior' ? '<div class="battle-tactic">🛡️ Воин: защита блокирует 75% следующего удара.</div>' : ''}
         ${enemy.intent && player.class === 'archer' ? '<div class="battle-tactic">🏹 Лучник: обычная атака наносит на 30% больше урона по готовящемуся врагу.</div>' : ''}
         ${enemy.intent && player.class === 'mage' ? '<div class="battle-tactic">❄️ Маг: ледяная нова может сорвать подготовку врага.</div>' : ''}
@@ -298,8 +308,13 @@ export function playerAttack() {
     const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
     const tacticalBonus = getClassTacticalBonus(player, enemy);
     const warriorOpening = consumeWarriorOpening(player, enemy);
-    const baseDamage = calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10), tacticalBonus.attackMultiplier * (warriorOpening ? 1.25 : 1));
+    const damageType = getWeaponDamageType(player);
+    const baseDamage = calculateTypedDamage(
+        getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10),
+        tacticalBonus.attackMultiplier * (warriorOpening ? 1.25 : 1), enemy, damageType
+    );
     const damage = isCrit ? Math.floor(baseDamage * getCriticalMultiplier(player)) : baseDamage;
+    const damageFeedback = getDamageFeedback(enemy, damageType);
     
     applyDamage(enemy, damage);
     const weaponEffect = triggerWeaponEffect(player, enemy);
@@ -319,7 +334,7 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${damageFeedback ? ` ${damageFeedback}!` : ''}${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -394,10 +409,11 @@ export function playerSkill(skillId) {
         result.phoenixBurn && 'пламя феникса',
         result.thermalShockDamage && `термошок: ${result.thermalShockDamage} урона`]
         .filter(Boolean).join(', ');
+    const damageFeedback = result.damage ? getDamageFeedback(enemy, result.element) : '';
     const effect = statuses ? ` Эффект: ${statuses}.` :
         result.guardReduction ? ' Следующий удар ослаблен!' :
         (skill.freeze || skill.poison || skill.burn || skill.bleed || skill.weaken) ? ' Противник сопротивляется эффекту!' : '';
-    showBattleMessage(`${skill.name}! ${result.damage ? `Урон: ${result.damage}.` : ''}${effect}`);
+    showBattleMessage(`${skill.name}! ${result.damage ? `Урон: ${result.damage}.` : ''}${damageFeedback ? ` ${damageFeedback}.` : ''}${effect}`);
     updateBattleUI();
     
     setTimeout(() => {

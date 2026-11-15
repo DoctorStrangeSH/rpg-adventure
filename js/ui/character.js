@@ -2,6 +2,11 @@
 import { gameState } from '../core/state.js';
 import { CLASSES } from '../data/classes.js';
 import { SoundSystem } from '../systems/sound.js';
+import { applyExperience } from '../systems/progression.js';
+import { escapeHtml } from '../core/html.js';
+import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
+import { getEffectiveCombatStats } from '../systems/combat.js';
+import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, getActiveRelicSynergies, toggleRelic } from '../systems/relics.js';
 
 export function updateCharacterScreen() {
     const player = gameState.player;
@@ -9,12 +14,13 @@ export function updateCharacterScreen() {
     
     const content = document.getElementById('character-content');
     const classData = CLASSES[player.class];
+    const combatStats = getEffectiveCombatStats(player);
     
     content.innerHTML = `
         <div class="character-header">
             <div class="character-avatar">${classData.icon}</div>
             <div class="character-info">
-                <h3>${player.username}</h3>
+                <h3>${escapeHtml(player.username)}</h3>
                 <p>${classData.name} • Уровень ${player.level}</p>
                 <p style="color: var(--gold);">💰 ${player.gold} золота</p>
             </div>
@@ -28,10 +34,45 @@ export function updateCharacterScreen() {
         
         <div class="section-title">⚔️ Атрибуты</div>
         <div class="attributes-grid">
-            ${createAttributeCard('⚔️', 'Атака', player.attack)}
-            ${createAttributeCard('🛡️', 'Защита', player.defense)}
+            ${createAttributeCard('⚔️', 'Атака', combatStats.attack)}
+            ${createAttributeCard('🛡️', 'Защита', combatStats.defense)}
             ${createAttributeCard('💨', 'Скорость', player.speed)}
             ${createAttributeCard('⭐', 'Уровень', player.level)}
+        </div>
+
+        <div class="section-title">🌟 Таланты • свободных очков: ${getTalentPoints(player)}</div>
+        <div class="skills-section">
+            ${TALENTS[player.class].map(talent => `
+                <div class="skill-card talent-card ${talent.specialization ? 'talent-specialization' : ''}">
+                    <div class="skill-icon">${talent.icon}</div>
+                    <div class="skill-info">
+                        <div class="skill-name">${talent.name}</div>
+                        <div class="skill-description">${talent.description}${talent.specialization ? ' • Уникальная ветка' : ''}</div>
+                    </div>
+                    <button class="talent-button" onclick="window.chooseTalent('${talent.id}')" ${!getTalentAvailability(player, talent.id).available ? 'disabled' : ''}>
+                        ${getTalentAvailability(player, talent.id).reason}
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="section-title">💎 Реликвии • активных: ${player.activeRelics?.length || 0}/${MAX_ACTIVE_RELICS}</div>
+        <div class="skills-section">
+            ${(player.relics || []).length ? player.relics.filter(id => RELICS[id]).map(id => `
+                <div class="skill-card talent-card">
+                    <div class="skill-icon">${RELICS[id].icon}</div>
+                    <div class="skill-info"><div class="skill-name">${RELICS[id].name} • ${RELIC_RARITIES[RELICS[id].rarity].name}</div><div class="skill-description">${RELICS[id].description}</div></div>
+                    <button class="talent-button" onclick="window.toggleCharacterRelic('${id}')" ${!player.activeRelics?.includes(id) && (player.activeRelics?.length || 0) >= MAX_ACTIVE_RELICS ? 'disabled' : ''}>
+                        ${player.activeRelics?.includes(id) ? 'Снять' : 'Надеть'}
+                    </button>
+                </div>
+            `).join('') : '<p class="skill-description">Реликвии можно найти у элитных врагов и боссов.</p>'}
+            ${getActiveRelicSynergies(player).map(synergy => `
+                <div class="skill-card"><div class="skill-icon">🔗</div><div class="skill-info">
+                    <div class="skill-name">Синергия: ${synergy.name}</div>
+                    <div class="skill-description">${synergy.description}</div>
+                </div></div>
+            `).join('')}
         </div>
         
         <div class="section-title">✨ Навыки</div>
@@ -46,6 +87,22 @@ export function updateCharacterScreen() {
             ${createStatCard('👹 Убийств', player.stats.kills)}
         </div>
     `;
+}
+
+export function toggleCharacterRelic(id) {
+    if (!toggleRelic(gameState.player, id)) return false;
+    gameState.save();
+    updateCharacterScreen();
+    return true;
+}
+
+export function chooseTalent(id) {
+    const player = gameState.player;
+    if (!unlockTalent(player, id)) return false;
+    gameState.save();
+    updateCharacterScreen();
+    window.showNotification?.('🌟 Новый талант изучен!', 'success');
+    return true;
 }
 
 function createStatBar(label, value, max, type) {
@@ -98,27 +155,15 @@ function createStatCard(label, value) {
 
 export function levelUp() {
     const player = gameState.player;
-    
-    while (player.experience >= player.maxExperience) {
-        player.experience -= player.maxExperience;
-        player.level++;
-        player.maxExperience = Math.floor(player.maxExperience * 1.5);
-        
-        player.maxHealth += 20;
-        player.health = player.maxHealth;
-        player.maxMana += 10;
-        player.mana = player.maxMana;
-        player.attack += 5;
-        player.defense += 3;
-        
+    if (!player) return;
+    const gainedLevels = applyExperience(player);
+    if (gainedLevels) {
         SoundSystem.playSound('levelup');
-        window.showNotification(`🎉 Уровень повышен! Теперь вы ${player.level} уровня!`, 'success');
-        
+        window.showNotification(`🎉 +${gainedLevels} ур.! Теперь вы ${player.level} уровня!`, 'success');
         window.updateQuestProgress?.('level', player.level);
     }
-    
     gameState.save();
-    updateMainMenu();
+    window.updateMainMenu?.();
     updateCharacterScreen();
     window.updateQuestsScreen?.();
     window.updateAchievements?.();

@@ -6,10 +6,15 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
+import { grantItem, rollLoot } from '../systems/loot.js';
+import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
 const particleSystem = new ParticleSystem();
+const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
 let damageTexts = [];
 let isProcessing = false;
+let animationRunning = false;
 
 let battleState = {
     canvas: null,
@@ -22,7 +27,9 @@ let battleState = {
     turn: 'player',
     isDungeonBattle: false,
     isBossBattle: false,
-    isLocationBattle: false
+    isLocationBattle: false,
+    guardReduction: 0,
+    relicEffects: { phoenixRebirthUsed: false }
 };
 
 export function initBattle() {
@@ -43,6 +50,7 @@ function resizeBattleCanvas() {
 
 export function startBattle(location) {
     const player = gameState.player;
+    if (!player || !location?.enemies?.length || battleState.isActive) return;
     
     const enemyData = getRandomEnemy(location.enemies);
     if (!enemyData) return;
@@ -61,7 +69,11 @@ export function startBattle(location) {
     battleState.turn = 'player';
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
+    battleState.guardReduction = 0;
+    battleState.relicEffects = { phoenixRebirthUsed: false };
     isProcessing = false;
+    player.stats.battles++;
+    gameState.save();
     
     const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
     battleState.playerSprite = new Sprite(player.class, 100, 200);
@@ -73,12 +85,18 @@ export function startBattle(location) {
 }
 
 export function animateBattle() {
-    if (!battleState.isActive) return;
-    
-    battleState.animationFrame++;
-    drawBattle();
-    
-    requestAnimationFrame(animateBattle);
+    if (animationRunning) return;
+    animationRunning = true;
+    const frame = () => {
+        if (!battleState.isActive) {
+            animationRunning = false;
+            return;
+        }
+        battleState.animationFrame++;
+        drawBattle();
+        requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
 }
 
 function drawBattle() {
@@ -151,11 +169,32 @@ export function updateBattleUI() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    if (!enemy) return;
+    if (!battleUI || !enemy || !player) return;
     
-    const hasMana = player.mana >= 10;
+    const skills = CLASSES[player.class]?.skills || [];
     const isBoss = battleState.isBossBattle || false;
     const canAct = battleState.turn === 'player' && !isProcessing;
+    const tacticHint = getEnemyTacticHint(enemy);
+    const damageProfile = getEnemyDamageProfile(enemy);
+    const damageProfileHint = [
+        damageProfile.weaknesses.length
+            ? '🎯 Уязвим: ' + damageProfile.weaknesses.map(entry => entry.label + ' (+' + entry.percent + '%)').join(', ')
+            : null,
+        damageProfile.resistances.length
+            ? '🛡️ Сопротивление: ' + damageProfile.resistances.map(entry => entry.label + ' (−' + entry.percent + '%)').join(', ')
+            : null
+    ].filter(Boolean).join(' · ');
+    const synergies = getActiveRelicSynergies(player);
+    const equippedRelicNames = (player.activeRelics || []).filter(id => player.relics?.includes(id) && RELICS[id])
+        .slice(0, 2).map(id => RELICS[id].name);
+    const activeEffects = [
+        enemy.effects?.freezeTurns > 0 ? `❄️ Заморозка: ${enemy.effects.freezeTurns}` : null,
+        enemy.effects?.poisonTurns > 0 ? `☠️ Яд: ${enemy.effects.poisonTurns}` : null,
+        enemy.effects?.burnTurns > 0 ? `🔥 Горение: ${enemy.effects.burnTurns}` : null,
+        enemy.effects?.bleedTurns > 0 ? `🩸 Кровотечение: ${enemy.effects.bleedTurns}` : null,
+        enemy.effects?.weakenTurns > 0 ? `🔻 Ослабление: ${enemy.effects.weakenTurns}` : null,
+        battleState.guardReduction > 0 ? '🛡️ Защитная стойка' : null
+    ].filter(Boolean);
     
     // Получаем информацию о локации
     const locationState = window.getLocationState?.();
@@ -188,8 +227,35 @@ export function updateBattleUI() {
     }
     
     battleUI.innerHTML = `
+        <div class="combat-overview" aria-label="Состояние участников боя">
+            <div class="combat-entity">
+                <div class="combat-entity-title"><span>${CLASSES[player.class]?.icon || '⚔️'} Герой</span><span>❤️ ${Math.ceil(player.health)} / ${player.maxHealth}</span></div>
+                <div class="combat-meter" role="progressbar" aria-label="Здоровье героя" aria-valuenow="${Math.ceil(player.health)}" aria-valuemin="0" aria-valuemax="${player.maxHealth}">
+                    <span class="combat-meter-fill" style="width:${Math.max(0, Math.min(100, player.health / player.maxHealth * 100))}%"></span>
+                </div>
+                <div class="combat-mana">💙 Мана: ${Math.floor(player.mana)} / ${player.maxMana}</div>
+            </div>
+            <div class="combat-entity">
+                <div class="combat-entity-title"><span>${enemy.icon || '👹'} ${enemy.name}</span><span>❤️ ${Math.ceil(enemy.health)} / ${Math.ceil(enemy.maxHealth)}</span></div>
+                <div class="combat-meter enemy" role="progressbar" aria-label="Здоровье врага" aria-valuenow="${Math.ceil(enemy.health)}" aria-valuemin="0" aria-valuemax="${Math.ceil(enemy.maxHealth)}">
+                    <span class="combat-meter-fill" style="width:${Math.max(0, Math.min(100, enemy.health / enemy.maxHealth * 100))}%"></span>
+                </div>
+            </div>
+        </div>
         ${stageInfo}
+        <div class="battle-turn" role="status" aria-live="polite">${canAct ? '🟢 Ваш ход — выберите действие' : '⏳ Ход противника — ожидайте'}</div>
+        ${tacticHint ? `<div class="battle-tactic" aria-label="Подсказка о враге">${tacticHint}</div>` : ''}
+        ${damageProfileHint ? `<div class="battle-tactic elemental-profile" aria-label="Стихийные уязвимости и сопротивления">${damageProfileHint}</div>` : ''}
+        ${enemy.intent && player.class === 'warrior' ? '<div class="battle-tactic">🛡️ Воин: защита блокирует 75% следующего удара.</div>' : ''}
+        ${enemy.intent && player.class === 'archer' ? '<div class="battle-tactic">🏹 Лучник: обычная атака наносит на 30% больше урона по готовящемуся врагу.</div>' : ''}
+        ${enemy.intent && player.class === 'mage' ? '<div class="battle-tactic">❄️ Маг: ледяная нова может сорвать подготовку врага.</div>' : ''}
+        ${player.class === 'mage' && enemy.effects?.burnTurns > 0 ? '<div class="battle-tactic">🔥❄️ Комбинация: ледяная нова по горящему врагу вызывает термошок (до 30 урона)!</div>' : ''}
+        ${player.class === 'archer' && (enemy.effects?.poisonTurns > 0 || enemy.effects?.bleedTurns > 0) ? '<div class="battle-tactic">☠️🩸 Комбинация: яд и кровотечение вместе наносят дополнительный урон каждый ход (до 12)!</div>' : ''}
+        ${player.class === 'warrior' && enemy.effects?.weakenTurns > 0 ? '<div class="battle-tactic">⚔️ Комбинация: обычная атака по ослабленному врагу наносит на 25% больше урона, расходуя один ход ослабления.</div>' : ''}
+        ${equippedRelicNames.length ? `<div class="battle-relics">💎 Реликвии: ${equippedRelicNames.join(' · ')}${synergies.length ? ` <span>🔗 ${synergies.map(entry => entry.name).join(', ')}</span>` : ''}</div>` : ''}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
+        ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
+        ${activeEffects.length ? `<div class="battle-effects" aria-label="Активные эффекты">${activeEffects.map(effect => `<span class="battle-effect">${effect}</span>`).join('')}</div>` : ''}
         <div class="battle-buttons">
             <button class="battle-btn attack" onclick="window.playerAttack()" ${!canAct ? 'disabled' : ''}>
                 ⚔️ Атаковать
@@ -197,9 +263,13 @@ export function updateBattleUI() {
             <button class="battle-btn defend" onclick="window.playerDefend()" ${!canAct ? 'disabled' : ''}>
                 🛡️ Защита
             </button>
-            <button class="battle-btn skill" onclick="window.playerSkill()" ${!canAct || !hasMana ? 'disabled' : ''}>
-                ✨ Навык
-            </button>
+            ${skills.map(skill => `
+                <button class="battle-btn skill" onclick="window.playerSkill('${skill.id}')"
+                        title="${skill.description}" ${!canAct || player.mana < skill.manaCost ? 'disabled' : ''}>
+                    <span>${skill.icon} ${skill.name} · ${skill.manaCost} MP</span>
+                    <small>${skill.description}</small>
+                </button>
+            `).join('')}
             <button class="battle-btn item" onclick="window.playerUseItem()" ${!canAct ? 'disabled' : ''}>
                 🧪 Зелье
             </button>
@@ -221,6 +291,7 @@ function disableBattleButtons() {
 
 export function playerAttack() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     if (!battleState.currentEnemy) return;
     
@@ -234,11 +305,24 @@ export function playerAttack() {
     
     battleState.playerSprite.isAttacking = true;
     
-    const isCrit = Math.random() < 0.15;
-    const baseDamage = Math.max(1, player.attack - enemy.defense + Math.floor(Math.random() * 10));
-    const damage = isCrit ? Math.floor(baseDamage * 2) : baseDamage;
+    const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
+    const tacticalBonus = getClassTacticalBonus(player, enemy);
+    const warriorOpening = consumeWarriorOpening(player, enemy);
+    const damageType = getWeaponDamageType(player);
+    const baseDamage = calculateTypedDamage(
+        getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10),
+        tacticalBonus.attackMultiplier * (warriorOpening ? 1.25 : 1), enemy, damageType
+    );
+    const damage = isCrit ? Math.floor(baseDamage * getCriticalMultiplier(player)) : baseDamage;
+    const damageFeedback = getDamageFeedback(enemy, damageType);
     
-    enemy.health = Math.max(0, enemy.health - damage);
+    applyDamage(enemy, damage);
+    recordEnemyDamageType(enemy, damageType, damage);
+    const weaponEffect = triggerWeaponEffect(player, enemy);
+    const rangerBleed = triggerRangerEffect(player, enemy);
+    const dragonEcho = triggerDragonSwordEcho(player, enemy, damage, isCrit);
+    const moonMana = triggerMoonbladeMana(player, damage, isCrit);
+    if (moonMana) gameState.save();
     
     addDamageText(
         battleState.enemySprite.x,
@@ -254,9 +338,10 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${isCrit ? ' КРИТ!' : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${damageFeedback ? ` ${damageFeedback}!` : ''}${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}${dragonEcho ? ` 🐉 Эхо дракона: +${dragonEcho} урона!` : ''}${moonMana ? ` 🌙 Лунный прилив: +${moonMana} маны!` : ''}`);
     
     setTimeout(() => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         battleState.playerSprite.isAttacking = false;
         
         if (enemy.health <= 0) {
@@ -273,44 +358,35 @@ export function playerAttack() {
 
 export function playerDefend() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     if (!battleState.currentEnemy) return;
     
     isProcessing = true;
     disableBattleButtons();
     
-    const player = gameState.player;
     const enemy = battleState.currentEnemy;
-    
-    const damage = Math.max(1, Math.floor((enemy.attack - player.defense) / 2));
-    player.health = Math.max(0, player.health - damage);
-    
-    showBattleMessage(`Вы защищаетесь! ${enemy.name} наносит ${damage} урона!`);
+    battleState.guardReduction = Math.max(battleState.guardReduction, getClassTacticalBonus(gameState.player, enemy).guardReduction);
+    showBattleMessage('Вы готовитесь отразить следующий удар!');
     
     battleState.turn = 'enemy';
     setTimeout(() => {
-        if (player.health <= 0) {
-            isProcessing = false;
-            battleDefeat();
-            return;
-        }
-        
-        battleState.turn = 'player';
-        isProcessing = false;
-        updateBattleUI();
-        window.updateMainMenu?.();
-    }, 1000);
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
+        enemyTurn();
+    }, 350);
 }
 
-export function playerSkill() {
+export function playerSkill(skillId) {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     if (!battleState.currentEnemy) return;
     
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     const classData = CLASSES[player.class];
-    const skill = classData.skills[0];
+    const skill = classData?.skills?.find(value => value.id === skillId);
+    if (!skill) return;
     
     if (player.mana < skill.manaCost) {
         showBattleMessage('Недостаточно маны!');
@@ -324,12 +400,28 @@ export function playerSkill() {
     
     battleState.playerSprite.isAttacking = true;
     
-    const damage = Math.max(1, Math.floor(player.attack * skill.damageMultiplier - enemy.defense));
-    enemy.health = Math.max(0, enemy.health - damage);
+    const result = useSkillEffect(player, enemy, skill);
+    const weaponEffect = result.damage > 0 ? triggerWeaponEffect(player, enemy) : null;
+    if (result.guardReduction) battleState.guardReduction = result.guardReduction;
+    gameState.save();
     
-    showBattleMessage(`${skill.name}! Нанесено ${damage} урона!`);
+    const statuses = [weaponEffect && WEAPON_EFFECT_NAMES[weaponEffect], skill.freeze && enemy.effects?.freezeTurns && 'заморозка',
+        skill.poison && enemy.effects?.poisonTurns && 'яд',
+        skill.burn && enemy.effects?.burnTurns && 'горение',
+        skill.bleed && enemy.effects?.bleedTurns && 'кровотечение',
+        skill.weaken && enemy.effects?.weakenTurns && 'ослабление',
+        result.phoenixBurn && 'пламя феникса',
+        result.thermalShockDamage && `термошок: ${result.thermalShockDamage} урона`]
+        .filter(Boolean).join(', ');
+    const damageFeedback = result.damage ? getDamageFeedback(enemy, result.element) : '';
+    const effect = statuses ? ` Эффект: ${statuses}.` :
+        result.guardReduction ? ' Следующий удар ослаблен!' :
+        (skill.freeze || skill.poison || skill.burn || skill.bleed || skill.weaken) ? ' Противник сопротивляется эффекту!' : '';
+    showBattleMessage(`${skill.name}! ${result.damage ? `Урон: ${result.damage}.` : ''}${damageFeedback ? ` ${damageFeedback}.` : ''}${effect}`);
+    updateBattleUI();
     
     setTimeout(() => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         battleState.playerSprite.isAttacking = false;
         
         if (enemy.health <= 0) {
@@ -345,30 +437,27 @@ export function playerSkill() {
 
 export function playerUseItem() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     
     const player = gameState.player;
     
-    const potionIndex = player.inventory.findIndex(item => item.id === 'health_potion');
+    const potionIndex = player.inventory.findIndex(item => item.id === 'health_potion' && item.quantity > 0);
     
     if (potionIndex === -1) {
         showBattleMessage('У вас нет зелий!');
         return;
     }
     
-    isProcessing = true;
-    disableBattleButtons();
-    
     const potion = player.inventory[potionIndex];
     const potionData = getItem(potion.id);
-    
-    const healAmount = potionData.heal || 50;
-    player.health = Math.min(player.maxHealth, player.health + healAmount);
-    potion.quantity--;
-    
-    if (potion.quantity <= 0) {
-        player.inventory.splice(potionIndex, 1);
+    const healAmount = consumeHealingPotion(player, potion, potionData);
+    if (!healAmount) {
+        showBattleMessage('Здоровье уже полностью восстановлено!');
+        return;
     }
+    isProcessing = true;
+    disableBattleButtons();
     
     showBattleMessage(`Вы использовали ${potionData.name}! +${healAmount} HP`);
     
@@ -382,14 +471,17 @@ export function playerUseItem() {
 
 export function playerFlee() {
     if (isProcessing) return;
+    if (!battleState.isActive) return;
     if (battleState.turn !== 'player') return;
     
     isProcessing = true;
     disableBattleButtons();
+    const enemy = battleState.currentEnemy;
     
     if (Math.random() < 0.7) {
         showBattleMessage('Вы успешно сбежали!');
         setTimeout(() => {
+            if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
             isProcessing = false;
             
             // Проверяем, в локации ли мы
@@ -411,21 +503,72 @@ function enemyTurn() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    if (!enemy) return;
+    if (!battleState.isActive || !enemy) return;
+    const effects = tickEnemyEffects(enemy);
+    if (effects.poisonDamage) {
+        showBattleMessage(`Яд наносит ${effects.poisonDamage} урона!`);
+    }
+    if (effects.burnDamage || effects.bleedDamage) {
+        showBattleMessage(`Горение и кровотечение: ${effects.burnDamage + effects.bleedDamage} урона!`);
+    }
+    if (effects.woundPoisonDamage) {
+        showBattleMessage(`☠️🩸 Яд попадает в раны! Дополнительно ${effects.woundPoisonDamage} урона!`);
+    }
+    if (enemy.health <= 0) {
+        battleVictory();
+        return;
+    }
+    if (effects.frozen) {
+        const interrupted = interruptEnemyWindup(enemy);
+        battleState.guardReduction = 0;
+        battleState.turn = 'player';
+        isProcessing = false;
+        showBattleMessage(`${enemy.name} пропускает ход из-за заморозки!${interrupted ? ' Подготовка опасного удара сорвана!' : ''}`);
+        updateBattleUI();
+        return;
+    }
+    const plan = planEnemyTurn(enemy, player);
+    if (plan.phaseChanged) showBattleMessage(`⚡ ${enemy.name} переходит в фазу ${plan.phase}!`);
+    if (plan.warned) {
+        battleState.turn = 'player';
+        isProcessing = false;
+        showBattleMessage(getEnemyTacticHint(enemy) || `⚠️ ${enemy.name} готовит особый удар! Защищайтесь или прервите подготовку!`);
+        updateBattleUI();
+        return;
+    }
+    const action = plan.action;
+    if (action === 'adapt') {
+        const result = applyEnemyAction(enemy, player, 'adapt');
+        battleState.turn = 'player';
+        isProcessing = false;
+        const label = { physical: 'физическим атакам', fire: 'огню', ice: 'льду', poison: 'яду' }[result.adapted] || result.adapted;
+        showBattleMessage(`🛡️ ${enemy.name} анализирует ваши действия и адаптируется к ${label}! Сопротивление продержится два ваших хода.`);
+        updateBattleUI();
+        return;
+    }
+    const actionName = {
+        attack: 'атакует', heavy: 'наносит сокрушительный удар',
+        pounce: 'прыгает на вас', mana_burn: 'истощает вашу ману',
+        recover: 'восстанавливается', cleanse: 'снимает с себя отрицательный эффект',
+        ambush: 'устраивает засаду', crush: 'наносит сокрушительный удар сквозь броню',
+        siphon: 'высасывает жизненные силы', flame_breath: 'извергает пламя',
+        cataclysm: 'обрушивает катаклизм', thorn_burst: 'обрушивает град шипастых корней'
+    }[action];
+    showBattleMessage(`${enemy.name} ${actionName}!`);
     
     battleState.enemySprite.isAttacking = true;
     
     setTimeout(() => {
+        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         SoundSystem.playSound('hit');
         
-        const damage = Math.max(1, enemy.attack - player.defense + Math.floor(Math.random() * 5));
-        player.health = Math.max(0, player.health - damage);
+        const result = applyEnemyAction(enemy, player, action, Math.floor(Math.random() * 5), battleState.guardReduction);
+        const damage = result.damage;
+        const reborn = tryPhoenixRebirth(player, battleState.relicEffects);
+        battleState.guardReduction = 0;
+        gameState.save();
         
-        addDamageText(
-            battleState.playerSprite.x,
-            battleState.playerSprite.y - 50,
-            damage
-        );
+        if (damage) addDamageText(battleState.playerSprite.x, battleState.playerSprite.y - 50, damage);
         
         particleSystem.createExplosion(
             battleState.playerSprite.x,
@@ -436,13 +579,23 @@ function enemyTurn() {
         
         battleState.enemySprite.isAttacking = false;
         
-        showBattleMessage(`${enemy.name} наносит ${damage} урона!`);
+        const cleansedNames = { burn: 'горение', poison: 'яд', bleed: 'кровотечение', weaken: 'ослабление' };
+        showBattleMessage(reborn ? '🔥 Корона феникса спасает вас от гибели! Здоровье восстановлено.' :
+            result.cleansed ? `${enemy.name} очищается от эффекта: ${cleansedNames[result.cleansed] || result.cleansed}!` :
+            result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
+            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}${result.armorEffect === 'freeze' ? ' ❄️ Ледяная броня заморозила врага!' : ''}${result.armorHealed ? ` 🩸 Кровавый доспех: +${result.armorHealed} HP!` : ''}`);
         
         setTimeout(() => {
+            if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
             if (player.health <= 0) {
                 SoundSystem.playSound('defeat');
                 isProcessing = false;
                 battleDefeat();
+                return;
+            }
+            if (enemy.health <= 0) {
+                isProcessing = false;
+                battleVictory();
                 return;
             }
             
@@ -464,9 +617,10 @@ export function battleVictory() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
     
-    if (!enemy) return;
+    if (!battleState.isActive || !enemy || enemy.health > 0) return;
     
     battleState.isActive = false;
+    isProcessing = false;
     
     const expGain = Math.floor(enemy.expReward * (1 + Math.random() * 0.5));
     const goldGain = Math.floor(enemy.goldReward * (1 + Math.random() * 0.5));
@@ -476,7 +630,7 @@ export function battleVictory() {
     player.stats.kills++;
     player.stats.wins++;
     
-    if (battleState.isBossBattle) {
+    if (battleState.isBossBattle && !enemy.miniBoss) {
         player.stats.bossesKilled = (player.stats.bossesKilled || 0) + 1;
     }
     
@@ -487,7 +641,13 @@ export function battleVictory() {
     
     window.updateAchievements?.();
     
-    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!`);
+    const lootId = rollLoot(battleState.isBossBattle, Math.random,
+        battleState.isBossBattle && !enemy.miniBoss ? enemy.id : null);
+    const lootQuantity = lootId ? grantItem(player, lootId) : 0;
+    const lootText = lootQuantity ? ` 🎁 Добыча: ${getItem(lootId).name}!` : '';
+    const relicId = awardRelic(player, enemy.elite === true || enemy.miniBoss === true, battleState.isBossBattle && !enemy.miniBoss);
+    const relicText = relicId ? ` 🌟 Реликвия: ${RELICS[relicId].name}!` : '';
+    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}${relicText}`);
     
     if (player.experience >= player.maxExperience) {
         window.levelUp?.();
@@ -513,8 +673,10 @@ export function battleVictory() {
 
 export function battleDefeat() {
     const player = gameState.player;
+    if (!battleState.isActive || !player || player.health > 0) return;
     
     battleState.isActive = false;
+    isProcessing = false;
     
     const goldLoss = Math.floor(player.gold * 0.1);
     player.gold -= goldLoss;
@@ -536,11 +698,15 @@ export function battleDefeat() {
 }
 
 export function exitBattle() {
+    // The header back button can exit an active dungeon directly. Clear the
+    // run before leaving, otherwise its inLocation flag blocks new attempts.
+    if (window.getLocationState?.()?.inLocation) window.resetLocationState?.();
     battleState.isActive = false;
     battleState.currentEnemy = null;
     battleState.isDungeonBattle = false;
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
+    battleState.guardReduction = 0;
     isProcessing = false;
     
     window.showScreen('main-menu');

@@ -2,6 +2,12 @@
 import { gameState } from '../core/state.js';
 import { LOCATIONS, getLocation } from '../data/locations.js';
 import { CLASSES } from '../data/classes.js';
+import { getDungeonCheckpoint } from '../systems/dungeon.js';
+
+export function getMapCheckpointLabel(player, location) {
+    const stage = location?.type === 'safe' ? 0 : getDungeonCheckpoint(player, location?.id, location);
+    return stage ? `🏕️ Продолжить с этапа ${stage + 1}/${location.stages.length}` : '';
+}
 
 let mapState = {
     canvas: null,
@@ -111,6 +117,7 @@ function drawLocation(ctx, location) {
     const isSelected = mapState.selectedLocation === location.id;
     const player = gameState.player;
     const isAccessible = location.unlocked !== false && player.level >= location.minLevel;
+    const checkpointLabel = getMapCheckpointLabel(player, location);
     
     ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
     ctx.shadowBlur = 10;
@@ -150,6 +157,14 @@ function drawLocation(ctx, location) {
         ctx.fillText(`${location.totalStages} этапов`, x, y + 47);
     }
     
+    if (checkpointLabel && isAccessible) {
+        ctx.font = '17px Arial';
+        ctx.fillText('🏕️', x + 24, y - 23);
+        ctx.fillStyle = '#ffe6a6';
+        ctx.font = '9px Arial';
+        ctx.fillText(`С этапа ${getDungeonCheckpoint(player, location.id, location) + 1}`, x, y + 60);
+    }
+
     if (!isAccessible) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
         ctx.beginPath();
@@ -229,7 +244,8 @@ function selectLocation(location) {
     
     overlay.className = 'map-overlay active ' + (isBottom ? 'top' : 'bottom');
     
-    let buttonText = 'Войти';
+    const checkpointLabel = getMapCheckpointLabel(player, location);
+    let buttonText = checkpointLabel || 'Войти';
     if (location.type === 'safe') {
         buttonText = 'Отдохнуть';
     } else if (location.unlocked === false) {
@@ -243,6 +259,7 @@ function selectLocation(location) {
             <div class="location-name">${location.name}</div>
             <div class="location-description">${location.description}</div>
             ${location.totalStages ? `<div class="location-level">Этапов: ${location.totalStages}</div>` : ''}
+            ${checkpointLabel ? `<div class="location-level">💾 Контрольная точка сохранена</div>` : ''}
             <div class="location-level">Уровень: ${location.minLevel}+</div>
         </div>
         <button class="map-btn" 

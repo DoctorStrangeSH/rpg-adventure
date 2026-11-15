@@ -17,9 +17,10 @@ export const CLASSES = {
                 id: 'power_strike',
                 name: 'Мощный удар',
                 icon: '💥',
-                description: 'Наносит 200% урона',
+                description: '200% урона и ослабление. Следующая обычная атака может стать добивающей (+25%)',
                 manaCost: 10,
-                damageMultiplier: 2.0
+                damageMultiplier: 2.0,
+                weaken: true
             },
             {
                 id: 'shield_wall',
@@ -48,16 +49,20 @@ export const CLASSES = {
                 id: 'fireball',
                 name: 'Огненный шар',
                 icon: '🔥',
-                description: 'Наносит 250% урона',
+                description: 'Наносит 250% огненного урона и поджигает врага',
                 manaCost: 20,
-                damageMultiplier: 2.5
+                damageMultiplier: 2.5,
+                element: 'fire',
+                burn: true
             },
             {
                 id: 'frost_nova',
                 name: 'Ледяная нова',
                 icon: '❄️',
-                description: 'Замораживает врага',
+                description: 'Наносит 75% урона льдом и замораживает врага. По горящей цели вызывает термошок',
                 manaCost: 25,
+                damageMultiplier: 0.75,
+                element: 'ice',
                 freeze: true
             }
         ]
@@ -79,17 +84,20 @@ export const CLASSES = {
                 id: 'rapid_shot',
                 name: 'Быстрый выстрел',
                 icon: '🎯',
-                description: 'Наносит 150% урона дважды',
+                description: 'Два выстрела по 150% урона и кровотечение. С ядом усиливает урон по ходам',
                 manaCost: 15,
                 damageMultiplier: 1.5,
-                hits: 2
+                hits: 2,
+                bleed: true
             },
             {
                 id: 'poison_arrow',
                 name: 'Ядовитая стрела',
                 icon: '☠️',
-                description: 'Отравляет врага',
+                description: 'Наносит 65% урона ядом и отравляет врага. С кровотечением усиливает урон по ходам',
                 manaCost: 20,
+                damageMultiplier: 0.65,
+                element: 'poison',
                 poison: true
             }
         ]

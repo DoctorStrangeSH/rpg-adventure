@@ -714,12 +714,120 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    max-height: min(62%, 470px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 16px 16px 0 0;
+    background: linear-gradient(180deg, rgba(13, 17, 36, 0.96), rgba(9, 11, 25, 0.98));
+    border-top: 1px solid rgba(255, 218, 148, 0.25);
+    scrollbar-width: thin;
+}
+
+.combat-overview {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.combat-entity {
+    min-width: 0;
+    padding: 9px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+}
+
+.combat-entity-title {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.combat-meter {
+    height: 7px;
+    margin-top: 7px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.combat-meter-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #a82f49, #ee6472);
+}
+
+.combat-meter.enemy .combat-meter-fill {
+    background: linear-gradient(90deg, #bc4b2e, #f4aa5b);
+}
+
+.combat-mana {
+    color: #99c8ff;
+    margin-top: 6px;
+    font-size: 11px;
 }
 
 .battle-buttons {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+}
+
+.battle-effects {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.battle-turn,
+.battle-tactic,
+.battle-relics {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.battle-turn {
+    color: #a5e9c8;
+    background: rgba(23, 84, 69, 0.55);
+}
+
+.battle-tactic {
+    color: #ffce99;
+    border: 1px solid rgba(244, 170, 91, 0.3);
+    background: rgba(87, 48, 27, 0.55);
+}
+
+.battle-relics {
+    color: #d9c4ff;
+    background: rgba(61, 43, 88, 0.55);
+}
+
+.battle-relics span {
+    color: #ffdf94;
+}
+
+.boss-phase {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: var(--radius);
+    color: #ffd78b;
+    background: rgba(98, 29, 42, 0.82);
+    font-size: 13px;
+    text-align: center;
+}
+
+.battle-effect {
+    padding: 5px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    color: #f9e7b5;
+    background: rgba(12, 14, 30, 0.8);
+    font-size: 12px;
 }
 
 .battle-btn {
@@ -732,6 +840,29 @@ body {
     color: white;
     font-weight: bold;
     box-shadow: var(--shadow);
+}
+
+.battle-btn small {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: normal;
+    line-height: 1.25;
+    opacity: 0.85;
+}
+
+@media (max-width: 480px) {
+    .battle-ui {
+        bottom: 0;
+        padding: 10px;
+        max-height: 66%;
+        gap: 6px;
+    }
+    .battle-buttons { gap: 7px; }
+    .battle-btn { padding: 10px 6px; font-size: 13px; min-height: 44px; }
+    .combat-entity { padding: 7px; }
+    .combat-entity-title { font-size: 11px; }
+    .battle-effects { margin-bottom: 4px; }
 }
 
 .battle-btn:hover {
@@ -1272,3 +1403,12 @@ body {
     padding: 3px 8px;
     border-radius: 10px;
 }
+.talent-card { gap: 12px; }
+.talent-button { margin-left: auto; padding: 9px 12px; border: 1px solid var(--gold); border-radius: 9px; background: rgba(240, 190, 85, .13); color: var(--gold); cursor: pointer; font: inherit; }
+.talent-button:disabled { opacity: .55; cursor: default; }
+.talent-specialization { border-color: rgba(240, 190, 85, .55); background: linear-gradient(120deg, rgba(240, 190, 85, .09), transparent); }
+.adventure-event { display: grid; justify-items: center; gap: 12px; padding: 22px 16px; border: 1px solid rgba(240,190,85,.4); border-radius: 18px; background: linear-gradient(160deg,rgba(42,31,60,.96),rgba(17,23,42,.96)); text-align: center; }
+.adventure-event-icon { font-size: 42px; }
+.adventure-event h3 { color: var(--gold); margin: 0; }
+.adventure-event p { color: var(--text-muted); margin: 0 0 6px; }
+.adventure-event .battle-btn { width: min(100%, 330px); }

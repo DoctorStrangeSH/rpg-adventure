@@ -3,6 +3,17 @@ import { GAME_CONFIG } from '../config/constants.js';
 import { CLASSES } from '../data/classes.js';
 import { QUESTS } from '../data/quests.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
+import { Storage } from './storage.js';
+import { LOCATIONS } from '../data/locations.js';
+
+function restoreUnlockedLocations(player) {
+    const ids = new Set(Array.isArray(player.unlockedLocations) ? player.unlockedLocations : ['forest']);
+    ids.add('forest');
+    LOCATIONS.forEach(location => {
+        location.unlocked = location.type === 'safe' || ids.has(location.id);
+    });
+    player.unlockedLocations = [...ids];
+}
 
 class GameState {
     constructor() {
@@ -30,6 +41,7 @@ class GameState {
     
     createPlayer(classId) {
         const classData = CLASSES[classId];
+        if (!classData) return null;
         
         this.player = {
             id: Date.now(),
@@ -37,6 +49,9 @@ class GameState {
             username: window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'Игрок',
             class: classId,
             level: 1,
+            talents: [],
+            relics: [],
+            activeRelics: [],
             experience: 0,
             maxExperience: 100,
             health: classData.stats.health,
@@ -47,6 +62,7 @@ class GameState {
             defense: classData.stats.defense,
             speed: classData.stats.speed,
             gold: 100,
+            unlockedLocations: ['forest'],
             inventory: [
                 { id: 'health_potion', quantity: 3 },
                 { id: 'mana_potion', quantity: 2 }
@@ -77,27 +93,28 @@ class GameState {
             },
             createdAt: new Date().toISOString()
         };
+        restoreUnlockedLocations(this.player);
         
         return this.player;
     }
     
     save() {
-        try {
-            localStorage.setItem(GAME_CONFIG.saveKey, JSON.stringify(this.data));
-        } catch (error) {
-            console.error('Error saving game:', error);
-        }
+        Storage.save(this.data);
     }
     
     load() {
-        try {
-            const saved = localStorage.getItem(GAME_CONFIG.saveKey);
-            if (saved) {
-                this.data = JSON.parse(saved);
-                return true;
-            }
-        } catch (error) {
-            console.error('Error loading game:', error);
+        const saved = Storage.load();
+        if (saved && typeof saved === 'object' && !Array.isArray(saved) &&
+            saved.player && typeof saved.player === 'object' &&
+            CLASSES[saved.player.class] &&
+            Array.isArray(saved.player.inventory) &&
+            saved.player.equipment && typeof saved.player.equipment === 'object') {
+            this.data = { player: saved.player, screen: 'main-menu' };
+            if (!Array.isArray(this.player.talents)) this.player.talents = [];
+            if (!Array.isArray(this.player.relics)) this.player.relics = [];
+            if (!Array.isArray(this.player.activeRelics)) this.player.activeRelics = [];
+            restoreUnlockedLocations(this.player);
+            return true;
         }
         return false;
     }

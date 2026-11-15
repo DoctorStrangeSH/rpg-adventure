@@ -3,7 +3,7 @@ import { gameState } from './core/state.js';
 import { ScreenManager } from './core/screen.js';
 import { SoundSystem } from './systems/sound.js';
 import { initUI, showClassSelection, updateMainMenu } from './ui/mainMenu.js';
-import { updateCharacterScreen, levelUp } from './ui/character.js';
+import { updateCharacterScreen, levelUp, chooseTalent, toggleCharacterRelic } from './ui/character.js';
 import { initMap, updateMapScreen, enterLocation } from './ui/map.js';
 import { 
     initBattle, 
@@ -36,15 +36,19 @@ import {
     getLocationState,
     handleVictory,
     handleBossVictory,
-    handleDefeat
+    handleDefeat,
+    chooseAdventureEvent,
+    chooseDungeonRoute,
+    chooseDungeonCheckpoint,
+    chooseSecretRoom
 } from './systems/dungeon.js';
 
 // Инициализация Telegram
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
-tg.setHeaderColor('#0a0a1a');
-tg.setBackgroundColor('#0a0a1a');
+const tg = window.Telegram?.WebApp;
+tg?.ready?.();
+tg?.expand?.();
+tg?.setHeaderColor?.('#0a0a1a');
+tg?.setBackgroundColor?.('#0a0a1a');
 
 // Глобальные функции для HTML
 window.showScreen = function(screenId) {
@@ -53,7 +57,7 @@ window.showScreen = function(screenId) {
 };
 
 window.selectClass = function(classId) {
-    gameState.createPlayer(classId);
+    if (!gameState.createPlayer(classId)) return;
     gameState.save();
     initUI();
     ScreenManager.show('main-menu');
@@ -64,6 +68,8 @@ window.showClassSelection = showClassSelection;
 window.updateMainMenu = updateMainMenu;
 window.updateCharacterScreen = updateCharacterScreen;
 window.levelUp = levelUp;
+window.chooseTalent = chooseTalent;
+window.toggleCharacterRelic = toggleCharacterRelic;
 
 window.initMap = initMap;
 window.updateMapScreen = updateMapScreen;
@@ -110,6 +116,10 @@ window.getLocationState = getLocationState;
 window.handleVictory = handleVictory;
 window.handleBossVictory = handleBossVictory;
 window.handleDefeat = handleDefeat;
+window.chooseAdventureEvent = chooseAdventureEvent;
+window.chooseDungeonRoute = chooseDungeonRoute;
+window.chooseDungeonCheckpoint = chooseDungeonCheckpoint;
+window.chooseSecretRoom = chooseSecretRoom;
 
 // Уведомления
 window.showNotification = function(message, type = 'info') {

@@ -39,6 +39,7 @@ import {
     handleDefeat,
     chooseAdventureEvent,
     chooseDungeonRoute,
+    chooseDungeonCheckpoint,
     chooseSecretRoom
 } from './systems/dungeon.js';
 
@@ -117,6 +118,7 @@ window.handleBossVictory = handleBossVictory;
 window.handleDefeat = handleDefeat;
 window.chooseAdventureEvent = chooseAdventureEvent;
 window.chooseDungeonRoute = chooseDungeonRoute;
+window.chooseDungeonCheckpoint = chooseDungeonCheckpoint;
 window.chooseSecretRoom = chooseSecretRoom;
 
 // Уведомления

@@ -8,7 +8,7 @@ import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDama
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
-import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute } from '../js/systems/dungeon.js';
+import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute, chooseDungeonCheckpoint, getDungeonCheckpoint } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot } from '../js/systems/loot.js';
@@ -1317,6 +1317,19 @@ test('leaving a dungeon with the battle back button clears the active run', () =
         window.showScreen = originalShow;
         window.updateMainMenu = originalUpdateMenu;
     }
+});
+
+test('saved expedition checkpoints resume only valid stages', () => {
+    const hero = gameState.createPlayer('warrior');
+    const dungeon = getLocation('forest');
+    hero.dungeonCheckpoints = { forest: 4 };
+    assert.equal(getDungeonCheckpoint(hero, 'forest'), dungeon.stages.length > 4 ? 4 : 0);
+    hero.dungeonCheckpoints.forest = -1;
+    assert.equal(getDungeonCheckpoint(hero, 'forest'), 0);
+    hero.dungeonCheckpoints.forest = dungeon.stages.length + 1;
+    assert.equal(getDungeonCheckpoint(hero, 'forest'), 0);
+    assert.equal(getDungeonCheckpoint(hero, 'unlisted'), 0);
+    assert.equal(chooseDungeonCheckpoint('retreat'), false);
 });
 
 test('safe dungeon route preserves enemy balance and rewards', () => {

@@ -20,8 +20,15 @@ let locationState = {
     visitedRouteStages: new Set(),
     routeChoices: {},
     checkedSecretStages: new Set(),
-    pendingSecretRoom: null
+    pendingSecretRoom: null,
+    pendingCheckpoint: null,
+    visitedCheckpointStages: new Set()
 };
+
+export function getDungeonCheckpoint(player, locationId, location = getLocation(locationId)) {
+    const stage = player?.dungeonCheckpoints?.[locationId];
+    return Number.isInteger(stage) && stage > 0 && stage < (location?.stages?.length || 0) ? stage : 0;
+}
 
 export function startLocation(locationId) {
     const player = gameState.player;
@@ -49,7 +56,8 @@ export function startLocation(locationId) {
     if (locationState.inLocation || getBattleState().isActive) return;
     
     locationState.currentLocation = location;
-    locationState.currentStage = 0;
+    const resumeStage = getDungeonCheckpoint(player, locationId, location);
+    locationState.currentStage = resumeStage;
     locationState.enemiesDefeated = 0;
     locationState.inLocation = true;
     locationState.pendingEvent = null;
@@ -59,6 +67,8 @@ export function startLocation(locationId) {
     locationState.routeChoices = {};
     locationState.checkedSecretStages = new Set();
     locationState.pendingSecretRoom = null;
+    locationState.pendingCheckpoint = null;
+    locationState.visitedCheckpointStages = new Set(resumeStage ? [resumeStage] : []);
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -74,7 +84,7 @@ export function startStageBattle() {
     if (!locationState.inLocation || getBattleState().isActive) return;
     // The stage must wait for the player's choice; duplicate callbacks must
     // never bypass an unresolved encounter or overwrite its buttons.
-    if (locationState.pendingEvent || locationState.pendingRoute || locationState.pendingSecretRoom) return;
+    if (locationState.pendingEvent || locationState.pendingRoute || locationState.pendingSecretRoom || locationState.pendingCheckpoint) return;
     const location = locationState.currentLocation;
     
     if (!location || !location.stages) {
@@ -87,6 +97,14 @@ export function startStageBattle() {
     if (!stage) {
         console.error('No stage found at index:', locationState.currentStage);
         completeLocation();
+        return;
+    }
+
+    // Before every fifth stage, the hero can leave safely and resume later.
+    // A resumed stage does not present the same checkpoint twice.
+    if (locationState.currentStage > 0 && (locationState.currentStage + 1) % 5 === 0 &&
+        !locationState.visitedCheckpointStages.has(locationState.currentStage)) {
+        presentDungeonCheckpoint();
         return;
     }
 
@@ -162,6 +180,53 @@ export function startStageBattle() {
         const bossText = stage.boss ? ' 👹 БОСС!' : '';
         window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}`);
     });
+}
+
+function presentDungeonCheckpoint() {
+    const stage = locationState.currentStage;
+    locationState.pendingCheckpoint = { stage, runId: locationState.runId };
+    const ui = document.getElementById('battle-ui');
+    if (!ui) {
+        locationState.pendingCheckpoint = null;
+        locationState.visitedCheckpointStages.add(stage);
+        startStageBattle();
+        return;
+    }
+    ui.innerHTML = `<section class="adventure-event" aria-label="Контрольная точка экспедиции">
+        <div class="adventure-event-icon">🏕️</div><h3>Привал экспедиции</h3>
+        <p>Этап ${stage + 1}. Можно продолжить путь или вернуться в деревню и возобновить экспедицию с этого этапа.</p>
+        <button class="battle-btn" onclick="window.chooseDungeonCheckpoint('continue')">⚔️ Продолжить экспедицию</button>
+        <button class="battle-btn" onclick="window.chooseDungeonCheckpoint('retreat')">🏠 Вернуться и сохранить точку</button>
+    </section>`;
+}
+
+export function chooseDungeonCheckpoint(choice) {
+    const pending = locationState.pendingCheckpoint;
+    if (!pending || !['continue', 'retreat'].includes(choice) || !locationState.inLocation ||
+        getBattleState().isActive || pending.runId !== locationState.runId ||
+        pending.stage !== locationState.currentStage) return false;
+    locationState.pendingCheckpoint = null;
+    locationState.visitedCheckpointStages.add(pending.stage);
+    if (choice === 'continue') {
+        startStageBattle();
+        return true;
+    }
+    const player = gameState.player;
+    player.dungeonCheckpoints ||= {};
+    player.dungeonCheckpoints[locationState.currentLocation.id] = pending.stage;
+    gameState.save();
+    locationState.runId++;
+    locationState.inLocation = false;
+    locationState.currentLocation = null;
+    locationState.currentStage = 0;
+    locationState.enemiesDefeated = 0;
+    locationState.pendingEvent = null;
+    locationState.pendingRoute = null;
+    locationState.pendingSecretRoom = null;
+    window.exitBattle?.();
+    window.showScreen?.('map-screen');
+    window.showNotification?.('🏕️ Контрольная точка сохранена. Можно продолжить экспедицию позже.', 'success');
+    return true;
 }
 
 function presentRouteChoice() {
@@ -348,11 +413,13 @@ export function completeLocation() {
         player.unlockedLocations.push(nextLocation.id);
     }
     player.stats.dungeonsCompleted = (player.stats.dungeonsCompleted || 0) + 1;
+    if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];
     
     locationState.inLocation = false;
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
     locationState.pendingSecretRoom = null;
+    locationState.pendingCheckpoint = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -378,6 +445,9 @@ export function completeLocation() {
 }
 
 export function fleeLocation() {
+    if (gameState.player?.dungeonCheckpoints && locationState.currentLocation)
+        delete gameState.player.dungeonCheckpoints[locationState.currentLocation.id];
+    gameState.save();
     locationState.runId++;
     locationState.inLocation = false;
     locationState.pendingEvent = null;
@@ -456,6 +526,9 @@ export function handleBossVictory() {
 
 // Вызывается при поражении
 export function handleDefeat() {
+    if (gameState.player?.dungeonCheckpoints && locationState.currentLocation)
+        delete gameState.player.dungeonCheckpoints[locationState.currentLocation.id];
+    gameState.save();
     locationState.runId++;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;

@@ -1,4 +1,15 @@
 // Класс спрайта с отрисовкой
+// Illustrated heroes load once and remain optional so low-connectivity clients
+// and test environments can fall back to the original canvas silhouettes.
+const HERO_IMAGES = {};
+if (typeof Image !== 'undefined') {
+    for (const hero of ['warrior', 'mage', 'archer']) {
+        const image = new Image();
+        image.src = `assets/characters/heroes/${hero}-idle.png`;
+        HERO_IMAGES[hero] = image;
+    }
+}
+
 export class Sprite {
     constructor(type, x, y) {
         this.type = type;
@@ -28,6 +39,15 @@ export class Sprite {
     }
     
     drawSprite(ctx, frame) {
+        const heroImage = HERO_IMAGES[this.type];
+        if (heroImage?.complete && heroImage.naturalWidth > 0) {
+            const height = 100;
+            const width = height * heroImage.naturalWidth / heroImage.naturalHeight;
+            const breathing = Math.sin(frame * 0.055) * 2;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(heroImage, -width / 2, 30 - height + breathing, width, height);
+            return;
+        }
         const drawFunctions = {
             warrior: this.drawWarrior,
             mage: this.drawMage,

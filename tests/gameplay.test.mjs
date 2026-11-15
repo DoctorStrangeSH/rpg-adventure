@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem, getItemAbilityDescription } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType } from '../js/systems/combat.js';
+import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -1490,8 +1490,28 @@ test('dragon echo does not overkill, chain, or activate for ordinary weapons', (
     assert.equal(plain.health, 100);
 });
 
+test('moonblade returns mana only on critical hits and respects the maximum', () => {
+    const hero = gameState.createPlayer('mage');
+    hero.equipment.weapon = 'moonblade';
+    hero.mana = 0;
+    hero.maxMana = 40;
+    assert.equal(triggerMoonbladeMana(hero, 20, false), 0);
+    assert.equal(triggerMoonbladeMana(hero, 0, true), 0);
+    assert.equal(triggerMoonbladeMana(hero, 20, true), 8);
+    assert.equal(hero.mana, 8);
+    hero.mana = 37;
+    assert.equal(triggerMoonbladeMana(hero, 20, true), 3);
+    assert.equal(hero.mana, 40);
+    assert.equal(triggerMoonbladeMana(hero, 20, true), 0);
+    hero.equipment.weapon = 'iron_sword';
+    hero.mana = 10;
+    assert.equal(triggerMoonbladeMana(hero, 20, true), 0);
+    assert.equal(hero.mana, 10);
+});
+
 test('equipment ability descriptions match active numeric properties', () => {
     assert.match(getItemAbilityDescription(getItem('dragon_sword')), /25%.*8%/);
+    assert.match(getItemAbilityDescription(getItem('moonblade')), /8 маны/);
     assert.match(getItemAbilityDescription(getItem('frost_armor')), /15%/);
     assert.match(getItemAbilityDescription(getItem('blood_armor')), /25%.*20%.*10%/);
     assert.match(getItemAbilityDescription(getItem('frost_blade')), /18%/);

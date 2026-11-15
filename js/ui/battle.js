@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -321,6 +321,8 @@ export function playerAttack() {
     const weaponEffect = triggerWeaponEffect(player, enemy);
     const rangerBleed = triggerRangerEffect(player, enemy);
     const dragonEcho = triggerDragonSwordEcho(player, enemy, damage, isCrit);
+    const moonMana = triggerMoonbladeMana(player, damage, isCrit);
+    if (moonMana) gameState.save();
     
     addDamageText(
         battleState.enemySprite.x,
@@ -336,7 +338,7 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${damageFeedback ? ` ${damageFeedback}!` : ''}${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}${dragonEcho ? ` 🐉 Эхо дракона: +${dragonEcho} урона!` : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${damageFeedback ? ` ${damageFeedback}!` : ''}${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}${dragonEcho ? ` 🐉 Эхо дракона: +${dragonEcho} урона!` : ''}${moonMana ? ` 🌙 Лунный прилив: +${moonMana} маны!` : ''}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;

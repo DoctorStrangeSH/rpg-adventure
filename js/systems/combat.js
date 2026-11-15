@@ -91,6 +91,20 @@ export function triggerWeaponEffect(player, enemy, roll = Math.random()) {
 // Dragon Sword sends one bounded follow-up strike on a critical basic attack.
 // The echo is direct physical damage: it cannot recursively crit or reapply
 // weapon ailments, and it respects the target's remaining health.
+// Moonblade refunds mana on a successful critical basic attack. Recovery is
+// capped by the actual missing mana and never triggers on a defeated target.
+export function triggerMoonbladeMana(player, dealtDamage, critical) {
+    if (!critical || !Number.isFinite(dealtDamage) || dealtDamage <= 0) return 0;
+    const effect = getItem(player?.equipment?.weapon)?.onCrit;
+    if (effect?.type !== 'mana_restore') return 0;
+    const maxMana = Number(player?.maxMana);
+    const mana = Number(player?.mana);
+    if (!Number.isFinite(maxMana) || !Number.isFinite(mana) || maxMana <= 0) return 0;
+    const recovered = Math.max(0, Math.min(Math.floor(effect.amount), Math.floor(maxMana - mana)));
+    if (recovered > 0) player.mana = mana + recovered;
+    return recovered;
+}
+
 export function triggerDragonSwordEcho(player, enemy, dealtDamage, critical) {
     if (!critical || !enemy || !(enemy.health > 0) || !Number.isFinite(dealtDamage) || dealtDamage <= 0) return 0;
     const enchantment = getItem(player?.equipment?.weapon)?.onCrit;

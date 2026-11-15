@@ -67,7 +67,8 @@ export const ITEMS = {
     moonblade: {
         id: 'moonblade', name: 'Лунный клинок', icon: '🌙',
         type: 'weapon', rarity: 'epic', attackBonus: 28,
-        requiredLevel: 6, price: 750
+        requiredLevel: 6, price: 750,
+        onCrit: { type: 'mana_restore', amount: 8 }
     },
     ember_sword: {
         id: 'ember_sword', name: 'Клинок тлеющих углей', icon: '🔥',
@@ -111,6 +112,9 @@ const STATUS_NAMES = { burn: '🔥 Поджог', bleed: '🩸 Кровотеч�
 // inventory does not silently drift when combat balance numbers change.
 export function getItemAbilityDescription(item) {
     if (!item || typeof item !== 'object') return '';
+    if (item.onCrit?.type === 'mana_restore') {
+        return `🌙 Лунный прилив: критический удар восстанавливает ${item.onCrit.amount} маны (не выше максимума)`;
+    }
     if (item.onCrit?.type === 'echo') {
         return `🐉 Эхо дракона: крит наносит ещё ${Math.round(item.onCrit.fraction * 100)}% урона (до ${Math.round(item.onCrit.maxTargetHealthFraction * 100)}% HP врага)`;
     }

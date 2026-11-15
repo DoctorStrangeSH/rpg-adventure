@@ -6,7 +6,7 @@ import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
-import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
+import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
 import { completeLocation, getLocationState, resetLocationState, startStageBattle, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
@@ -763,6 +763,44 @@ test('secret discovery appears once and a second click cannot grant another rewa
         document.getElementById = originalGetElement;
         window.showNotification = originalNotify;
         await new Promise(resolve => setImmediate(resolve));
+    }
+});
+
+test('leaving a dungeon with the battle back button clears the active run', () => {
+    gameState.createPlayer('warrior');
+    const location = getLocationState();
+    const battle = getBattleState();
+    const originalGetLocation = window.getLocationState;
+    const originalReset = window.resetLocationState;
+    const originalShow = window.showScreen;
+    const originalUpdateMenu = window.updateMainMenu;
+    let shownScreen = '';
+    window.getLocationState = getLocationState;
+    window.resetLocationState = resetLocationState;
+    window.showScreen = screen => { shownScreen = screen; };
+    window.updateMainMenu = () => {};
+    location.inLocation = true;
+    location.currentLocation = getLocation('forest');
+    location.currentStage = 6;
+    location.pendingSecretRoom = { id: 'armory', stage: 6, runId: location.runId };
+    battle.isActive = true;
+    battle.currentEnemy = { health: 10, maxHealth: 10 };
+    try {
+        exitBattle();
+        assert.equal(location.inLocation, false);
+        assert.equal(location.pendingSecretRoom, null);
+        assert.equal(location.currentLocation, null);
+        assert.equal(battle.isActive, false);
+        assert.equal(battle.currentEnemy, null);
+        assert.equal(shownScreen, 'main-menu');
+    } finally {
+        resetLocationState();
+        battle.isActive = false;
+        battle.currentEnemy = null;
+        window.getLocationState = originalGetLocation;
+        window.resetLocationState = originalReset;
+        window.showScreen = originalShow;
+        window.updateMainMenu = originalUpdateMenu;
     }
 });
 

@@ -643,6 +643,9 @@ export function battleDefeat() {
 }
 
 export function exitBattle() {
+    // The header back button can exit an active dungeon directly. Clear the
+    // run before leaving, otherwise its inLocation flag blocks new attempts.
+    if (window.getLocationState?.()?.inLocation) window.resetLocationState?.();
     battleState.isActive = false;
     battleState.currentEnemy = null;
     battleState.isDungeonBattle = false;

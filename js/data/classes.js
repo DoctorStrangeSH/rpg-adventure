@@ -81,7 +81,7 @@ export const CLASSES = {
                 id: 'rapid_shot',
                 name: 'Быстрый выстрел',
                 icon: '🎯',
-                description: 'Наносит 150% урона дважды',
+                description: 'Два выстрела по 150% урона и кровотечение. С ядом усиливает урон по ходам',
                 manaCost: 15,
                 damageMultiplier: 1.5,
                 hits: 2,
@@ -91,7 +91,7 @@ export const CLASSES = {
                 id: 'poison_arrow',
                 name: 'Ядовитая стрела',
                 icon: '☠️',
-                description: 'Отравляет врага',
+                description: 'Отравляет врага. С кровотечением наносит дополнительный урон по ходам',
                 manaCost: 20,
                 poison: true
             }

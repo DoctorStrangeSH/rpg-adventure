@@ -140,6 +140,28 @@ test('poison deals damage for three turns and then expires', () => {
     assert.equal(tickEnemyEffects(enemy).poisonDamage, 0);
 });
 
+test('poison and bleeding together trigger bounded wound poison on each shared turn', () => {
+    const enemy = { health: 200, maxHealth: 200, effects: { poisonTurns: 3, bleedTurns: 2 } };
+    const first = tickEnemyEffects(enemy);
+    assert.equal(first.woundPoisonDamage, 4);
+    assert.equal(first.poisonDamage, 10);
+    assert.equal(first.bleedDamage, 6);
+    assert.equal(tickEnemyEffects(enemy).woundPoisonDamage, 4);
+    assert.equal(tickEnemyEffects(enemy).woundPoisonDamage, 0);
+});
+
+test('wound poison needs both statuses and cannot exceed remaining health or cap', () => {
+    assert.equal(tickEnemyEffects({ health: 100, maxHealth: 100, effects: { poisonTurns: 2 } }).woundPoisonDamage, 0);
+    const immune = { health: 100, maxHealth: 100, resistances: { bleed: 1 }, effects: { poisonTurns: 2 } };
+    assert.equal(applyStatusEffect(immune, 'bleed', 2), false);
+    assert.equal(tickEnemyEffects(immune).woundPoisonDamage, 0);
+    const large = { health: 1000, maxHealth: 1000, effects: { poisonTurns: 1, bleedTurns: 1 } };
+    assert.equal(tickEnemyEffects(large).woundPoisonDamage, 12);
+    const dying = { health: 1, maxHealth: 1000, effects: { poisonTurns: 1, bleedTurns: 1 } };
+    assert.equal(tickEnemyEffects(dying).woundPoisonDamage, 0);
+    assert.equal(dying.health, 0);
+});
+
 test('warrior shield skill grants damage reduction without direct damage', () => {
     const player = gameState.createPlayer('warrior');
     const enemy = { health: 100, maxHealth: 100, defense: 2 };

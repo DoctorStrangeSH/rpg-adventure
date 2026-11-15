@@ -143,6 +143,9 @@ export function tickEnemyEffects(enemy) {
     let poisonDamage = 0;
     let burnDamage = 0;
     let bleedDamage = 0;
+    // Poison spreads through open wounds. The bonus is applied once per tick,
+    // only while both effects are active, with a strict damage cap.
+    const exposed = effects.poisonTurns > 0 && effects.bleedTurns > 0;
     if (effects.poisonTurns > 0) {
         poisonDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.05)));
         effects.poisonTurns--;
@@ -155,9 +158,11 @@ export function tickEnemyEffects(enemy) {
         bleedDamage = applyDamage(enemy, Math.max(1, Math.floor(enemy.maxHealth * 0.03)));
         effects.bleedTurns--;
     }
+    const woundPoisonDamage = exposed && enemy.health > 0
+        ? applyDamage(enemy, Math.min(enemy.health, Math.max(1, Math.min(12, Math.floor(enemy.maxHealth * 0.02))))) : 0;
     const frozen = effects.freezeTurns > 0;
     if (frozen) effects.freezeTurns--;
-    return { poisonDamage, burnDamage, bleedDamage, frozen };
+    return { poisonDamage, burnDamage, bleedDamage, woundPoisonDamage, frozen };
 }
 
 // Deterministic with an injected roll, so tactics are reproducible in tests.

@@ -15,6 +15,10 @@ const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотече
 let damageTexts = [];
 let isProcessing = false;
 let animationRunning = false;
+// The arena is shared by every encounter. Keep procedural scenery as a safe
+// fallback when offline, while the image is still loading, or in older clients.
+const arenaBackdrop = typeof Image === 'undefined' ? null : new Image();
+if (arenaBackdrop) arenaBackdrop.src = 'assets/backgrounds/moonlit-courtyard.webp';
 
 let battleState = {
     canvas: null,
@@ -107,15 +111,25 @@ function drawBattle() {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#87ceeb');
-    gradient.addColorStop(0.7, '#90ee90');
-    gradient.addColorStop(1, '#8b7355');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    ctx.fillStyle = '#8b7355';
-    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    if (arenaBackdrop?.complete && arenaBackdrop.naturalWidth > 0) {
+        // Cover the canvas without distorting pixel proportions on tall phones.
+        const scale = Math.max(canvas.width / arenaBackdrop.naturalWidth,
+            canvas.height / arenaBackdrop.naturalHeight);
+        const width = arenaBackdrop.naturalWidth * scale;
+        const height = arenaBackdrop.naturalHeight * scale;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(arenaBackdrop, (canvas.width - width) / 2,
+            (canvas.height - height) / 2, width, height);
+    } else {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#121c31');
+        gradient.addColorStop(0.7, '#30324c');
+        gradient.addColorStop(1, '#51495e');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#393343';
+        ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+    }
     
     if (battleState.playerSprite) {
         battleState.playerSprite.draw(ctx, battleState.animationFrame);

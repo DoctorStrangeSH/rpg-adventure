@@ -1001,6 +1001,40 @@ test('adventure events offer safe exit and bounded risk without killing the play
     assert.equal(resolveAdventureEvent(player, 'cache', 'invalid'), null);
 });
 
+test('new dungeon encounters offer distinct bounded risks and require resources', () => {
+    const hero = gameState.createPlayer('mage');
+    const oldGold = hero.gold;
+    assert.equal(resolveAdventureEvent(hero, 'blood_contract', 'safe').gold, 0);
+    assert.equal(hero.gold, oldGold);
+    assert.equal(resolveAdventureEvent(hero, 'blood_contract', 'risk', 0.1).gold, 65);
+    hero.health = 2;
+    assert.equal(resolveAdventureEvent(hero, 'blood_contract', 'risk', 0.9).health, -1);
+    assert.equal(hero.health, 1);
+
+    hero.mana = 11;
+    const before = { mana: hero.mana, gold: hero.gold, health: hero.health };
+    assert.equal(resolveAdventureEvent(hero, 'astral_study', 'risk', 0.1), null);
+    assert.deepEqual({ mana: hero.mana, gold: hero.gold, health: hero.health }, before);
+    hero.mana = 20;
+    assert.equal(resolveAdventureEvent(hero, 'astral_study', 'risk', 0.1).mana, -12);
+    assert.equal(hero.mana, 8);
+    assert.equal(resolveAdventureEvent(hero, 'astral_study', 'risk', 0.1), null);
+
+    hero.gold = 24;
+    assert.equal(resolveAdventureEvent(hero, 'campfire', 'risk', 0.2), null);
+    hero.gold = 25;
+    hero.health = 5;
+    const camp = resolveAdventureEvent(hero, 'campfire', 'risk', 0.2);
+    assert.equal(camp.gold, -25);
+    assert.equal(camp.health, 35);
+    assert.equal(hero.gold, 0);
+    hero.gold = 25;
+    hero.mana = 0;
+    const infusion = resolveAdventureEvent(hero, 'campfire', 'risk', 0.9);
+    assert.equal(infusion.mana, Math.min(25, hero.maxMana));
+    assert.equal(hero.gold, 0);
+});
+
 test('traveling merchant requires funds and never produces negative gold', () => {
     const player = gameState.createPlayer('mage');
     player.gold = 19;

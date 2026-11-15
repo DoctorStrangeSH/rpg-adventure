@@ -7,8 +7,14 @@ export const ADVENTURE_EVENTS = [
         choices: [{ id: 'risk', label: 'Вскрыть замок — риск ранения' }, { id: 'safe', label: 'Оставить тайник' }] },
     { id: 'moonwell', icon: '🌊', name: 'Лунный источник', description: 'Вода искрится маной, но таит неизвестную силу.',
         choices: [{ id: 'risk', label: 'Напиться — восстановить ману или потерять часть' }, { id: 'safe', label: 'Не трогать воду' }] },
+    { id: 'blood_contract', icon: '🩸', name: 'Кровавый договор', description: 'Странная печать обещает сокровища тому, кто рискнёт своей жизнью.',
+        choices: [{ id: 'risk', label: 'Коснуться печати — сокровище или рана' }, { id: 'safe', label: 'Разорвать договор' }] },
     { id: 'shrine', icon: '✨', name: 'Древнее святилище', description: 'Магический свет может исцелить или обжечь.',
         choices: [{ id: 'risk', label: 'Прикоснуться к алтарю' }, { id: 'safe', label: 'Пройти мимо' }] },
+    { id: 'astral_study', icon: '📜', name: 'Астральная рукопись', description: 'Расшифровка рукописи требует 12 маны и может раскрыть тайник.',
+        choices: [{ id: 'risk', label: 'Потратить 12 маны на изучение' }, { id: 'safe', label: 'Закрыть рукопись' }] },
+    { id: 'campfire', icon: '🔥', name: 'Привал странников', description: 'За 25 золота путники предлагают лечебные припасы или магический настой.',
+        choices: [{ id: 'risk', label: 'Купить припасы за 25 золота' }, { id: 'safe', label: 'Продолжить путь' }] },
     { id: 'vault', icon: '💎', name: 'Запечатанная сокровищница', description: 'За проклятой печатью спрятаны древние реликвии.',
         choices: [{ id: 'risk', label: 'Взломать печать — редкая находка или ловушка' }, { id: 'safe', label: 'Не тревожить печать' }] },
     { id: 'traveler', icon: '🧭', name: 'Заблудившийся торговец', description: 'Странник предлагает рискованную сделку.',
@@ -53,6 +59,19 @@ export function resolveAdventureEvent(player, eventId, choiceId, roll = Math.ran
                 message = 'Все реликвии уже собраны — внутри оказалось 75 золота!';
             }
         } else { health = -Math.min(Math.max(0, player.health - 1), 18); message = 'Проклятая печать обожгла вас!'; }
+    } else if (eventId === 'blood_contract') {
+        if (lucky) { gold = 65 + Math.max(0, player.level - 1) * 10; message = `Печать открыла тайник: +${gold} золота!`; }
+        else { health = -Math.min(Math.max(0, player.health - 1), 15); message = 'Договор потребовал кровь, а сокровища исчезли!'; }
+    } else if (eventId === 'astral_study') {
+        if (player.mana < 12) return null;
+        mana = -12;
+        if (lucky) { gold = 55; message = 'Рукопись указала на тайник с 55 золотыми!'; }
+        else { health = -Math.min(Math.max(0, player.health - 1), 8); message = 'Астральное эхо обожгло разум и тело!'; }
+    } else if (eventId === 'campfire') {
+        if (player.gold < 25) return null;
+        gold = -25;
+        if (lucky) { health = Math.min(35, Math.max(0, player.maxHealth - player.health)); message = 'Тёплая похлёбка восстановила здоровье!'; }
+        else { mana = Math.min(25, Math.max(0, player.maxMana - player.mana)); message = 'Магический настой восстановил ману!'; }
     } else if (eventId === 'traveler') {
         if (player.gold < 20) return null;
         gold = -20;

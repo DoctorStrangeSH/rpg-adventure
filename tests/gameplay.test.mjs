@@ -1059,6 +1059,40 @@ test('each miniboss follows its signature with a distinct finite combat pattern'
     }
 });
 
+test('story bosses announce distinct signatures in later phases', () => {
+    const player = gameState.createPlayer('warrior');
+    const bosses = [
+        ['forest_guardian', 'thorn_burst'], ['mountain_dragon', 'flame_breath'],
+        ['lich_king', 'siphon'], ['world_eater', 'cataclysm']
+    ];
+    for (const [id, signature] of bosses) {
+        const boss = { id, behavior: 'boss', health: 50, maxHealth: 100, attack: 30 };
+        const warned = planEnemyTurn(boss, player, 0.55);
+        assert.equal(warned.warned, true);
+        assert.equal(warned.phase, 2);
+        assert.equal(boss.intent, signature);
+        assert.ok(getEnemyTacticHint(boss).length > 0);
+        assert.equal(planEnemyTurn(boss, player, 0.99).action, signature);
+        assert.equal(boss.intent, null);
+        boss.health = 20;
+        boss.phase = 3;
+        assert.equal(planEnemyTurn(boss, player, 0.55).warned, true);
+        assert.equal(planEnemyTurn(boss, player, 0.99).action, signature);
+    }
+});
+
+test('forest guardian thorn burst pierces some armor and can be interrupted', () => {
+    const player = gameState.createPlayer('warrior');
+    const enemy = { id: 'forest_guardian', behavior: 'boss', health: 50, maxHealth: 100, attack: 40 };
+    const normal = applyEnemyAction(enemy, { ...player }, 'attack').damage;
+    const thorns = applyEnemyAction(enemy, { ...player }, 'thorn_burst').damage;
+    assert.ok(thorns > normal);
+    planEnemyTurn(enemy, player, 0.55);
+    assert.equal(enemy.intent, 'thorn_burst');
+    assert.equal(interruptEnemyWindup(enemy), true);
+    assert.equal(enemy.intent, null);
+});
+
 test('miniboss crushing ignores some armor and life siphon cannot over-heal', () => {
     const warrior = gameState.createPlayer('warrior');
     const attacker = { attack: 55, health: 30, maxHealth: 50 };

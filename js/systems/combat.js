@@ -35,7 +35,8 @@ export function getEnemyTacticHint(enemy) {
             mana_burn: '💠 Враг нацелился на ваш запас маны. Подготовьтесь к истощению!',
             siphon: '⚠️ Враг готовит похищение жизненных сил.',
             flame_breath: '⚠️ Дракон набирает воздух для огненного дыхания. Берегите ману!',
-            cataclysm: '☄️ Босс собирает энергию для катаклизма! Защита особенно важна.'
+            cataclysm: '☄️ Босс собирает энергию для катаклизма! Защита особенно важна.',
+            thorn_burst: '🌿 Хранитель призывает шипастые корни! Удар частично пробьёт броню.'
         };
         if (warnings[enemy.intent]) return warnings[enemy.intent];
     }
@@ -393,7 +394,7 @@ export function planEnemyTurn(enemy, player, roll = Math.random()) {
     enemy.phase = phase;
     if (phaseChanged) enemy.intent = null;
 
-    if (['heavy', 'siphon', 'cataclysm'].includes(enemy.intent)) {
+    if (['heavy', 'siphon', 'cataclysm', 'thorn_burst', 'flame_breath'].includes(enemy.intent)) {
         const action = enemy.intent;
         enemy.intent = null;
         return { action, warned: false, phaseChanged, phase };
@@ -407,7 +408,12 @@ export function planEnemyTurn(enemy, player, roll = Math.random()) {
         return { action: null, warned: true, phaseChanged, phase };
     }
     if (signatureChance && roll < heavyChance + signatureChance) {
-        enemy.intent = phase === 3 ? 'cataclysm' : 'siphon';
+        // Each location boss has its own signature, not the same spell on every map.
+        const signatures = {
+            forest_guardian: 'thorn_burst', mountain_dragon: 'flame_breath',
+            lich_king: 'siphon', world_eater: 'cataclysm'
+        };
+        enemy.intent = signatures[enemy.id] || (phase === 3 ? 'cataclysm' : 'siphon');
         return { action: null, warned: true, phaseChanged, phase };
     }
     return { action: roll < 0.8 ? 'mana_burn' : 'attack', warned: false, phaseChanged, phase };
@@ -438,12 +444,12 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     const enraged = enemy.eliteAffix === 'enraged' && enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.5;
     const multiplier = (action === 'heavy' ? 1.5 : action === 'pounce' ? 1.4 : action === 'mana_burn' ? 0.85 :
         action === 'ambush' ? 1.25 : action === 'crush' ? 1.2 : action === 'flame_breath' ? 1.15 :
-        action === 'cataclysm' ? 1.8 : 1) *
+        action === 'cataclysm' ? 1.8 : action === 'thorn_burst' ? 1.3 : 1) *
         (weakened ? 0.75 : 1) * (enraged ? 1.4 : 1);
     if (weakened) enemy.effects.weakenTurns--;
     const runeReduction = hasSpecialization(player, 'mage_warden') ? 0.15 : 0;
     const effectiveReduction = 1 - (1 - Math.min(1, Math.max(0, reduction))) * (1 - runeReduction);
-    const effectiveDefense = getEffectiveCombatStats(player).defense * (['crush', 'cataclysm'].includes(action) ? 0.5 : 1);
+    const effectiveDefense = getEffectiveCombatStats(player).defense * (['crush', 'cataclysm'].includes(action) ? 0.5 : action === 'thorn_burst' ? 0.75 : 1);
     const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, effectiveDefense, variance, multiplier) * (1 - effectiveReduction)));
     applyDamage(player, damage);
     // Retaliation is tied to an actual guard, not passive defense or recovery.

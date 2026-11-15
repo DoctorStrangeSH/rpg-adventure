@@ -549,7 +549,7 @@ function enemyTurn() {
         recover: 'восстанавливается', cleanse: 'снимает с себя отрицательный эффект',
         ambush: 'устраивает засаду', crush: 'наносит сокрушительный удар сквозь броню',
         siphon: 'высасывает жизненные силы', flame_breath: 'извергает пламя',
-        cataclysm: 'обрушивает катаклизм'
+        cataclysm: 'обрушивает катаклизм', thorn_burst: 'обрушивает град шипастых корней'
     }[action];
     showBattleMessage(`${enemy.name} ${actionName}!`);
     

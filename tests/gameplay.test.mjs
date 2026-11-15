@@ -17,6 +17,7 @@ import { getTalentPoints, getTalentAvailability, unlockTalent, getTalentBonuses 
 import { rollAdventureEvent, resolveAdventureEvent } from '../js/systems/adventureEvents.js';
 import { getRoute, applyRouteToEnemy } from '../js/systems/dungeonRoutes.js';
 import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, awardRelic, toggleRelic, getRelicBonuses, getActiveRelicSynergies, hasActiveRelic } from '../js/systems/relics.js';
+import { SECRET_ROOMS, rollSecretRoom, resolveSecretRoom } from '../js/systems/secretRooms.js';
 
 globalThis.localStorage = {
     data: new Map(),
@@ -663,6 +664,57 @@ test('ancient dragon flame breath drains only available mana', () => {
     const result = applyEnemyAction(enemy, mage, 'flame_breath');
     assert.equal(result.manaBurned, 3);
     assert.equal(mage.mana, 0);
+});
+
+test('secret rooms are selected deterministically with invalid random values rejected', () => {
+    assert.equal(rollSecretRoom(0).id, 'armory');
+    assert.equal(rollSecretRoom(0.5).id, 'sanctuary');
+    assert.equal(rollSecretRoom(0.99).id, 'crypt');
+    assert.equal(rollSecretRoom(-1), null);
+    assert.equal(rollSecretRoom(NaN), null);
+    assert.equal(SECRET_ROOMS.length, 3);
+});
+
+test('secret rooms allow safe departure and never kill the player with traps', () => {
+    const player = gameState.createPlayer('warrior');
+    const snapshot = JSON.stringify(player);
+    assert.equal(resolveSecretRoom(player, 'crypt', 'leave').relicId, null);
+    assert.equal(JSON.stringify(player), snapshot);
+    assert.equal(resolveSecretRoom(player, 'unknown', 'explore'), null);
+    assert.equal(resolveSecretRoom(player, 'crypt', 'explore', -1), null);
+    player.health = 2;
+    const trap = resolveSecretRoom(player, 'crypt', 'explore', 0.99);
+    assert.equal(trap.health, -1);
+    assert.equal(player.health, 1);
+});
+
+test('secret crypt never duplicates relics and sanctuary recovery is capped', () => {
+    const player = gameState.createPlayer('mage');
+    const first = resolveSecretRoom(player, 'crypt', 'explore', 0.1);
+    assert.ok(RELICS[first.relicId]);
+    assert.notEqual(RELICS[first.relicId].rarity, 'common');
+    const second = resolveSecretRoom(player, 'crypt', 'explore', 0.1);
+    assert.notEqual(first.relicId, second.relicId);
+    player.relics = Object.values(RELICS).filter(relic => relic.rarity !== 'common').map(relic => relic.id);
+    assert.equal(resolveSecretRoom(player, 'crypt', 'explore', 0.1).itemId, 'big_health_potion');
+    player.health = player.maxHealth - 2;
+    player.mana = player.maxMana - 3;
+    const restored = resolveSecretRoom(player, 'sanctuary', 'explore', 0.1);
+    assert.equal(restored.health, 2);
+    assert.equal(restored.mana, 3);
+    assert.equal(player.health, player.maxHealth);
+    assert.equal(player.mana, player.maxMana);
+});
+
+test('hidden armory grants an actual inventory item only on success', () => {
+    const player = gameState.createPlayer('archer');
+    const before = player.inventory.find(item => item.id === 'big_health_potion')?.quantity || 0;
+    const reward = resolveSecretRoom(player, 'armory', 'explore', 0.1);
+    assert.equal(reward.itemId, 'big_health_potion');
+    assert.equal(player.inventory.find(item => item.id === reward.itemId).quantity, before + 1);
+    const quantity = player.inventory.find(item => item.id === reward.itemId).quantity;
+    resolveSecretRoom(player, 'armory', 'explore', 0.9);
+    assert.equal(player.inventory.find(item => item.id === reward.itemId).quantity, quantity);
 });
 
 test('safe dungeon route preserves enemy balance and rewards', () => {

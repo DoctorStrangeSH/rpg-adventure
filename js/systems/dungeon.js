@@ -6,6 +6,7 @@ import { getBattleState } from '../ui/battle.js';
 import { grantItem } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
+import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
 
 let locationState = {
     currentLocation: null,
@@ -17,7 +18,9 @@ let locationState = {
     visitedEventStages: new Set(),
     pendingRoute: null,
     visitedRouteStages: new Set(),
-    routeChoices: {}
+    routeChoices: {},
+    checkedSecretStages: new Set(),
+    pendingSecretRoom: null
 };
 
 export function startLocation(locationId) {
@@ -54,6 +57,8 @@ export function startLocation(locationId) {
     locationState.pendingRoute = null;
     locationState.visitedRouteStages = new Set();
     locationState.routeChoices = {};
+    locationState.checkedSecretStages = new Set();
+    locationState.pendingSecretRoom = null;
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -93,6 +98,16 @@ export function startStageBattle() {
         !locationState.visitedRouteStages.has(locationState.currentStage)) {
         presentRouteChoice();
         return;
+    }
+    // A passage can appear once per run on every seventh stage. The result is
+    // remembered before presenting it, preventing re-rolls or duplicate loot.
+    if ((locationState.currentStage + 1) % 7 === 0 &&
+        !locationState.checkedSecretStages.has(locationState.currentStage)) {
+        locationState.checkedSecretStages.add(locationState.currentStage);
+        if (Math.random() < 0.45) {
+            presentSecretRoom();
+            return;
+        }
     }
     
     const enemyData = getRandomEnemy(stage.enemies);
@@ -217,6 +232,39 @@ export function chooseAdventureEvent(choiceId) {
     return true;
 }
 
+function presentSecretRoom() {
+    const room = rollSecretRoom();
+    if (!room) return;
+    const stage = locationState.currentStage;
+    locationState.pendingSecretRoom = { id: room.id, stage, runId: locationState.runId };
+    const ui = document.getElementById('battle-ui');
+    if (!ui) {
+        locationState.pendingSecretRoom = null;
+        startStageBattle();
+        return;
+    }
+    ui.innerHTML = `<section class="adventure-event" aria-label="Секретная комната">
+        <div class="adventure-event-icon">${room.icon}</div><h3>${room.name}</h3>
+        <p>${room.description}</p>
+        <button class="battle-btn" onclick="window.chooseSecretRoom('explore')">🔎 Исследовать — риск и награда</button>
+        <button class="battle-btn" onclick="window.chooseSecretRoom('leave')">🚶 Пройти мимо</button>
+    </section>`;
+    window.showBattleMessage?.(`🔑 Обнаружена секретная комната: ${room.name}`);
+}
+
+export function chooseSecretRoom(choice) {
+    const pending = locationState.pendingSecretRoom;
+    if (!pending || !locationState.inLocation || pending.runId !== locationState.runId ||
+        pending.stage !== locationState.currentStage || getBattleState().isActive) return false;
+    const outcome = resolveSecretRoom(gameState.player, pending.id, choice);
+    if (!outcome) return false;
+    locationState.pendingSecretRoom = null;
+    gameState.save();
+    window.showNotification?.(outcome.message, 'info');
+    startStageBattle();
+    return true;
+}
+
 function getLocationIndex(locationId) {
     const indexMap = {
         'forest': 1,
@@ -299,6 +347,7 @@ export function completeLocation() {
     locationState.inLocation = false;
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
+    locationState.pendingSecretRoom = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -328,6 +377,7 @@ export function fleeLocation() {
     locationState.inLocation = false;
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
+    locationState.pendingSecretRoom = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -342,6 +392,7 @@ export function resetLocationState() {
     locationState.inLocation = false;
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
+    locationState.pendingSecretRoom = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;

@@ -24,8 +24,22 @@ let locationState = {
     pendingSecretRoom: null,
     pendingCheckpoint: null,
     visitedCheckpointStages: new Set(),
-    claimedDeepChestStages: new Set()
+    claimedDeepChestStages: new Set(),
+    claimedUnbrokenBonusStages: new Set(),
+    resumedFromCheckpoint: false
 };
+
+export function getUnbrokenExpeditionBonus(stageNumber, boss, resumed = false) {
+    if (resumed || !Number.isInteger(stageNumber) || stageNumber < 20 || stageNumber % 10 !== 0 ||
+        !boss || !Number.isFinite(boss.expReward) || !Number.isFinite(boss.goldReward)) {
+        return { exp: 0, gold: 0 };
+    }
+    const fraction = stageNumber >= 30 ? 0.2 : 0.15;
+    return {
+        exp: Math.max(0, Math.floor(boss.expReward * fraction)),
+        gold: Math.max(0, Math.floor(boss.goldReward * fraction))
+    };
+}
 
 export function getExpeditionDepthModifiers(stageNumber) {
     const stage = Number.isFinite(stageNumber) ? Math.max(1, Math.floor(stageNumber)) : 1;
@@ -83,6 +97,8 @@ export function startLocation(locationId) {
     locationState.pendingCheckpoint = null;
     locationState.visitedCheckpointStages = new Set(resumeStage ? [resumeStage] : []);
     locationState.claimedDeepChestStages = new Set();
+    locationState.claimedUnbrokenBonusStages = new Set();
+    locationState.resumedFromCheckpoint = resumeStage > 0;
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -537,6 +553,21 @@ export function handleBossVictory() {
         if (itemId && grantItem(gameState.player, itemId, 1) === 1) {
             gameState.save();
             window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
+        }
+    }
+
+    // A full expedition earns an extra milestone payout; resuming at a camp
+    // forfeits only this optional bonus, not the normal boss loot.
+    if (!locationState.claimedUnbrokenBonusStages.has(stageNumber)) {
+        locationState.claimedUnbrokenBonusStages.add(stageNumber);
+        const bonus = getUnbrokenExpeditionBonus(stageNumber, location.stages[locationState.currentStage]?.boss,
+            locationState.resumedFromCheckpoint);
+        if (bonus.exp || bonus.gold) {
+            gameState.player.experience += bonus.exp;
+            gameState.player.gold += bonus.gold;
+            if (gameState.player.experience >= gameState.player.maxExperience) window.levelUp?.();
+            gameState.save();
+            window.showNotification?.(`🏆 Экспедиция без отступления: +${bonus.exp} опыта, +${bonus.gold} золота!`, 'success');
         }
     }
 

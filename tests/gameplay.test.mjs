@@ -9,7 +9,7 @@ import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
 import { getMapCheckpointLabel } from '../js/ui/map.js';
-import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute, chooseDungeonCheckpoint, getDungeonCheckpoint, getExpeditionDepthModifiers } from '../js/systems/dungeon.js';
+import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute, chooseDungeonCheckpoint, getDungeonCheckpoint, getExpeditionDepthModifiers, getUnbrokenExpeditionBonus } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot, rollDeepChest } from '../js/systems/loot.js';
@@ -1334,6 +1334,16 @@ test('leaving a dungeon with the battle back button clears the active run', () =
         window.showScreen = originalShow;
         window.updateMainMenu = originalUpdateMenu;
     }
+});
+
+test('unbroken expedition bonus rewards deep bosses but not resumed runs', () => {
+    const boss = { expReward: 1000, goldReward: 500 };
+    assert.deepEqual(getUnbrokenExpeditionBonus(19, boss), { exp: 0, gold: 0 });
+    assert.deepEqual(getUnbrokenExpeditionBonus(20, boss), { exp: 150, gold: 75 });
+    assert.deepEqual(getUnbrokenExpeditionBonus(30, boss), { exp: 200, gold: 100 });
+    assert.deepEqual(getUnbrokenExpeditionBonus(30, boss, true), { exp: 0, gold: 0 });
+    assert.deepEqual(getUnbrokenExpeditionBonus(20, null), { exp: 0, gold: 0 });
+    assert.deepEqual(getUnbrokenExpeditionBonus(21, boss), { exp: 0, gold: 0 });
 });
 
 test('expedition depth grows in bounded five-stage risk and reward bands', () => {

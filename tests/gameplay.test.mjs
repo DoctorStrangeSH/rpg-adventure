@@ -9,7 +9,7 @@ import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
 import { getMapCheckpointLabel } from '../js/ui/map.js';
-import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute, chooseDungeonCheckpoint, getDungeonCheckpoint } from '../js/systems/dungeon.js';
+import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute, chooseDungeonCheckpoint, getDungeonCheckpoint, getExpeditionDepthModifiers } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot } from '../js/systems/loot.js';
@@ -1318,6 +1318,22 @@ test('leaving a dungeon with the battle back button clears the active run', () =
         window.showScreen = originalShow;
         window.updateMainMenu = originalUpdateMenu;
     }
+});
+
+test('expedition depth grows in bounded five-stage risk and reward bands', () => {
+    const start = getExpeditionDepthModifiers(1);
+    assert.deepEqual(start, { tier: 0, health: 1, attack: 1, reward: 1 });
+    assert.deepEqual(getExpeditionDepthModifiers(5), start);
+    const second = getExpeditionDepthModifiers(6);
+    assert.equal(second.tier, 1);
+    assert.ok(second.health > start.health);
+    assert.ok(second.attack > start.attack);
+    assert.ok(second.reward > start.reward);
+    assert.deepEqual(getExpeditionDepthModifiers(10), second);
+    assert.equal(getExpeditionDepthModifiers(16).tier, 3);
+    assert.equal(getExpeditionDepthModifiers(100).reward, 1.48);
+    assert.deepEqual(getExpeditionDepthModifiers(-5), start);
+    assert.deepEqual(getExpeditionDepthModifiers(NaN), start);
 });
 
 test('map makes valid saved expeditions visible and hides stale checkpoints', () => {

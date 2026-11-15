@@ -25,6 +25,17 @@ let locationState = {
     visitedCheckpointStages: new Set()
 };
 
+export function getExpeditionDepthModifiers(stageNumber) {
+    const stage = Number.isFinite(stageNumber) ? Math.max(1, Math.floor(stageNumber)) : 1;
+    const tier = Math.min(6, Math.floor((stage - 1) / 5));
+    return {
+        tier,
+        health: 1 + tier * 0.04,
+        attack: 1 + tier * 0.03,
+        reward: 1 + tier * 0.08
+    };
+}
+
 export function getDungeonCheckpoint(player, locationId, location = getLocation(locationId)) {
     const stage = player?.dungeonCheckpoints?.[locationId];
     return Number.isInteger(stage) && stage > 0 && stage < (location?.stages?.length || 0) ? stage : 0;
@@ -140,15 +151,16 @@ export function startStageBattle() {
     // Усиливаем врага
     const locationIndex = getLocationIndex(location.id);
     const stageMultiplier = 1 + (stage.stage * 0.1) + (locationIndex * 0.5);
+    const depth = getExpeditionDepthModifiers(stage.stage);
     
     let enemy = {
         ...enemyData,
-        health: Math.floor(enemyData.health * stageMultiplier),
-        maxHealth: Math.floor(enemyData.health * stageMultiplier),
-        attack: Math.floor(enemyData.attack * (1 + stage.stage * 0.05 + locationIndex * 0.3)),
+        health: Math.floor(enemyData.health * stageMultiplier * depth.health),
+        maxHealth: Math.floor(enemyData.health * stageMultiplier * depth.health),
+        attack: Math.floor(enemyData.attack * (1 + stage.stage * 0.05 + locationIndex * 0.3) * depth.attack),
         defense: Math.floor(enemyData.defense * (1 + stage.stage * 0.05 + locationIndex * 0.3)),
-        expReward: Math.floor(enemyData.expReward * stageMultiplier),
-        goldReward: Math.floor(enemyData.goldReward * stageMultiplier)
+        expReward: Math.floor(enemyData.expReward * stageMultiplier * depth.reward),
+        goldReward: Math.floor(enemyData.goldReward * stageMultiplier * depth.reward)
     };
     const routeId = locationState.routeChoices[locationState.currentStage];
     if (routeId) enemy = applyRouteToEnemy(enemy, routeId);
@@ -178,7 +190,7 @@ export function startStageBattle() {
         
         // Показываем информацию о этапе
         const bossText = stage.boss ? ' 👹 БОСС!' : '';
-        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}`);
+        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}${depth.tier ? ` ⚠️ Глубина ${depth.tier + 1}: награды +${Math.round((depth.reward - 1) * 100)}%` : ''}`);
     });
 }
 

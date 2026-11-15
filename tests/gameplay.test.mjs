@@ -985,7 +985,7 @@ test('sniper critical multiplier and ranger bleeding respect talent and resistan
 
 test('adventure event selection is deterministic and always yields a valid encounter', () => {
     assert.equal(rollAdventureEvent(0).id, 'cache');
-    assert.equal(rollAdventureEvent(0.4).id, 'shrine');
+    assert.equal(rollAdventureEvent(0.4).id, 'astral_study');
     assert.equal(rollAdventureEvent(0.99).id, 'traveler');
 });
 

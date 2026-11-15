@@ -9,9 +9,11 @@ if (typeof Image !== 'undefined') {
         image.src = `assets/characters/heroes/${hero}-idle.png`;
         HERO_IMAGES[hero] = image;
     }
-    const warriorAttack = new Image();
-    warriorAttack.src = 'assets/characters/heroes/warrior-attack.png';
-    HERO_ATTACK_IMAGES.warrior = warriorAttack;
+    for (const hero of ['warrior', 'mage', 'archer']) {
+        const attack = new Image();
+        attack.src = `assets/characters/heroes/${hero}-attack.png`;
+        HERO_ATTACK_IMAGES[hero] = attack;
+    }
 }
 
 // Four hand-drawn attack frames, each lasting seven render ticks. The index
@@ -40,7 +42,10 @@ export class Sprite {
         if (this.isAttacking && this.attackStartFrame === null) this.attackStartFrame = frame;
         if (!this.isAttacking) this.attackStartFrame = null;
         
-        if (this.isAttacking && this.type !== 'warrior') {
+        // Preserve the legacy lunge only while illustrated animation is unavailable.
+        const attackImage = HERO_ATTACK_IMAGES[this.type];
+        if (this.isAttacking && this.type !== 'warrior' &&
+            !(attackImage?.complete && attackImage.naturalWidth > 0)) {
             ctx.translate(20, 0);
         }
         

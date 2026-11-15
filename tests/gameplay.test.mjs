@@ -8,7 +8,7 @@ import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDama
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
-import { completeLocation, getLocationState, resetLocationState, startStageBattle, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute } from '../js/systems/dungeon.js';
+import { completeLocation, getLocationState, resetLocationState, startStageBattle, startBossFight, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot } from '../js/systems/loot.js';
@@ -350,6 +350,45 @@ test('boss phase two telegraphs life siphon and phase three telegraphs a defense
     const result = applyEnemyAction(boss, player, 'cataclysm', 0);
     assert.equal(result.damage, 31);
     assert.equal(player.health, 69);
+});
+
+test('boss encounters preserve elemental weaknesses and status immunities', async () => {
+    gameState.createPlayer('mage');
+    const battle = getBattleState();
+    const run = getLocationState();
+    const previous = {
+        showNotification: window.showNotification,
+        updateBattleUI: window.updateBattleUI,
+        animateBattle: window.animateBattle,
+        showBattleMessage: window.showBattleMessage
+    };
+    window.showNotification = () => {};
+    window.updateBattleUI = () => {};
+    window.animateBattle = () => {};
+    window.showBattleMessage = () => {};
+    run.inLocation = true;
+    battle.isActive = false;
+    try {
+        startBossFight({
+            id: 'test_boss', name: 'Тестовый босс', icon: '👹',
+            health: 100, attack: 20, defense: 5,
+            damageModifiers: { ice: 1.3 },
+            resistances: { freeze: 1 },
+            expReward: 10, goldReward: 10
+        });
+        assert.deepEqual(battle.currentEnemy.damageModifiers, { ice: 1.3 });
+        assert.deepEqual(battle.currentEnemy.resistances, { freeze: 1 });
+        await new Promise(resolve => setTimeout(resolve, 0));
+    } finally {
+        battle.isActive = false;
+        battle.currentEnemy = null;
+        run.inLocation = false;
+        resetLocationState();
+        for (const [key, value] of Object.entries(previous)) {
+            if (value === undefined) delete window[key];
+            else window[key] = value;
+        }
+    }
 });
 
 test('boss phases follow health thresholds', () => {

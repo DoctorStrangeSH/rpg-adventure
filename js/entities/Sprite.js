@@ -14,12 +14,14 @@ if (typeof Image !== 'undefined') {
         attack.src = `assets/characters/heroes/${hero}-attack.png`;
         HERO_ATTACK_IMAGES[hero] = attack;
     }
-    const skeleton = new Image();
-    skeleton.src = 'assets/characters/enemies/skeleton-idle.png';
-    HERO_IMAGES.skeleton = skeleton;
-    const skeletonAttack = new Image();
-    skeletonAttack.src = 'assets/characters/enemies/skeleton-attack.png';
-    HERO_ATTACK_IMAGES.skeleton = skeletonAttack;
+    for (const enemy of ['skeleton', 'wolf']) {
+        const idle = new Image();
+        idle.src = `assets/characters/enemies/${enemy}-idle.png`;
+        HERO_IMAGES[enemy] = idle;
+        const attack = new Image();
+        attack.src = `assets/characters/enemies/${enemy}-attack.png`;
+        HERO_ATTACK_IMAGES[enemy] = attack;
+    }
 }
 
 // Four hand-drawn attack frames, each lasting seven render ticks. The index
@@ -93,7 +95,7 @@ export class Sprite {
         if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
             const frameWidth = attackImage.naturalWidth / 4;
             const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame),
-                4, this.type === 'skeleton' ? 5 : 7);
+                4, ['skeleton', 'wolf'].includes(this.type) ? 5 : 7);
             const height = 112;
             const width = height * frameWidth / attackImage.naturalHeight;
             ctx.imageSmoothingEnabled = false;

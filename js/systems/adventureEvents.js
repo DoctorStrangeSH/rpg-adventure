@@ -17,6 +17,8 @@ export const ADVENTURE_EVENTS = [
         choices: [{ id: 'risk', label: 'Купить припасы за 25 золота' }, { id: 'safe', label: 'Продолжить путь' }] },
     { id: 'vault', icon: '💎', name: 'Запечатанная сокровищница', description: 'За проклятой печатью спрятаны древние реликвии.',
         choices: [{ id: 'risk', label: 'Взломать печать — редкая находка или ловушка' }, { id: 'safe', label: 'Не тревожить печать' }] },
+    { id: 'spark_altar', icon: '⚡', name: 'Алтарь искр', description: 'Древний механизм предлагает обменять 15 здоровья на 30 маны. Решение необратимо.',
+        choices: [{ id: 'risk', label: 'Отдать 15 здоровья за 30 маны' }, { id: 'safe', label: 'Не трогать механизм' }] },
     { id: 'traveler', icon: '🧭', name: 'Заблудившийся торговец', description: 'Странник предлагает рискованную сделку.',
         choices: [{ id: 'risk', label: 'Обменять 20 золота на припасы' }, { id: 'safe', label: 'Отказаться' }] }
 ];
@@ -72,6 +74,13 @@ export function resolveAdventureEvent(player, eventId, choiceId, roll = Math.ran
         gold = -25;
         if (lucky) { health = Math.min(35, Math.max(0, player.maxHealth - player.health)); message = 'Тёплая похлёбка восстановила здоровье!'; }
         else { mana = Math.min(25, Math.max(0, player.maxMana - player.mana)); message = 'Магический настой восстановил ману!'; }
+    } else if (eventId === 'spark_altar') {
+        // A deliberate trade, not a random roll: never spend HP if the hero
+        // cannot afford it or if the mana reward would be wasted.
+        if (player.health <= 15 || player.mana >= player.maxMana) return null;
+        health = -15;
+        mana = Math.min(30, player.maxMana - player.mana);
+        message = `Алтарь забрал 15 здоровья и восстановил ${mana} маны.`;
     } else if (eventId === 'traveler') {
         if (player.gold < 20) return null;
         gold = -20;

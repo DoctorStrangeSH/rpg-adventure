@@ -77,9 +77,17 @@ export const DAMAGE_TYPE_LABELS = {
 };
 
 export function getDamageTypeMultiplier(enemy, type = 'physical') {
-    const value = Number(enemy?.damageModifiers?.[type]);
+    const rawValue = enemy?.damageModifiers?.[type];
+    if (rawValue === undefined || rawValue === null) return 1;
+    const value = Number(rawValue);
     if (!Number.isFinite(value)) return 1;
     return Math.max(0, Math.min(2.5, value));
+}
+
+function scalePeriodicDamage(enemy, damage, type) {
+    const multiplier = getDamageTypeMultiplier(enemy, type);
+    if (multiplier === 0) return 0;
+    return Math.max(1, Math.floor(damage * multiplier));
 }
 
 export function calculateDamage(attack, defense, variance = 0, multiplier = 1) {
@@ -111,8 +119,8 @@ export function getDamageFeedback(enemy, type = 'physical') {
 export function getEnemyDamageProfile(enemy) {
     const profile = { weaknesses: [], resistances: [] };
     for (const [type, rawValue] of Object.entries(enemy?.damageModifiers || {})) {
-        const multiplier = Number(rawValue);
-        if (!Number.isFinite(multiplier) || multiplier === 1) continue;
+        const multiplier = getDamageTypeMultiplier(enemy, type);
+        if (multiplier === 1) continue;
         const label = DAMAGE_TYPE_LABELS[type] || type;
         const percent = Math.round(Math.abs(multiplier - 1) * 100);
         if (multiplier > 1) profile.weaknesses.push({ type, label, multiplier, percent });
@@ -163,7 +171,7 @@ export function useSkillEffect(player, enemy, skill) {
     const thermalShockBase = thermalShock
         ? Math.max(1, Math.min(30, Math.floor(enemy.maxHealth * 0.08))) : 0;
     const thermalShockDamage = thermalShock
-        ? Math.min(enemy.health, Math.min(30, Math.max(1, Math.floor(thermalShockBase * getDamageTypeMultiplier(enemy, 'ice'))))) : 0;
+        ? Math.min(enemy.health, Math.min(30, scalePeriodicDamage(enemy, thermalShockBase, 'ice'))) : 0;
     if (thermalShock) {
         enemy.effects.burnTurns = 0;
         damage += applyDamage(enemy, thermalShockDamage);
@@ -210,22 +218,22 @@ export function tickEnemyEffects(enemy) {
     const exposed = effects.poisonTurns > 0 && effects.bleedTurns > 0;
     if (effects.poisonTurns > 0) {
         const base = Math.max(1, Math.floor(enemy.maxHealth * 0.05));
-        poisonDamage = applyDamage(enemy, Math.max(1, Math.floor(base * getDamageTypeMultiplier(enemy, 'poison'))));
+        poisonDamage = applyDamage(enemy, scalePeriodicDamage(enemy, base, 'poison'));
         effects.poisonTurns--;
     }
     if (effects.burnTurns > 0) {
         const base = Math.max(1, Math.floor(enemy.maxHealth * 0.04));
-        burnDamage = applyDamage(enemy, Math.max(1, Math.floor(base * getDamageTypeMultiplier(enemy, 'fire'))));
+        burnDamage = applyDamage(enemy, scalePeriodicDamage(enemy, base, 'fire'));
         effects.burnTurns--;
     }
     if (effects.bleedTurns > 0) {
         const base = Math.max(1, Math.floor(enemy.maxHealth * 0.03));
-        bleedDamage = applyDamage(enemy, Math.max(1, Math.floor(base * getDamageTypeMultiplier(enemy, 'physical'))));
+        bleedDamage = applyDamage(enemy, scalePeriodicDamage(enemy, base, 'physical'));
         effects.bleedTurns--;
     }
     const woundPoisonBase = Math.max(1, Math.min(12, Math.floor(enemy.maxHealth * 0.02)));
     const woundPoisonDamage = exposed && enemy.health > 0
-        ? applyDamage(enemy, Math.min(enemy.health, Math.max(1, Math.floor(woundPoisonBase * getDamageTypeMultiplier(enemy, 'poison'))))) : 0;
+        ? applyDamage(enemy, Math.min(enemy.health, scalePeriodicDamage(enemy, woundPoisonBase, 'poison'))) : 0;
     const frozen = effects.freezeTurns > 0;
     if (frozen) effects.freezeTurns--;
     return { poisonDamage, burnDamage, bleedDamage, woundPoisonDamage, frozen };

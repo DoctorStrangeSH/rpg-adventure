@@ -84,6 +84,7 @@ test('elemental affinities scale direct damage and expose readable weakness prof
     assert.equal(calculateTypedDamage(20, 0, 0, 1, target, 'fire'), 28);
     assert.equal(calculateTypedDamage(20, 0, 0, 1, target, 'poison'), 10);
     assert.equal(calculateTypedDamage(20, 0, 0, 1, target, 'physical'), 17);
+    assert.equal(calculateTypedDamage(20, 0, 0, 1, { damageModifiers: { fire: 0 } }, 'fire'), 0);
     assert.match(getDamageFeedback(target, 'fire'), /Уязвимость: \+40%/);
     assert.match(getDamageFeedback(target, 'poison'), /Сопротивление: −50%/);
     const profile = getEnemyDamageProfile(target);
@@ -130,6 +131,12 @@ test('frost nova and thermal shock use ice affinity without bypassing freeze imm
     assert.equal(result.thermalShockDamage, 0);
     assert.equal(dragon.effects?.freezeTurns, undefined);
     assert.equal(dragon.effects.burnTurns, 2);
+});
+
+test('complete elemental immunity also blocks matching damage-over-time ticks', () => {
+    const immune = { health: 100, maxHealth: 100, damageModifiers: { fire: 0 }, effects: { burnTurns: 2 } };
+    assert.equal(tickEnemyEffects(immune).burnDamage, 0);
+    assert.equal(immune.health, 100);
 });
 
 test('enchanted weapons use their element for basic attacks', () => {

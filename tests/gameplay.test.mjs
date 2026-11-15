@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening } from '../js/systems/combat.js';
+import { calculateDamage, calculateTypedDamage, getDamageTypeMultiplier, getDamageFeedback, getEnemyDamageProfile, getWeaponDamageType, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, recordEnemyDamageType } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -272,6 +272,44 @@ test('different enemy archetypes choose distinct tactics', () => {
     assert.equal(chooseEnemyAction({ behavior: 'boss', health: 100, maxHealth: 100 }, player, 0.5), 'mana_burn');
 });
 
+test('bosses and tactician elites adapt after two consecutive successful hits of one damage type', () => {
+    const boss = { behavior: 'boss', health: 100, maxHealth: 100, damageModifiers: { fire: 1.2 } };
+    assert.equal(recordEnemyDamageType(boss, 'fire', 20), false);
+    assert.equal(recordEnemyDamageType(boss, 'fire', 20), true);
+    assert.equal(boss.pendingAdaptation, 'fire');
+    assert.match(getEnemyTacticHint(boss), /адаптироваться/);
+    const plan = planEnemyTurn(boss, { mana: 20 }, 0.99);
+    assert.equal(plan.action, 'adapt');
+    const adapted = applyEnemyAction(boss, { health: 100, mana: 20 }, plan.action);
+    assert.equal(adapted.adapted, 'fire');
+    assert.equal(boss.adaptiveResistance.turns, 2);
+    assert.equal(calculateTypedDamage(20, 0, 0, 1, boss, 'fire'), 12);
+    assert.equal(calculateTypedDamage(20, 0, 0, 1, boss, 'ice'), 20);
+    assert.match(getDamageFeedback(boss, 'fire'), /Сопротивление: −40%/);
+    assert.match(getEnemyDamageProfile(boss).resistances.map(item => item.type).join(','), /fire/);
+    tickEnemyEffects(boss);
+    assert.equal(boss.adaptiveResistance.turns, 1);
+    tickEnemyEffects(boss);
+    assert.equal(boss.adaptiveResistance, null);
+    assert.equal(calculateTypedDamage(20, 0, 0, 1, boss, 'fire'), 24);
+
+    const elite = { eliteAffix: 'tactician', health: 50, maxHealth: 50 };
+    assert.equal(recordEnemyDamageType(elite, 'poison', 5), false);
+    assert.equal(recordEnemyDamageType(elite, 'poison', 5), true);
+    const ordinary = { behavior: 'standard', health: 50, maxHealth: 50 };
+    assert.equal(recordEnemyDamageType(ordinary, 'ice', 5), false);
+    assert.equal(ordinary.pendingAdaptation, undefined);
+});
+
+test('changing damage type resets an adaptation streak', () => {
+    const boss = { behavior: 'boss', health: 100, maxHealth: 100 };
+    assert.equal(recordEnemyDamageType(boss, 'fire', 10), false);
+    assert.equal(recordEnemyDamageType(boss, 'ice', 10), false);
+    assert.equal(recordEnemyDamageType(boss, 'fire', 10), false);
+    assert.equal(boss.damageTypeStreak, 1);
+    assert.equal(boss.pendingAdaptation, undefined);
+});
+
 test('recovery cannot exceed max health', () => {
     const enemy = { health: 98, maxHealth: 100, attack: 10 };
     const result = applyEnemyAction(enemy, { health: 50, mana: 10 }, 'recover');
@@ -286,6 +324,32 @@ test('enemy mana drain and guard reduction respect player resources', () => {
     assert.equal(result.manaBurned, 3);
     assert.equal(player.mana, 0);
     assert.ok(result.damage < 30);
+});
+
+test('boss phase two telegraphs life siphon and phase three telegraphs a defense-breaking cataclysm', () => {
+    const boss = { behavior: 'boss', health: 50, maxHealth: 100, attack: 20, defense: 0 };
+    const phaseTwo = planEnemyTurn(boss, { mana: 20 }, 0.55);
+    assert.equal(phaseTwo.phase, 2);
+    assert.equal(phaseTwo.warned, true);
+    assert.equal(boss.intent, 'siphon');
+    assert.match(getEnemyTacticHint(boss), /похищение/);
+    const siphon = planEnemyTurn(boss, { mana: 20 }, 0.99);
+    assert.equal(siphon.action, 'siphon');
+    const siphonResult = applyEnemyAction(boss, { health: 100, mana: 20, defense: 0 }, 'siphon', 0);
+    assert.equal(siphonResult.soulDrain, 6);
+
+    boss.health = 20;
+    const phaseThree = planEnemyTurn(boss, { mana: 20 }, 0.55);
+    assert.equal(phaseThree.phase, 3);
+    assert.equal(phaseThree.warned, true);
+    assert.equal(boss.intent, 'cataclysm');
+    assert.match(getEnemyTacticHint(boss), /катаклизм/);
+    const cataclysm = planEnemyTurn(boss, { mana: 20 }, 0.99);
+    assert.equal(cataclysm.action, 'cataclysm');
+    const player = { health: 100, mana: 20, defense: 10 };
+    const result = applyEnemyAction(boss, player, 'cataclysm', 0);
+    assert.equal(result.damage, 31);
+    assert.equal(player.health, 69);
 });
 
 test('boss phases follow health thresholds', () => {
@@ -1050,9 +1114,12 @@ test('elite affixes are reproducible and armored elites gain real defense', () =
     const base = { name: 'Гоблин', health: 100, maxHealth: 100, attack: 20, defense: 5, expReward: 10, goldReward: 10 };
     assert.equal(applyRouteToEnemy(base, 'danger', 0.01).eliteAffix, 'vampiric');
     assert.equal(applyRouteToEnemy(base, 'danger', 0.09).eliteAffix, 'enraged');
-    const armored = applyRouteToEnemy(base, 'danger', 0.18);
+    const armored = applyRouteToEnemy(base, 'danger', 0.14);
     assert.equal(armored.eliteAffix, 'armored');
     assert.equal(armored.defense, 17);
+    const tactician = applyRouteToEnemy(base, 'danger', 0.18);
+    assert.equal(tactician.eliteAffix, 'tactician');
+    assert.match(tactician.name, /Тактик/);
     assert.equal(base.defense, 5);
 });
 

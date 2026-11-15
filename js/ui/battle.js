@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -317,6 +317,7 @@ export function playerAttack() {
     const damageFeedback = getDamageFeedback(enemy, damageType);
     
     applyDamage(enemy, damage);
+    recordEnemyDamageType(enemy, damageType, damage);
     const weaponEffect = triggerWeaponEffect(player, enemy);
     const rangerBleed = triggerRangerEffect(player, enemy);
     
@@ -533,11 +534,21 @@ function enemyTurn() {
         return;
     }
     const action = plan.action;
+    if (action === 'adapt') {
+        const result = applyEnemyAction(enemy, player, 'adapt');
+        battleState.turn = 'player';
+        isProcessing = false;
+        const label = { physical: 'физическим атакам', fire: 'огню', ice: 'льду', poison: 'яду' }[result.adapted] || result.adapted;
+        showBattleMessage(`🛡️ ${enemy.name} анализирует ваши действия и адаптируется к ${label}! Сопротивление продержится два ваших хода.`);
+        updateBattleUI();
+        return;
+    }
     const actionName = {
         attack: 'атакует', heavy: 'готовит мощный удар',
         mana_burn: 'готовит истощение маны', recover: 'восстанавливается',
         ambush: 'устраивает засаду', crush: 'наносит сокрушительный удар сквозь броню',
-        siphon: 'высасывает жизненные силы', flame_breath: 'извергает пламя'
+        siphon: 'высасывает жизненные силы', flame_breath: 'извергает пламя',
+        cataclysm: 'обрушивает катаклизм'
     }[action];
     showBattleMessage(`${enemy.name} ${actionName}!`);
     

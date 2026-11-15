@@ -31,10 +31,16 @@ export function getEnemyTacticHint(enemy) {
         const warnings = {
             ambush: '⚠️ Готовится засада. Защищайтесь или прервите подготовку заморозкой!',
             crush: '⚠️ Великан замахивается! Удар частично игнорирует броню.',
-            siphon: '⚠️ Рыцарь смерти готовит похищение жизни.',
-            flame_breath: '⚠️ Дракон набирает воздух для огненного дыхания. Берегите ману!'
+            siphon: '⚠️ Враг готовит похищение жизненных сил.',
+            flame_breath: '⚠️ Дракон набирает воздух для огненного дыхания. Берегите ману!',
+            cataclysm: '☄️ Босс собирает энергию для катаклизма! Защита особенно важна.'
         };
         if (warnings[enemy.intent]) return warnings[enemy.intent];
+    }
+    if (enemy.pendingAdaptation) return '⚠️ Противник заметил повторяющийся тип урона и готовится к нему адаптироваться.';
+    if (enemy.adaptiveResistance?.turns > 0) {
+        const label = DAMAGE_TYPE_LABELS[enemy.adaptiveResistance.type] || enemy.adaptiveResistance.type;
+        return '🛡️ Противник адаптировался к типу урона: ' + label + ' (' + enemy.adaptiveResistance.turns + ' хода).';
     }
     const miniBossHints = {
         goblin_king: 'Король гоблинов устраивает внезапные засады.',
@@ -46,7 +52,8 @@ export function getEnemyTacticHint(enemy) {
     const affixHints = {
         vampiric: 'Элитный враг восстанавливает здоровье атаками.',
         enraged: 'Элитный враг усиливается при низком здоровье.',
-        armored: 'Элитный враг защищён дополнительной бронёй.'
+        armored: 'Элитный враг защищён дополнительной бронёй.',
+        tactician: 'Элитный тактик запоминает повторяющиеся типы урона и сопротивляется им.'
     };
     if (enemy.eliteAffix && affixHints[enemy.eliteAffix]) return `⚡ ${affixHints[enemy.eliteAffix]}`;
     if (enemy.behavior === 'boss') return '👑 У босса три фазы. Следите за предупреждениями.';
@@ -78,10 +85,10 @@ export const DAMAGE_TYPE_LABELS = {
 
 export function getDamageTypeMultiplier(enemy, type = 'physical') {
     const rawValue = enemy?.damageModifiers?.[type];
-    if (rawValue === undefined || rawValue === null) return 1;
-    const value = Number(rawValue);
-    if (!Number.isFinite(value)) return 1;
-    return Math.max(0, Math.min(2.5, value));
+    const base = rawValue === undefined || rawValue === null ? 1 : Number(rawValue);
+    if (!Number.isFinite(base)) return 1;
+    const adaptive = enemy?.adaptiveResistance?.type === type && enemy.adaptiveResistance.turns > 0 ? 0.5 : 1;
+    return Math.max(0, Math.min(2.5, base * adaptive));
 }
 
 function scalePeriodicDamage(enemy, damage, type) {
@@ -108,6 +115,25 @@ export function getWeaponDamageType(player) {
     return getItem(player?.equipment?.weapon)?.damageType || 'physical';
 }
 
+// Bosses and elite tacticians study repeated damage types. Two consecutive
+// successful hits are enough to trigger one visible adaptation turn.
+export function recordEnemyDamageType(enemy, type, damage) {
+    const canAdapt = enemy?.behavior === 'boss' || enemy?.behavior === 'mini_boss' ||
+        enemy?.eliteAffix === 'tactician';
+    if (!canAdapt || !DAMAGE_TYPE_LABELS[type] || !(damage > 0)) return false;
+
+    if (enemy.lastDamageType === type) enemy.damageTypeStreak = (enemy.damageTypeStreak || 1) + 1;
+    else {
+        enemy.lastDamageType = type;
+        enemy.damageTypeStreak = 1;
+    }
+
+    if (enemy.damageTypeStreak < 2 || enemy.pendingAdaptation === type ||
+        enemy.adaptiveResistance?.type === type) return false;
+    enemy.pendingAdaptation = type;
+    return true;
+}
+
 export function getDamageFeedback(enemy, type = 'physical') {
     const multiplier = getDamageTypeMultiplier(enemy, type);
     const label = DAMAGE_TYPE_LABELS[type] || DAMAGE_TYPE_LABELS.physical;
@@ -118,7 +144,9 @@ export function getDamageFeedback(enemy, type = 'physical') {
 
 export function getEnemyDamageProfile(enemy) {
     const profile = { weaknesses: [], resistances: [] };
-    for (const [type, rawValue] of Object.entries(enemy?.damageModifiers || {})) {
+    const types = new Set(Object.keys(enemy?.damageModifiers || {}));
+    if (enemy?.adaptiveResistance?.turns > 0) types.add(enemy.adaptiveResistance.type);
+    for (const type of types) {
         const multiplier = getDamageTypeMultiplier(enemy, type);
         if (multiplier === 1) continue;
         const label = DAMAGE_TYPE_LABELS[type] || type;
@@ -180,6 +208,7 @@ export function useSkillEffect(player, enemy, skill) {
     if (skill.burn) applyStatusEffect(enemy, 'burn', 2);
     if (skill.bleed) applyStatusEffect(enemy, 'bleed', 2);
     if (skill.weaken) applyStatusEffect(enemy, 'weaken', 2);
+    recordEnemyDamageType(enemy, element, damage);
     // Legendary skills ignite surviving enemies. The same resistance rules
     // used by ordinary burns apply, including complete immunity.
     const phoenixBurn = damage > 0 && enemy.health > 0 && hasActiveRelic(player, 'phoenix_crown')
@@ -236,6 +265,10 @@ export function tickEnemyEffects(enemy) {
         ? applyDamage(enemy, Math.min(enemy.health, scalePeriodicDamage(enemy, woundPoisonBase, 'poison'))) : 0;
     const frozen = effects.freezeTurns > 0;
     if (frozen) effects.freezeTurns--;
+    if (enemy.adaptiveResistance?.turns > 0) {
+        enemy.adaptiveResistance.turns--;
+        if (enemy.adaptiveResistance.turns === 0) enemy.adaptiveResistance = null;
+    }
     return { poisonDamage, burnDamage, bleedDamage, woundPoisonDamage, frozen };
 }
 
@@ -273,6 +306,11 @@ export function interruptEnemyWindup(enemy) {
 // A dangerous boss attack is announced one turn in advance. Keeping the intent
 // on the enemy prevents the next decision from silently replacing the warning.
 export function planEnemyTurn(enemy, player, roll = Math.random()) {
+    if (enemy.pendingAdaptation) {
+        // Adapting replaces a pending special move; never leave a stale wind-up.
+        enemy.intent = null;
+        return { action: 'adapt', warned: false, phaseChanged: false, adaptedType: enemy.pendingAdaptation };
+    }
     if (enemy.behavior === 'mini_boss') {
         if (enemy.intent) {
             const action = enemy.intent;
@@ -292,21 +330,36 @@ export function planEnemyTurn(enemy, player, roll = Math.random()) {
     enemy.phase = phase;
     if (phaseChanged) enemy.intent = null;
 
-    if (enemy.intent === 'heavy') {
+    if (['heavy', 'siphon', 'cataclysm'].includes(enemy.intent)) {
+        const action = enemy.intent;
         enemy.intent = null;
-        return { action: 'heavy', warned: false, phaseChanged, phase };
+        return { action, warned: false, phaseChanged, phase };
     }
 
-    // More dangerous phases increase the chance of a telegraphed heavy attack.
-    const heavyChance = phase === 3 ? 0.65 : phase === 2 ? 0.5 : 0.35;
+    // Later phases introduce signature attacks instead of only scaling damage.
+    const heavyChance = phase === 3 ? 0.45 : phase === 2 ? 0.5 : 0.35;
+    const signatureChance = phase === 3 ? 0.2 : phase === 2 ? 0.15 : 0;
     if (roll < heavyChance) {
         enemy.intent = 'heavy';
+        return { action: null, warned: true, phaseChanged, phase };
+    }
+    if (signatureChance && roll < heavyChance + signatureChance) {
+        enemy.intent = phase === 3 ? 'cataclysm' : 'siphon';
         return { action: null, warned: true, phaseChanged, phase };
     }
     return { action: roll < 0.8 ? 'mana_burn' : 'attack', warned: false, phaseChanged, phase };
 }
 
 export function applyEnemyAction(enemy, player, action, variance = 0, reduction = 0) {
+    if (action === 'adapt') {
+        const type = enemy.pendingAdaptation;
+        if (!DAMAGE_TYPE_LABELS[type]) return { damage: 0, healed: 0, manaBurned: 0, reflected: 0 };
+        enemy.adaptiveResistance = { type, turns: 2 };
+        enemy.pendingAdaptation = null;
+        enemy.lastDamageType = null;
+        enemy.damageTypeStreak = 0;
+        return { damage: 0, healed: 0, manaBurned: 0, reflected: 0, adapted: type };
+    }
     if (action === 'recover') {
         const healed = Math.min(enemy.maxHealth - enemy.health, Math.max(1, Math.floor(enemy.maxHealth * 0.15)));
         enemy.health += healed;
@@ -315,12 +368,13 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     const weakened = enemy.effects?.weakenTurns > 0;
     const enraged = enemy.eliteAffix === 'enraged' && enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.5;
     const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 :
-        action === 'ambush' ? 1.25 : action === 'crush' ? 1.2 : action === 'flame_breath' ? 1.15 : 1) *
+        action === 'ambush' ? 1.25 : action === 'crush' ? 1.2 : action === 'flame_breath' ? 1.15 :
+        action === 'cataclysm' ? 1.8 : 1) *
         (weakened ? 0.75 : 1) * (enraged ? 1.4 : 1);
     if (weakened) enemy.effects.weakenTurns--;
     const runeReduction = hasSpecialization(player, 'mage_warden') ? 0.15 : 0;
     const effectiveReduction = 1 - (1 - Math.min(1, Math.max(0, reduction))) * (1 - runeReduction);
-    const effectiveDefense = getEffectiveCombatStats(player).defense * (action === 'crush' ? 0.5 : 1);
+    const effectiveDefense = getEffectiveCombatStats(player).defense * (['crush', 'cataclysm'].includes(action) ? 0.5 : 1);
     const damage = Math.max(1, Math.floor(calculateDamage(enemy.attack, effectiveDefense, variance, multiplier) * (1 - effectiveReduction)));
     applyDamage(player, damage);
     // Retaliation is tied to an actual guard, not passive defense or recovery.

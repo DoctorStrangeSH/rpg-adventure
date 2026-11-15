@@ -292,6 +292,8 @@ export function startBossFight(bossData) {
         maxHealth: bossData.health,
         attack: bossData.attack,
         defense: bossData.defense,
+        damageModifiers: bossData.damageModifiers || {},
+        resistances: bossData.resistances || {},
         expReward: bossData.expReward,
         goldReward: bossData.goldReward
     };

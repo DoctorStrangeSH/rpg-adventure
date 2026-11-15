@@ -1404,6 +1404,34 @@ test('frost armor retaliation respects enemy immunity, equipment and hero surviv
     assert.equal(lethal.effects?.freezeTurns, undefined);
 });
 
+test('bloodhunter armor restores bounded health after surviving a hit', () => {
+    const hero = gameState.createPlayer('warrior');
+    hero.equipment.armor = 'blood_armor';
+    const enemy = { attack: 50, health: 100, maxHealth: 100 };
+    const initial = hero.health;
+    const result = applyEnemyAction(enemy, hero, 'attack', 0, 0, 0.1);
+    assert.ok(result.armorHealed > 0);
+    assert.ok(result.armorHealed <= Math.floor(hero.maxHealth * 0.1));
+    assert.ok(result.armorHealed <= Math.max(1, Math.floor(result.damage * 0.2)));
+    assert.equal(hero.health, initial - result.damage + result.armorHealed);
+    const before = hero.health;
+    assert.equal(applyEnemyAction(enemy, hero, 'attack', 0, 0, 0.9).armorHealed, 0);
+    assert.ok(hero.health < before);
+});
+
+test('bloodhunter armor does not heal without armor, on immunity-like recovery, or after lethal damage', () => {
+    const hero = gameState.createPlayer('mage');
+    hero.equipment.armor = 'blood_armor';
+    const enemy = { attack: 40, health: 50, maxHealth: 100 };
+    assert.equal(applyEnemyAction(enemy, hero, 'recover', 0, 0, 0).armorHealed, undefined);
+    hero.equipment.armor = null;
+    assert.equal(applyEnemyAction(enemy, hero, 'attack', 0, 0, 0).armorHealed, 0);
+    hero.equipment.armor = 'blood_armor';
+    hero.health = 1;
+    assert.equal(applyEnemyAction(enemy, hero, 'attack', 0, 0, 0).armorHealed, 0);
+    assert.equal(hero.health, 0);
+});
+
 test('relics drop only from eligible victories and do not duplicate', () => {
     const player = gameState.createPlayer('warrior');
     assert.equal(awardRelic(player, false, false, 0), null);

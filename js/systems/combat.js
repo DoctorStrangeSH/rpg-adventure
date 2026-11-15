@@ -474,10 +474,20 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     // Defensive enchantments react only to an actual damaging hit. Reuse the
     // enemy's normal status resistance rules so bosses are not hard-locked.
     const retaliation = getItem(player?.equipment?.armor)?.onDamaged;
-    const armorEffect = damage > 0 && player.health > 0 && enemy.health > 0 && retaliation &&
-        Number.isFinite(reactionRoll) && reactionRoll >= 0 && reactionRoll < retaliation.chance &&
+    const armorTriggered = damage > 0 && player.health > 0 && enemy.health > 0 && retaliation &&
+        Number.isFinite(reactionRoll) && reactionRoll >= 0 && reactionRoll < retaliation.chance;
+    const armorEffect = armorTriggered && retaliation.type === 'freeze' &&
         applyStatusEffect(enemy, retaliation.type, retaliation.turns) ? retaliation.type : null;
-    return { damage, healed: 0, manaBurned, reflected, lifeStolen, soulDrain, enraged, armorEffect };
+    // Bloodhunter armor returns a little HP after surviving a hit; healing is
+    // bounded by missing HP, incoming damage and 10% of the HP pool.
+    const healthLimit = Number(player.maxHealth);
+    const armorHealed = armorTriggered && retaliation.type === 'heal' &&
+        Number.isFinite(healthLimit) && healthLimit > 0
+        ? Math.max(0, Math.min(healthLimit - player.health,
+            Math.max(1, Math.floor(damage * retaliation.fraction)),
+            Math.max(1, Math.floor(healthLimit * 0.1)))) : 0;
+    if (armorHealed) player.health += armorHealed;
+    return { damage, healed: 0, manaBurned, reflected, lifeStolen, soulDrain, enraged, armorEffect, armorHealed };
 }
 
 // Set bonuses are derived from equipped IDs, never permanently added to base

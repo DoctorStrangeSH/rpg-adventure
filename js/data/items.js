@@ -62,7 +62,7 @@ export const ITEMS = {
         requiredLevel: 4, price: 450, setId: 'emberguard'
     },
     frost_armor: { id: 'frost_armor', name: 'Кираса ледяного дозора', icon: '🧊', type: 'armor', rarity: 'epic', defenseBonus: 19, requiredLevel: 6, price: 820, setId: 'frostwarden', onDamaged: { type: 'freeze', chance: 0.15, turns: 1 } },
-    blood_armor: { id: 'blood_armor', name: 'Кожаный панцирь охотника', icon: '🩸', type: 'armor', rarity: 'rare', defenseBonus: 13, requiredLevel: 3, price: 390, setId: 'bloodhunter' },
+    blood_armor: { id: 'blood_armor', name: 'Кожаный панцирь охотника', icon: '🩸', type: 'armor', rarity: 'rare', defenseBonus: 13, requiredLevel: 3, price: 390, setId: 'bloodhunter', onDamaged: { type: 'heal', chance: 0.25, fraction: 0.2 } },
     moonblade: {
         id: 'moonblade', name: 'Лунный клинок', icon: '🌙',
         type: 'weapon', rarity: 'epic', attackBonus: 28,

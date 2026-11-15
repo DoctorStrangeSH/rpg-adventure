@@ -580,7 +580,7 @@ function enemyTurn() {
         showBattleMessage(reborn ? '🔥 Корона феникса спасает вас от гибели! Здоровье восстановлено.' :
             result.cleansed ? `${enemy.name} очищается от эффекта: ${cleansedNames[result.cleansed] || result.cleansed}!` :
             result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
-            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}`);
+            `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}${result.armorEffect === 'freeze' ? ' ❄️ Ледяная броня заморозила врага!' : ''}`);
         
         setTimeout(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;

@@ -419,7 +419,7 @@ export function planEnemyTurn(enemy, player, roll = Math.random()) {
     return { action: roll < 0.8 ? 'mana_burn' : 'attack', warned: false, phaseChanged, phase };
 }
 
-export function applyEnemyAction(enemy, player, action, variance = 0, reduction = 0) {
+export function applyEnemyAction(enemy, player, action, variance = 0, reduction = 0, reactionRoll = Math.random()) {
     if (action === 'cleanse') {
         const key = getEnemyCleanseTarget(enemy);
         if (!key) return { damage: 0, healed: 0, manaBurned: 0, reflected: 0, cleansed: null };
@@ -471,7 +471,13 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     const manaBurned = action === 'mana_burn' || action === 'flame_breath'
         ? Math.min(player.mana, Math.max(1, Math.floor(enemy.attack / (action === 'flame_breath' ? 2 : 3)))) : 0;
     player.mana -= manaBurned;
-    return { damage, healed: 0, manaBurned, reflected, lifeStolen, soulDrain, enraged };
+    // Defensive enchantments react only to an actual damaging hit. Reuse the
+    // enemy's normal status resistance rules so bosses are not hard-locked.
+    const retaliation = getItem(player?.equipment?.armor)?.onDamaged;
+    const armorEffect = damage > 0 && player.health > 0 && enemy.health > 0 && retaliation &&
+        Number.isFinite(reactionRoll) && reactionRoll >= 0 && reactionRoll < retaliation.chance &&
+        applyStatusEffect(enemy, retaliation.type, retaliation.turns) ? retaliation.type : null;
+    return { damage, healed: 0, manaBurned, reflected, lifeStolen, soulDrain, enraged, armorEffect };
 }
 
 // Set bonuses are derived from equipped IDs, never permanently added to base

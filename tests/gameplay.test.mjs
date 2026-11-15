@@ -1372,6 +1372,38 @@ test('repeated regional drops stack safely in one inventory slot', () => {
     assert.equal(player.inventory.find(entry => entry.id === item).quantity, 2);
 });
 
+test('frost armor can freeze an attacker only after a real damaging hit', () => {
+    const armored = gameState.createPlayer('warrior');
+    armored.equipment.armor = 'frost_armor';
+    const enemy = { attack: 35, health: 100, maxHealth: 100 };
+    const hit = applyEnemyAction(enemy, armored, 'attack', 0, 0, 0.1);
+    assert.equal(hit.armorEffect, 'freeze');
+    assert.equal(enemy.effects.freezeTurns, 1);
+    assert.equal(tickEnemyEffects(enemy).frozen, true);
+
+    const missedChance = applyEnemyAction(enemy, armored, 'attack', 0, 0, 0.9);
+    assert.equal(missedChance.armorEffect, null);
+    const recovered = applyEnemyAction(enemy, armored, 'recover', 0, 0, 0);
+    assert.equal(recovered.armorEffect, undefined);
+});
+
+test('frost armor retaliation respects enemy immunity, equipment and hero survival', () => {
+    const player = gameState.createPlayer('mage');
+    player.equipment.armor = 'frost_armor';
+    const immune = { attack: 20, health: 90, maxHealth: 100, resistances: { freeze: 1 } };
+    assert.equal(applyEnemyAction(immune, player, 'attack', 0, 0, 0).armorEffect, null);
+    assert.equal(immune.effects?.freezeTurns, undefined);
+
+    player.equipment.armor = 'leather_armor';
+    const normal = { attack: 20, health: 90, maxHealth: 100 };
+    assert.equal(applyEnemyAction(normal, player, 'attack', 0, 0, 0).armorEffect, null);
+    player.equipment.armor = 'frost_armor';
+    player.health = 1;
+    const lethal = { attack: 100, health: 90, maxHealth: 100 };
+    assert.equal(applyEnemyAction(lethal, player, 'attack', 0, 0, 0).armorEffect, null);
+    assert.equal(lethal.effects?.freezeTurns, undefined);
+});
+
 test('relics drop only from eligible victories and do not duplicate', () => {
     const player = gameState.createPlayer('warrior');
     assert.equal(awardRelic(player, false, false, 0), null);

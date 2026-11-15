@@ -1,5 +1,5 @@
 // Класс спрайта с отрисовкой
-// Illustrated heroes load once and remain optional so low-connectivity clients
+// Illustrated characters load once and remain optional so low-connectivity clients
 // and test environments can fall back to the original canvas silhouettes.
 const HERO_IMAGES = {};
 const HERO_ATTACK_IMAGES = {};
@@ -14,6 +14,12 @@ if (typeof Image !== 'undefined') {
         attack.src = `assets/characters/heroes/${hero}-attack.png`;
         HERO_ATTACK_IMAGES[hero] = attack;
     }
+    const skeleton = new Image();
+    skeleton.src = 'assets/characters/enemies/skeleton-idle.png';
+    HERO_IMAGES.skeleton = skeleton;
+    const skeletonAttack = new Image();
+    skeletonAttack.src = 'assets/characters/enemies/skeleton-attack.png';
+    HERO_ATTACK_IMAGES.skeleton = skeletonAttack;
 }
 
 // Four hand-drawn attack frames, each lasting seven render ticks. The index
@@ -65,7 +71,7 @@ export class Sprite {
         const attackImage = HERO_ATTACK_IMAGES[this.type];
         if (this.isAttacking && this.type !== 'warrior' &&
             !(attackImage?.complete && attackImage.naturalWidth > 0)) {
-            ctx.translate(20, 0);
+            ctx.translate(this.type === 'mage' || this.type === 'archer' ? 20 : -12, 0);
         }
         
         const hit = getHitFeedback(frame - (this.hitStartFrame ?? Number.NEGATIVE_INFINITY));
@@ -86,7 +92,8 @@ export class Sprite {
         const attackImage = HERO_ATTACK_IMAGES[this.type];
         if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
             const frameWidth = attackImage.naturalWidth / 4;
-            const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame));
+            const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame),
+                4, this.type === 'skeleton' ? 5 : 7);
             const height = 112;
             const width = height * frameWidth / attackImage.naturalHeight;
             ctx.imageSmoothingEnabled = false;

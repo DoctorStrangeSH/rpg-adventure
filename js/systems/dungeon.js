@@ -9,6 +9,7 @@ import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getA
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
 import { awardTravelerFavor, consumeTravelerFavor } from './expeditionFavor.js';
+import { scheduleBloodPursuer, applyBloodPursuer } from './contractPursuit.js';
 
 let locationState = {
     currentLocation: null,
@@ -29,7 +30,8 @@ let locationState = {
     claimedUnbrokenBonusStages: new Set(),
     resumedFromCheckpoint: false,
     travelerFavorFights: 0,
-    travelerReturnPending: false
+    travelerReturnPending: false,
+    bloodPursuerPending: false
 };
 
 export function getUnbrokenExpeditionBonus(stageNumber, boss, resumed = false) {
@@ -104,6 +106,7 @@ export function startLocation(locationId) {
     locationState.resumedFromCheckpoint = resumeStage > 0;
     locationState.travelerFavorFights = 0;
     locationState.travelerReturnPending = false;
+    locationState.bloodPursuerPending = false;
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -191,6 +194,9 @@ export function startStageBattle() {
     const favor = consumeTravelerFavor(enemy, locationState.travelerFavorFights);
     enemy = favor.enemy;
     locationState.travelerFavorFights = favor.charges;
+    const pursuer = applyBloodPursuer(enemy, locationState.bloodPursuerPending);
+    enemy = pursuer.enemy;
+    if (pursuer.pursued) locationState.bloodPursuerPending = false;
     
     const battleState = getBattleState();
     battleState.currentEnemy = enemy;
@@ -217,7 +223,7 @@ export function startStageBattle() {
         
         // Показываем информацию о этапе
         const bossText = stage.boss ? ' 👹 БОСС!' : '';
-        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}${depth.tier ? ` ⚠️ Глубина ${depth.tier + 1}: награды +${Math.round((depth.reward - 1) * 100)}%` : ''}${favor.protected ? ' 🛡️ Защита странника: атака врага −15%' : ''}`);
+        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}${depth.tier ? ` ⚠️ Глубина ${depth.tier + 1}: награды +${Math.round((depth.reward - 1) * 100)}%` : ''}${favor.protected ? ' 🛡️ Защита странника: атака врага −15%' : ''}${pursuer.pursued ? ' 🩸 Вас настиг преследователь печати: враг сильнее, награды +25%' : ''}`);
     });
 }
 
@@ -335,6 +341,8 @@ export function chooseAdventureEvent(choiceId) {
     locationState.travelerFavorFights = awardTravelerFavor(locationState.travelerFavorFights, pending.id, choiceId);
     if (pending.id === 'wounded_traveler' && choiceId === 'risk')
         locationState.travelerReturnPending = true;
+    if (scheduleBloodPursuer(pending.id, choiceId, outcome))
+        locationState.bloodPursuerPending = true;
     locationState.visitedEventStages.add(pending.stage);
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;

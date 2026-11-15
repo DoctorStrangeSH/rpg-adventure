@@ -7,7 +7,7 @@ export const ADVENTURE_EVENTS = [
         choices: [{ id: 'risk', label: 'Вскрыть замок — риск ранения' }, { id: 'safe', label: 'Оставить тайник' }] },
     { id: 'moonwell', icon: '🌊', name: 'Лунный источник', description: 'Вода искрится маной, но таит неизвестную силу.',
         choices: [{ id: 'risk', label: 'Напиться — восстановить ману или потерять часть' }, { id: 'safe', label: 'Не трогать воду' }] },
-    { id: 'blood_contract', icon: '🩸', name: 'Кровавый договор', description: 'Странная печать обещает сокровища тому, кто рискнёт своей жизнью.',
+    { id: 'blood_contract', icon: '🩸', name: 'Кровавый договор', description: 'Печать обещает сокровища, но успешная сделка привлечёт опасного преследователя в следующем бою.',
         choices: [{ id: 'risk', label: 'Коснуться печати — сокровище или рана' }, { id: 'safe', label: 'Разорвать договор' }] },
     { id: 'shrine', icon: '✨', name: 'Древнее святилище', description: 'Магический свет может исцелить или обжечь.',
         choices: [{ id: 'risk', label: 'Прикоснуться к алтарю' }, { id: 'safe', label: 'Пройти мимо' }] },
@@ -86,7 +86,7 @@ export function resolveAdventureEvent(player, eventId, choiceId, roll = Math.ran
             }
         } else { health = -Math.min(Math.max(0, player.health - 1), 18); message = 'Проклятая печать обожгла вас!'; }
     } else if (eventId === 'blood_contract') {
-        if (lucky) { gold = 65 + Math.max(0, player.level - 1) * 10; message = `Печать открыла тайник: +${gold} золота!`; }
+        if (lucky) { gold = 65 + Math.max(0, player.level - 1) * 10; message = `Печать открыла тайник: +${gold} золота! Но за вами идёт преследователь…`; }
         else { health = -Math.min(Math.max(0, player.health - 1), 15); message = 'Договор потребовал кровь, а сокровища исчезли!'; }
     } else if (eventId === 'astral_study') {
         if (player.mana < 12) return null;

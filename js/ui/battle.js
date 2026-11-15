@@ -6,9 +6,9 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
-import { awardRelic, RELICS } from '../systems/relics.js';
+import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
 const particleSystem = new ParticleSystem();
 const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
@@ -174,6 +174,10 @@ export function updateBattleUI() {
     const skills = CLASSES[player.class]?.skills || [];
     const isBoss = battleState.isBossBattle || false;
     const canAct = battleState.turn === 'player' && !isProcessing;
+    const tacticHint = getEnemyTacticHint(enemy);
+    const synergies = getActiveRelicSynergies(player);
+    const equippedRelicNames = (player.activeRelics || []).filter(id => player.relics?.includes(id) && RELICS[id])
+        .slice(0, 2).map(id => RELICS[id].name);
     const activeEffects = [
         enemy.effects?.freezeTurns > 0 ? `❄️ Заморозка: ${enemy.effects.freezeTurns}` : null,
         enemy.effects?.poisonTurns > 0 ? `☠️ Яд: ${enemy.effects.poisonTurns}` : null,
@@ -230,6 +234,9 @@ export function updateBattleUI() {
             </div>
         </div>
         ${stageInfo}
+        <div class="battle-turn" role="status" aria-live="polite">${canAct ? '🟢 Ваш ход — выберите действие' : '⏳ Ход противника — ожидайте'}</div>
+        ${tacticHint ? `<div class="battle-tactic" aria-label="Подсказка о враге">${tacticHint}</div>` : ''}
+        ${equippedRelicNames.length ? `<div class="battle-relics">💎 Реликвии: ${equippedRelicNames.join(' · ')}${synergies.length ? ` <span>🔗 ${synergies.map(entry => entry.name).join(', ')}</span>` : ''}</div>` : ''}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
         ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
         ${activeEffects.length ? `<div class="battle-effects" aria-label="Активные эффекты">${activeEffects.map(effect => `<span class="battle-effect">${effect}</span>`).join('')}</div>` : ''}

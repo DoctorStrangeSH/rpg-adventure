@@ -7,6 +7,26 @@ export function hasSpecialization(player, id) {
     return player?.talents?.includes(id) === true;
 }
 
+export function getEnemyTacticHint(enemy) {
+    if (!enemy) return '';
+    if (enemy.intent === 'heavy') return '⚠️ Следующая атака будет сокрушительной. Защищайтесь!';
+    const miniBossHints = {
+        goblin_king: 'Король гоблинов устраивает внезапные засады.',
+        mountain_giant: 'Горный великан пробивает часть вашей брони.',
+        death_knight: 'Рыцарь смерти лечится, похищая ваши жизненные силы.',
+        ancient_dragon: 'Древний дракон выжигает ману огненным дыханием.'
+    };
+    if (enemy.miniBoss && miniBossHints[enemy.id]) return `👹 ${miniBossHints[enemy.id]}`;
+    const affixHints = {
+        vampiric: 'Элитный враг восстанавливает здоровье атаками.',
+        enraged: 'Элитный враг усиливается при низком здоровье.',
+        armored: 'Элитный враг защищён дополнительной бронёй.'
+    };
+    if (enemy.eliteAffix && affixHints[enemy.eliteAffix]) return `⚡ ${affixHints[enemy.eliteAffix]}`;
+    if (enemy.behavior === 'boss') return '👑 У босса три фазы. Следите за предупреждениями.';
+    return '';
+}
+
 export function getCriticalMultiplier(player) {
     return hasSpecialization(player, 'archer_sniper') ? 2.5 : 2;
 }

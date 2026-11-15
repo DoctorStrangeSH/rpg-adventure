@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -229,6 +229,41 @@ test('battle interface shows both class skills and combat resources', () => {
     } finally {
         document.getElementById = previous;
         battle.currentEnemy = null;
+    }
+});
+
+test('enemy tactic hints explain dangerous abilities and stay absent for ordinary enemies', () => {
+    assert.equal(getEnemyTacticHint(null), '');
+    assert.equal(getEnemyTacticHint({ id: 'wolf' }), '');
+    assert.match(getEnemyTacticHint({ intent: 'heavy' }), /сокрушительной/);
+    assert.match(getEnemyTacticHint({ id: 'mountain_giant', miniBoss: true }), /брони/);
+    assert.match(getEnemyTacticHint({ eliteAffix: 'vampiric' }), /здоровье/);
+    assert.match(getEnemyTacticHint({ behavior: 'boss' }), /три фазы/);
+});
+
+test('battle interface displays turn, enemy tactic and equipped relics', () => {
+    const player = gameState.createPlayer('warrior');
+    const relicId = Object.keys(RELICS)[0];
+    player.relics = [relicId];
+    player.activeRelics = [relicId];
+    const battle = getBattleState();
+    battle.currentEnemy = { id: 'mountain_giant', miniBoss: true, name: 'Великан', icon: '🪨', health: 30, maxHealth: 30 };
+    battle.turn = 'player';
+    const panel = { innerHTML: '' };
+    const previous = document.getElementById;
+    document.getElementById = () => panel;
+    try {
+        updateBattleUI();
+        assert.match(panel.innerHTML, /Ваш ход/);
+        assert.match(panel.innerHTML, /Горный великан пробивает/);
+        assert.match(panel.innerHTML, new RegExp(RELICS[relicId].name));
+        battle.turn = 'enemy';
+        updateBattleUI();
+        assert.match(panel.innerHTML, /Ход противника/);
+    } finally {
+        document.getElementById = previous;
+        battle.currentEnemy = null;
+        battle.turn = 'player';
     }
 });
 

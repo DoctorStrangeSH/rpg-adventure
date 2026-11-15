@@ -781,6 +781,36 @@ body {
     margin-bottom: 10px;
 }
 
+.battle-turn,
+.battle-tactic,
+.battle-relics {
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.battle-turn {
+    color: #a5e9c8;
+    background: rgba(23, 84, 69, 0.55);
+}
+
+.battle-tactic {
+    color: #ffce99;
+    border: 1px solid rgba(244, 170, 91, 0.3);
+    background: rgba(87, 48, 27, 0.55);
+}
+
+.battle-relics {
+    color: #d9c4ff;
+    background: rgba(61, 43, 88, 0.55);
+}
+
+.battle-relics span {
+    color: #ffdf94;
+}
+
 .boss-phase {
     padding: 8px 12px;
     margin-bottom: 8px;

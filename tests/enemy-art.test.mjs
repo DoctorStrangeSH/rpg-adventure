@@ -53,3 +53,17 @@ test('gothic goblin dagger attack atlas contains four equal cells', () => {
     assert.equal(image.height, 363);
     assert.equal(image.colorType, 6);
 });
+
+test('death knight boss uses a larger transparent character atlas', () => {
+    assert.deepEqual(readPngSize('../assets/characters/enemies/death_knight-idle.png'), {
+        width: 570, height: 605, colorType: 6
+    });
+});
+
+test('death knight sword animation has four alpha frames', () => {
+    const image = readPngSize('../assets/characters/enemies/death_knight-attack.png');
+    assert.equal(image.width, 1088);
+    assert.equal(image.width / 4, 272);
+    assert.equal(image.height, 363);
+    assert.equal(image.colorType, 6);
+});

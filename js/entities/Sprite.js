@@ -14,7 +14,7 @@ if (typeof Image !== 'undefined') {
         attack.src = `assets/characters/heroes/${hero}-attack.png`;
         HERO_ATTACK_IMAGES[hero] = attack;
     }
-    for (const enemy of ['skeleton', 'wolf', 'goblin']) {
+    for (const enemy of ['skeleton', 'wolf', 'goblin', 'death_knight']) {
         const idle = new Image();
         idle.src = `assets/characters/enemies/${enemy}-idle.png`;
         HERO_IMAGES[enemy] = idle;
@@ -95,8 +95,8 @@ export class Sprite {
         if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
             const frameWidth = attackImage.naturalWidth / 4;
             const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame),
-                4, ['skeleton', 'wolf', 'goblin'].includes(this.type) ? 5 : 7);
-            const height = 112;
+                4, ['skeleton', 'wolf', 'goblin', 'death_knight'].includes(this.type) ? 5 : 7);
+            const height = this.type === 'death_knight' ? 138 : 112;
             const width = height * frameWidth / attackImage.naturalHeight;
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(attackImage, frameIndex * frameWidth, 0, frameWidth,
@@ -105,7 +105,7 @@ export class Sprite {
         }
         const heroImage = HERO_IMAGES[this.type];
         if (heroImage?.complete && heroImage.naturalWidth > 0) {
-            const height = 100;
+            const height = this.type === 'death_knight' ? 128 : 100;
             const width = height * heroImage.naturalWidth / heroImage.naturalHeight;
             const breathing = Math.sin(frame * 0.055) * 2;
             ctx.imageSmoothingEnabled = false;

@@ -2,7 +2,8 @@
 // grant resources directly, so abandoning a dungeon cannot farm free loot.
 export const DUNGEON_ROUTES = Object.freeze({
     safe: { id: 'safe', name: 'Тихая тропа', icon: '🌿', description: 'Обычные враги и стандартные награды.', enemyHealth: 1, enemyAttack: 1, reward: 1 },
-    danger: { id: 'danger', name: 'Проклятый проход', icon: '💀', description: 'Враги сильнее на 35%, но награды выше на 65%.', enemyHealth: 1.35, enemyAttack: 1.35, reward: 1.65 }
+    danger: { id: 'danger', name: 'Проклятый проход', icon: '💀', description: 'Здоровье и атака врагов +35%, награды +65%. Возможны элиты.', enemyHealth: 1.35, enemyAttack: 1.35, reward: 1.65 },
+    endurance: { id: 'endurance', name: 'Тропа испытания', icon: '🛡️', description: 'Здоровье врагов +60%, атака −20%, награды +30%.', enemyHealth: 1.6, enemyAttack: 0.8, reward: 1.3 }
 });
 
 export function getRoute(id) {

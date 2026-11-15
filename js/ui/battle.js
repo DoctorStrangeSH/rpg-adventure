@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -236,6 +236,9 @@ export function updateBattleUI() {
         ${stageInfo}
         <div class="battle-turn" role="status" aria-live="polite">${canAct ? '🟢 Ваш ход — выберите действие' : '⏳ Ход противника — ожидайте'}</div>
         ${tacticHint ? `<div class="battle-tactic" aria-label="Подсказка о враге">${tacticHint}</div>` : ''}
+        ${enemy.intent && player.class === 'warrior' ? '<div class="battle-tactic">🛡️ Воин: защита блокирует 75% следующего удара.</div>' : ''}
+        ${enemy.intent && player.class === 'archer' ? '<div class="battle-tactic">🏹 Лучник: обычная атака наносит на 30% больше урона по готовящемуся врагу.</div>' : ''}
+        ${enemy.intent && player.class === 'mage' ? '<div class="battle-tactic">❄️ Маг: ледяная нова может сорвать подготовку врага.</div>' : ''}
         ${equippedRelicNames.length ? `<div class="battle-relics">💎 Реликвии: ${equippedRelicNames.join(' · ')}${synergies.length ? ` <span>🔗 ${synergies.map(entry => entry.name).join(', ')}</span>` : ''}</div>` : ''}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
         ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
@@ -290,7 +293,8 @@ export function playerAttack() {
     battleState.playerSprite.isAttacking = true;
     
     const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
-    const baseDamage = calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10));
+    const tacticalBonus = getClassTacticalBonus(player, enemy);
+    const baseDamage = calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, Math.floor(Math.random() * 10), tacticalBonus.attackMultiplier);
     const damage = isCrit ? Math.floor(baseDamage * getCriticalMultiplier(player)) : baseDamage;
     
     applyDamage(enemy, damage);
@@ -311,7 +315,7 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -339,7 +343,7 @@ export function playerDefend() {
     disableBattleButtons();
     
     const enemy = battleState.currentEnemy;
-    battleState.guardReduction = Math.max(battleState.guardReduction, 0.5);
+    battleState.guardReduction = Math.max(battleState.guardReduction, getClassTacticalBonus(gameState.player, enemy).guardReduction);
     showBattleMessage('Вы готовитесь отразить следующий удар!');
     
     battleState.turn = 'enemy';

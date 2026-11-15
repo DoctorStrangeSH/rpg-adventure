@@ -7,6 +7,15 @@ export function hasSpecialization(player, id) {
     return player?.talents?.includes(id) === true;
 }
 
+// When a foe prepares a special strike, each class has a different answer:
+// warriors brace, archers exploit the opening, mages can cancel it with frost.
+export function getClassTacticalBonus(player, enemy) {
+    if (!enemy?.intent) return { attackMultiplier: 1, guardReduction: 0.5 };
+    if (player?.class === 'archer') return { attackMultiplier: 1.3, guardReduction: 0.5 };
+    if (player?.class === 'warrior') return { attackMultiplier: 1, guardReduction: 0.75 };
+    return { attackMultiplier: 1, guardReduction: 0.5 };
+}
+
 export function getEnemyTacticHint(enemy) {
     if (!enemy) return '';
     if (enemy.intent === 'heavy') return '⚠️ Следующая атака будет сокрушительной. Защищайтесь!';

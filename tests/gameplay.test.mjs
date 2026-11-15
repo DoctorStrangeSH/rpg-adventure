@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { ITEMS, getItem } from '../js/data/items.js';
 import { useInventoryItem, unequipItem } from '../js/ui/inventory.js';
 import { escapeHtml } from '../js/core/html.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup } from '../js/systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, chooseEnemyAction, applyEnemyAction, getBossPhase, planEnemyTurn, applyStatusEffect, triggerWeaponEffect, getEquipmentSetBonuses, getEffectiveCombatStats, getCriticalMultiplier, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus } from '../js/systems/combat.js';
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory, exitBattle } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
@@ -197,6 +197,15 @@ test('freezing a charging enemy cancels its special attack', () => {
     assert.equal(interruptEnemyWindup(enemy), false);
     assert.equal(enemy.intent, null);
     assert.equal(planEnemyTurn(enemy, { mana: 20 }, 0.95).action, 'attack');
+});
+
+test('warriors can brace and archers can exploit a telegraphed strike', () => {
+    const charging = { intent: 'crush' };
+    assert.deepEqual(getClassTacticalBonus({ class: 'warrior' }, charging), { attackMultiplier: 1, guardReduction: 0.75 });
+    assert.deepEqual(getClassTacticalBonus({ class: 'archer' }, charging), { attackMultiplier: 1.3, guardReduction: 0.5 });
+    assert.deepEqual(getClassTacticalBonus({ class: 'mage' }, charging), { attackMultiplier: 1, guardReduction: 0.5 });
+    assert.deepEqual(getClassTacticalBonus({ class: 'archer' }, { intent: null }), { attackMultiplier: 1, guardReduction: 0.5 });
+    assert.equal(calculateDamage(20, 5, 0, getClassTacticalBonus({ class: 'archer' }, charging).attackMultiplier), 21);
 });
 
 test('phase change clears obsolete boss warning', () => {

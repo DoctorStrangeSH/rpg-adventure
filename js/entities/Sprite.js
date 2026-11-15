@@ -2,12 +2,23 @@
 // Illustrated heroes load once and remain optional so low-connectivity clients
 // and test environments can fall back to the original canvas silhouettes.
 const HERO_IMAGES = {};
+const HERO_ATTACK_IMAGES = {};
 if (typeof Image !== 'undefined') {
     for (const hero of ['warrior', 'mage', 'archer']) {
         const image = new Image();
         image.src = `assets/characters/heroes/${hero}-idle.png`;
         HERO_IMAGES[hero] = image;
     }
+    const warriorAttack = new Image();
+    warriorAttack.src = 'assets/characters/heroes/warrior-attack.png';
+    HERO_ATTACK_IMAGES.warrior = warriorAttack;
+}
+
+// Four hand-drawn attack frames, each lasting seven render ticks. The index
+// is clamped so slower devices cannot draw beyond the last sprite-sheet cell.
+export function getAttackFrame(elapsed, frames = 4, ticksPerFrame = 7) {
+    if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
+    return Math.max(0, Math.min(frames - 1, Math.floor(elapsed / ticksPerFrame)));
 }
 
 export class Sprite {
@@ -19,13 +30,17 @@ export class Sprite {
         this.height = 60;
         this.isAttacking = false;
         this.isHit = false;
+        this.attackStartFrame = null;
     }
     
     draw(ctx, frame) {
         ctx.save();
         ctx.translate(this.x, this.y);
+
+        if (this.isAttacking && this.attackStartFrame === null) this.attackStartFrame = frame;
+        if (!this.isAttacking) this.attackStartFrame = null;
         
-        if (this.isAttacking) {
+        if (this.isAttacking && this.type !== 'warrior') {
             ctx.translate(20, 0);
         }
         
@@ -39,6 +54,17 @@ export class Sprite {
     }
     
     drawSprite(ctx, frame) {
+        const attackImage = HERO_ATTACK_IMAGES[this.type];
+        if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
+            const frameWidth = attackImage.naturalWidth / 4;
+            const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame));
+            const height = 112;
+            const width = height * frameWidth / attackImage.naturalHeight;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(attackImage, frameIndex * frameWidth, 0, frameWidth,
+                attackImage.naturalHeight, -width / 2, 30 - height, width, height);
+            return;
+        }
         const heroImage = HERO_IMAGES[this.type];
         if (heroImage?.complete && heroImage.naturalWidth > 0) {
             const height = 100;

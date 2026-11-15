@@ -1,26 +1,26 @@
 /* style.css */
 :root {
-    --bg-primary: #0a0a1a;
-    --bg-secondary: #1a1a2e;
-    --bg-tertiary: #16213e;
-    --bg-card: #1e2749;
-    --accent: #e94560;
-    --accent-hover: #c73e54;
-    --accent-glow: rgba(233, 69, 96, 0.3);
-    --gold: #ffd700;
-    --gold-dark: #b8960f;
+    --bg-primary: #0b101b;
+    --bg-secondary: #151b2a;
+    --bg-tertiary: #24293c;
+    --bg-card: #1b2231;
+    --accent: #a04b60;
+    --accent-hover: #bd6579;
+    --accent-glow: rgba(160, 75, 96, 0.25);
+    --gold: #e0bc79;
+    --gold-dark: #907047;
     --green: #4caf50;
     --red: #f44336;
     --blue: #2196f3;
     --purple: #9c27b0;
-    --text: #ffffff;
-    --text-secondary: #b0b0b0;
-    --text-muted: #808080;
-    --border: #2a2a4a;
+    --text: #f1e9dd;
+    --text-secondary: #c0b7ad;
+    --text-muted: #918b87;
+    --border: #655038;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
-    --radius: 16px;
-    --radius-sm: 8px;
+    --radius: 10px;
+    --radius-sm: 5px;
     --transition: all 0.3s ease;
 }
 
@@ -32,7 +32,7 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background: var(--bg-primary);
+    background: radial-gradient(ellipse at 50% 0, #2b3047 0, var(--bg-primary) 66%);
     color: var(--text);
     overflow: hidden;
     height: 100vh;
@@ -230,8 +230,8 @@ body {
     display: flex;
     align-items: center;
     padding: 15px 20px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: linear-gradient(145deg, #262c3d, #161c2b);
+    border: 1px solid var(--gold-dark);
     border-radius: var(--radius);
     color: var(--text);
     font-size: 16px;
@@ -299,8 +299,8 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: 15px;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #2a2938, #141a29);
+    border-bottom: 2px solid var(--gold-dark);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -702,7 +702,7 @@ body {
     flex: 1;
     width: 100%;
     display: block;
-    background: linear-gradient(to bottom, #87ceeb, #90ee90);
+    background: #182039;
 }
 
 .battle-ui {
@@ -718,8 +718,8 @@ body {
     overflow-y: auto;
     overscroll-behavior: contain;
     border-radius: 16px 16px 0 0;
-    background: linear-gradient(180deg, rgba(13, 17, 36, 0.96), rgba(9, 11, 25, 0.98));
-    border-top: 1px solid rgba(255, 218, 148, 0.25);
+    background: linear-gradient(180deg, rgba(30, 32, 46, 0.97), rgba(12, 17, 28, 0.99));
+    border-top: 2px solid var(--gold-dark);
     scrollbar-width: thin;
 }
 
@@ -832,7 +832,7 @@ body {
 
 .battle-btn {
     padding: 15px;
-    border: none;
+    border: 1px solid rgba(224, 188, 121, 0.55);
     border-radius: var(--radius);
     font-size: 16px;
     cursor: pointer;
@@ -882,23 +882,23 @@ body {
 }
 
 .battle-btn.attack {
-    background: linear-gradient(135deg, #e94560, #ff6b6b);
+    background: linear-gradient(135deg, #793346, #b05065);
 }
 
 .battle-btn.defend {
-    background: linear-gradient(135deg, #2196f3, #64b5f6);
+    background: linear-gradient(135deg, #2b4d67, #467b95);
 }
 
 .battle-btn.skill {
-    background: linear-gradient(135deg, #9c27b0, #ba68c8);
+    background: linear-gradient(135deg, #573e76, #855f9c);
 }
 
 .battle-btn.item {
-    background: linear-gradient(135deg, #4caf50, #81c784);
+    background: linear-gradient(135deg, #315a4c, #4c866e);
 }
 
 .battle-btn.flee {
-    background: linear-gradient(135deg, #ff9800, #ffb74d);
+    background: linear-gradient(135deg, #785b37, #a47c4e);
     grid-column: span 2;
 }
 

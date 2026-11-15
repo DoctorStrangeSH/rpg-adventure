@@ -153,7 +153,7 @@ function drawBattleHPBar(ctx, sprite, entity, isPlayer) {
     const barWidth = 100;
     const barHeight = 10;
     const barX = sprite.x - barWidth / 2;
-    const barY = sprite.y - 80;
+    const barY = sprite.y - (sprite.type === 'death_knight' ? 130 : 80);
     
     ctx.fillStyle = '#333';
     ctx.fillRect(barX, barY, barWidth, barHeight);

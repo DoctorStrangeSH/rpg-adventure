@@ -106,6 +106,30 @@ test('mage frost makes enemy skip exactly one turn', () => {
     assert.equal(tickEnemyEffects(enemy).frozen, false);
 });
 
+test('fire followed by frost causes capped thermal shock and consumes burn', () => {
+    const mage = gameState.createPlayer('mage');
+    const enemy = { health: 200, maxHealth: 200, defense: 3 };
+    useSkillEffect(mage, enemy, CLASSES.mage.skills[0]);
+    assert.equal(enemy.effects.burnTurns, 2);
+    const before = enemy.health;
+    const result = useSkillEffect(mage, enemy, CLASSES.mage.skills[1]);
+    assert.equal(result.thermalShockDamage, 16);
+    assert.equal(enemy.health, before - 16);
+    assert.equal(enemy.effects.burnTurns, 0);
+    assert.equal(tickEnemyEffects(enemy).frozen, true);
+    assert.equal(useSkillEffect(mage, enemy, CLASSES.mage.skills[1]).thermalShockDamage, 0);
+});
+
+test('thermal shock respects freeze immunity and never overkills or exceeds cap', () => {
+    const mage = gameState.createPlayer('mage');
+    const immune = { health: 100, maxHealth: 100, defense: 0, effects: { burnTurns: 2 }, resistances: { freeze: 1 } };
+    assert.equal(useSkillEffect(mage, immune, CLASSES.mage.skills[1]).thermalShockDamage, 0);
+    assert.equal(immune.effects.burnTurns, 2);
+    const large = { health: 10, maxHealth: 1000, defense: 0, effects: { burnTurns: 2 } };
+    assert.equal(useSkillEffect(mage, large, CLASSES.mage.skills[1]).thermalShockDamage, 10);
+    assert.equal(large.health, 0);
+});
+
 test('poison deals damage for three turns and then expires', () => {
     const player = gameState.createPlayer('archer');
     const enemy = { health: 100, maxHealth: 100, defense: 2 };

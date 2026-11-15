@@ -58,7 +58,7 @@ export const CLASSES = {
                 id: 'frost_nova',
                 name: 'Ледяная нова',
                 icon: '❄️',
-                description: 'Замораживает врага',
+                description: 'Замораживает врага. По горящей цели вызывает термошок',
                 manaCost: 25,
                 freeze: true
             }

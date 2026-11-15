@@ -99,7 +99,16 @@ export function useSkillEffect(player, enemy, skill) {
             damage += applyDamage(enemy, calculateDamage(getEffectiveCombatStats(player).attack, enemy.defense, 0, multiplier));
         }
     }
-    if (skill.freeze) applyStatusEffect(enemy, 'freeze', 1);
+    // Ice striking a burning target causes a one-off thermal shock. It consumes
+    // the remaining burn, and cannot trigger when the target resists freezing.
+    const frozen = skill.freeze ? applyStatusEffect(enemy, 'freeze', 1) : false;
+    const thermalShock = frozen && enemy.effects?.burnTurns > 0 && enemy.health > 0;
+    const thermalShockDamage = thermalShock
+        ? Math.min(enemy.health, Math.max(1, Math.min(30, Math.floor(enemy.maxHealth * 0.08)))) : 0;
+    if (thermalShock) {
+        enemy.effects.burnTurns = 0;
+        damage += applyDamage(enemy, thermalShockDamage);
+    }
     if (skill.poison) applyStatusEffect(enemy, 'poison', 3);
     if (skill.burn) applyStatusEffect(enemy, 'burn', 2);
     if (skill.bleed) applyStatusEffect(enemy, 'bleed', 2);
@@ -108,7 +117,7 @@ export function useSkillEffect(player, enemy, skill) {
     // used by ordinary burns apply, including complete immunity.
     const phoenixBurn = damage > 0 && enemy.health > 0 && hasActiveRelic(player, 'phoenix_crown')
         ? applyStatusEffect(enemy, 'burn', 2) : false;
-    return { damage, hits, guardReduction: skill.defenseBonus ? 0.75 : 0, phoenixBurn };
+    return { damage, hits, guardReduction: skill.defenseBonus ? 0.75 : 0, phoenixBurn, thermalShockDamage };
 }
 
 export function tryPhoenixRebirth(player, battleRelics) {

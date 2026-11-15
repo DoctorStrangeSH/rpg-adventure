@@ -239,6 +239,7 @@ export function updateBattleUI() {
         ${enemy.intent && player.class === 'warrior' ? '<div class="battle-tactic">🛡️ Воин: защита блокирует 75% следующего удара.</div>' : ''}
         ${enemy.intent && player.class === 'archer' ? '<div class="battle-tactic">🏹 Лучник: обычная атака наносит на 30% больше урона по готовящемуся врагу.</div>' : ''}
         ${enemy.intent && player.class === 'mage' ? '<div class="battle-tactic">❄️ Маг: ледяная нова может сорвать подготовку врага.</div>' : ''}
+        ${player.class === 'mage' && enemy.effects?.burnTurns > 0 ? '<div class="battle-tactic">🔥❄️ Комбинация: ледяная нова по горящему врагу вызывает термошок (до 30 урона)!</div>' : ''}
         ${equippedRelicNames.length ? `<div class="battle-relics">💎 Реликвии: ${equippedRelicNames.join(' · ')}${synergies.length ? ` <span>🔗 ${synergies.map(entry => entry.name).join(', ')}</span>` : ''}</div>` : ''}
         ${isBoss ? '<div class="boss-indicator">👹 БОСС</div>' : ''}
         ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
@@ -387,7 +388,8 @@ export function playerSkill(skillId) {
         skill.burn && enemy.effects?.burnTurns && 'горение',
         skill.bleed && enemy.effects?.bleedTurns && 'кровотечение',
         skill.weaken && enemy.effects?.weakenTurns && 'ослабление',
-        result.phoenixBurn && 'пламя феникса']
+        result.phoenixBurn && 'пламя феникса',
+        result.thermalShockDamage && `термошок: ${result.thermalShockDamage} урона`]
         .filter(Boolean).join(', ');
     const effect = statuses ? ` Эффект: ${statuses}.` :
         result.guardReduction ? ' Следующий удар ослаблен!' :

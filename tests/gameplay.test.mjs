@@ -1030,6 +1030,35 @@ test('dungeon minibosses retain their identity and each uses a signature action'
     }
 });
 
+test('each miniboss follows its signature with a distinct finite combat pattern', () => {
+    const hero = { health: 100, maxHealth: 100, mana: 50, maxMana: 100 };
+    const cases = [
+        ['goblin_king', 'ambush', 'mana_burn', true],
+        ['mountain_giant', 'crush', 'recover', false],
+        ['death_knight', 'siphon', 'heavy', true],
+        ['ancient_dragon', 'flame_breath', 'heavy', true]
+    ];
+    for (const [id, signature, followUp, warned] of cases) {
+        const enemy = { id, behavior: 'mini_boss', health: 70, maxHealth: 100, attack: 15 };
+        const preparation = planEnemyTurn(enemy, hero, 0.1);
+        assert.equal(preparation.warned, true);
+        assert.equal(enemy.intent, signature);
+        assert.equal(planEnemyTurn(enemy, hero, 0.9).action, signature);
+        assert.equal(enemy.followUp, followUp);
+        const followUpPlan = planEnemyTurn(enemy, hero, 0.9);
+        assert.equal(followUpPlan.warned, warned);
+        if (warned) {
+            assert.equal(enemy.intent, followUp);
+            assert.equal(planEnemyTurn(enemy, hero, 0.9).action, followUp);
+        } else {
+            assert.equal(followUpPlan.action, followUp);
+        }
+        assert.equal(enemy.followUp, null);
+        assert.equal(enemy.intent, null);
+        assert.equal(planEnemyTurn(enemy, hero, 0.9).action, 'attack');
+    }
+});
+
 test('miniboss crushing ignores some armor and life siphon cannot over-heal', () => {
     const warrior = gameState.createPlayer('warrior');
     const attacker = { attack: 55, health: 30, maxHealth: 50 };

@@ -356,10 +356,20 @@ export function planEnemyTurn(enemy, player, roll = Math.random()) {
         if (enemy.intent) {
             const action = enemy.intent;
             enemy.intent = null;
+            // A signature move starts a short, recognizable combo. Only the
+            // signature starts a combo, so follow-ups never loop indefinitely.
+            const nextMove = {
+                goblin_king: { ambush: 'mana_burn' },
+                mountain_giant: { crush: 'recover' },
+                death_knight: { siphon: 'heavy' },
+                ancient_dragon: { flame_breath: 'heavy' }
+            }[enemy.id]?.[action];
+            if (nextMove) enemy.followUp = nextMove;
             return { action, warned: false, phaseChanged: false };
         }
-        const action = chooseEnemyAction(enemy, player, roll);
-        if (['ambush', 'crush', 'siphon', 'flame_breath', 'heavy'].includes(action)) {
+        const action = enemy.followUp || chooseEnemyAction(enemy, player, roll);
+        enemy.followUp = null;
+        if (['ambush', 'crush', 'siphon', 'flame_breath', 'heavy', 'mana_burn'].includes(action)) {
             enemy.intent = action;
             return { action: null, warned: true, phaseChanged: false };
         }

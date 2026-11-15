@@ -8,7 +8,7 @@ import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tic
 import { CLASSES } from '../js/data/classes.js';
 import { getBattleState, updateBattleUI, battleVictory } from '../js/ui/battle.js';
 import { getLocation } from '../js/data/locations.js';
-import { completeLocation, getLocationState, resetLocationState } from '../js/systems/dungeon.js';
+import { completeLocation, getLocationState, resetLocationState, startStageBattle, chooseSecretRoom, chooseAdventureEvent, chooseDungeonRoute } from '../js/systems/dungeon.js';
 import { applyExperience } from '../js/systems/progression.js';
 import { levelUp } from '../js/ui/character.js';
 import { grantItem, rollLoot } from '../js/systems/loot.js';
@@ -715,6 +715,55 @@ test('hidden armory grants an actual inventory item only on success', () => {
     const quantity = player.inventory.find(item => item.id === reward.itemId).quantity;
     resolveSecretRoom(player, 'armory', 'explore', 0.9);
     assert.equal(player.inventory.find(item => item.id === reward.itemId).quantity, quantity);
+});
+
+test('secret discovery appears once and a second click cannot grant another reward', async () => {
+    gameState.createPlayer('warrior');
+    const state = getLocationState();
+    const battle = getBattleState();
+    const originalRandom = Math.random;
+    const originalGetElement = document.getElementById;
+    const originalNotify = window.showNotification;
+    const ui = { innerHTML: '' };
+    Math.random = () => 0; // Discover a room, select the armory, then award its first item.
+    document.getElementById = () => ui;
+    window.showNotification = () => {};
+    state.inLocation = true;
+    state.currentLocation = getLocation('forest');
+    state.currentStage = 6;
+    state.enemiesDefeated = 0;
+    state.pendingEvent = null;
+    state.pendingRoute = null;
+    state.pendingSecretRoom = null;
+    state.visitedEventStages = new Set();
+    state.visitedRouteStages = new Set();
+    state.checkedSecretStages = new Set();
+    state.routeChoices = {};
+    battle.isActive = false;
+    try {
+        startStageBattle();
+        assert.equal(state.pendingSecretRoom.id, 'armory');
+        assert.match(ui.innerHTML, /Секретная комната/);
+        startStageBattle();
+        assert.equal(battle.isActive, false);
+        assert.equal(state.pendingSecretRoom.id, 'armory');
+        assert.equal(chooseSecretRoom('unknown'), false);
+        assert.equal(chooseSecretRoom('explore'), true);
+        assert.equal(state.pendingSecretRoom, null);
+        const potionCount = gameState.player.inventory.find(item => item.id === 'big_health_potion')?.quantity || 0;
+        assert.equal(potionCount, 1);
+        assert.equal(chooseSecretRoom('explore'), false);
+        assert.equal(gameState.player.inventory.find(item => item.id === 'big_health_potion').quantity, potionCount);
+        assert.equal(state.checkedSecretStages.has(6), true);
+    } finally {
+        battle.isActive = false;
+        battle.currentEnemy = null;
+        resetLocationState();
+        Math.random = originalRandom;
+        document.getElementById = originalGetElement;
+        window.showNotification = originalNotify;
+        await new Promise(resolve => setImmediate(resolve));
+    }
 });
 
 test('safe dungeon route preserves enemy balance and rewards', () => {

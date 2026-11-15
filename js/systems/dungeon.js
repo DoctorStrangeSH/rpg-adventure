@@ -72,6 +72,9 @@ export function startLocation(locationId) {
 
 export function startStageBattle() {
     if (!locationState.inLocation || getBattleState().isActive) return;
+    // The stage must wait for the player's choice; duplicate callbacks must
+    // never bypass an unresolved encounter or overwrite its buttons.
+    if (locationState.pendingEvent || locationState.pendingRoute || locationState.pendingSecretRoom) return;
     const location = locationState.currentLocation;
     
     if (!location || !location.stages) {

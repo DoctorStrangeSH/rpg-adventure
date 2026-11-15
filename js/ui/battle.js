@@ -6,7 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -193,6 +193,7 @@ export function updateBattleUI() {
         enemy.effects?.burnTurns > 0 ? `🔥 Горение: ${enemy.effects.burnTurns}` : null,
         enemy.effects?.bleedTurns > 0 ? `🩸 Кровотечение: ${enemy.effects.bleedTurns}` : null,
         enemy.effects?.weakenTurns > 0 ? `🔻 Ослабление: ${enemy.effects.weakenTurns}` : null,
+        enemy.archerMarks > 0 ? `🎯 Метки лучника: ${enemy.archerMarks}/2` : null,
         battleState.guardReduction > 0 ? '🛡️ Защитная стойка' : null
     ].filter(Boolean);
     
@@ -317,6 +318,7 @@ export function playerAttack() {
     const damageFeedback = getDamageFeedback(enemy, damageType);
     
     applyDamage(enemy, damage);
+    const archerMarks = addArcherMark(player, enemy, damage);
     recordEnemyDamageType(enemy, damageType, damage);
     const weaponEffect = triggerWeaponEffect(player, enemy);
     const rangerBleed = triggerRangerEffect(player, enemy);
@@ -338,7 +340,7 @@ export function playerAttack() {
         isCrit ? 30 : 15
     );
     
-    showBattleMessage(`Вы нанесли ${damage} урона!${damageFeedback ? ` ${damageFeedback}!` : ''}${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}${dragonEcho ? ` 🐉 Эхо дракона: +${dragonEcho} урона!` : ''}${moonMana ? ` 🌙 Лунный прилив: +${moonMana} маны!` : ''}`);
+    showBattleMessage(`Вы нанесли ${damage} урона!${damageFeedback ? ` ${damageFeedback}!` : ''}${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}${archerMarks ? ` 🎯 Метки: ${archerMarks}/2 (усилят следующий навык)!` : ''}${dragonEcho ? ` 🐉 Эхо дракона: +${dragonEcho} урона!` : ''}${moonMana ? ` 🌙 Лунный прилив: +${moonMana} маны!` : ''}`);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
@@ -411,7 +413,8 @@ export function playerSkill(skillId) {
         skill.bleed && enemy.effects?.bleedTurns && 'кровотечение',
         skill.weaken && enemy.effects?.weakenTurns && 'ослабление',
         result.phoenixBurn && 'пламя феникса',
-        result.thermalShockDamage && `термошок: ${result.thermalShockDamage} урона`]
+        result.thermalShockDamage && `термошок: ${result.thermalShockDamage} урона`,
+        result.marksConsumed && `метки лучника: +${result.marksConsumed * 15}% к навыку`]
         .filter(Boolean).join(', ');
     const damageFeedback = result.damage ? getDamageFeedback(enemy, result.element) : '';
     const effect = statuses ? ` Эффект: ${statuses}.` :

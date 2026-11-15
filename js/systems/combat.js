@@ -39,6 +39,22 @@ export function resolveWarriorParry(player, enemy, guardedWindup, guardReduction
     return actual;
 }
 
+
+// Ordinary archer shots prepare one or two precise marks. A damaging skill
+// spends every mark at once; other classes cannot create or consume them.
+export function addArcherMark(player, enemy, damage) {
+    if (player?.class !== 'archer' || !enemy || enemy.health <= 0 || !(damage > 0)) return 0;
+    enemy.archerMarks = Math.min(2, Math.max(0, Math.floor(Number(enemy.archerMarks) || 0)) + 1);
+    return enemy.archerMarks;
+}
+
+export function consumeArcherMarks(player, enemy, damagingSkill) {
+    if (player?.class !== 'archer' || !enemy || !damagingSkill || !(enemy.health > 0)) return 0;
+    const marks = Math.max(0, Math.min(2, Math.floor(Number(enemy.archerMarks) || 0)));
+    enemy.archerMarks = 0;
+    return marks;
+}
+
 export function hasEliteAffix(enemy, id) {
     return Array.isArray(enemy?.eliteAffixes) ? enemy.eliteAffixes.includes(id) : enemy?.eliteAffix === id;
 }
@@ -242,8 +258,9 @@ export function consumeHealingPotion(player, item, potionData) {
 }
 
 export function useSkillEffect(player, enemy, skill) {
+    const marksConsumed = consumeArcherMarks(player, enemy, Boolean(skill.damageMultiplier || skill.hits || skill.poison));
     const hits = Math.max(1, Math.floor(skill.hits || 1));
-    const multiplier = (skill.damageMultiplier ?? 1) * (hasSpecialization(player, 'mage_arcanist') ? 1.2 : 1) *
+    const multiplier = (skill.damageMultiplier ?? 1) * (1 + marksConsumed * 0.15) * (hasSpecialization(player, 'mage_arcanist') ? 1.2 : 1) *
         (1 + getRelicBonuses(player).skillPower);
     let damage = 0;
     const element = skill.element || 'physical';
@@ -278,7 +295,7 @@ export function useSkillEffect(player, enemy, skill) {
     const phoenixBurn = damage > 0 && enemy.health > 0 && hasActiveRelic(player, 'phoenix_crown')
         ? applyStatusEffect(enemy, 'burn', 2) : false;
     return {
-        damage, hits, element, elementMultiplier: getDamageTypeMultiplier(enemy, element),
+        damage, hits, marksConsumed, element, elementMultiplier: getDamageTypeMultiplier(enemy, element),
         guardReduction: skill.defenseBonus ? 0.75 : 0, phoenixBurn, thermalShockDamage
     };
 }

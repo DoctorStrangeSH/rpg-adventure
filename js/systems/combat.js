@@ -31,6 +31,8 @@ export function getEnemyTacticHint(enemy) {
         const warnings = {
             ambush: '⚠️ Готовится засада. Защищайтесь или прервите подготовку заморозкой!',
             crush: '⚠️ Великан замахивается! Удар частично игнорирует броню.',
+            pounce: '🐺 Противник заметил вашу слабость и готовится к прыжку. Защищайтесь или прервите атаку!',
+            mana_burn: '💠 Враг нацелился на ваш запас маны. Подготовьтесь к истощению!',
             siphon: '⚠️ Враг готовит похищение жизненных сил.',
             flame_breath: '⚠️ Дракон набирает воздух для огненного дыхания. Берегите ману!',
             cataclysm: '☄️ Босс собирает энергию для катаклизма! Защита особенно важна.'
@@ -56,6 +58,9 @@ export function getEnemyTacticHint(enemy) {
         tactician: 'Элитный тактик запоминает повторяющиеся типы урона и сопротивляется им.'
     };
     if (enemy.eliteAffix && affixHints[enemy.eliteAffix]) return `⚡ ${affixHints[enemy.eliteAffix]}`;
+    if (enemy.behavior === 'resilient' && getEnemyCleanseTarget(enemy)) {
+        return '🛡️ Противник может снять с себя один опасный отрицательный эффект.';
+    }
     if (enemy.behavior === 'boss') return '👑 У босса три фазы. Следите за предупреждениями.';
     return '';
 }
@@ -272,10 +277,28 @@ export function tickEnemyEffects(enemy) {
     return { poisonDamage, burnDamage, bleedDamage, woundPoisonDamage, frozen };
 }
 
+function getCombatRatio(current, maximum, fallback = 1) {
+    const value = Number(current);
+    const limit = Number(maximum);
+    if (!Number.isFinite(value)) return fallback;
+    if (!Number.isFinite(limit) || limit <= 0) return fallback;
+    return Math.max(0, Math.min(1, value / limit));
+}
+
+function getEnemyCleanseTarget(enemy) {
+    const effects = enemy?.effects || {};
+    // Damage-over-time is removed first; weakening is less urgent.
+    return ['burnTurns', 'poisonTurns', 'bleedTurns', 'weakenTurns']
+        .find(key => Number(effects[key]) > 0) || null;
+}
+
 // Deterministic with an injected roll, so tactics are reproducible in tests.
 export function chooseEnemyAction(enemy, player, roll = Math.random()) {
     const behavior = enemy.behavior || (enemy.id === 'dragon' ? 'boss' : 'standard');
-    const healthRatio = enemy.maxHealth > 0 ? enemy.health / enemy.maxHealth : 1;
+    const healthRatio = getCombatRatio(enemy.health, enemy.maxHealth);
+    const playerHealthRatio = getCombatRatio(player?.health, player?.maxHealth);
+    const playerManaRatio = getCombatRatio(player?.mana, player?.maxMana, player?.mana > 0 ? 1 : 0);
+
     if (behavior === 'mini_boss') {
         const signatures = {
             goblin_king: 'ambush', mountain_giant: 'crush',
@@ -284,11 +307,21 @@ export function chooseEnemyAction(enemy, player, roll = Math.random()) {
         return roll < 0.4 ? (signatures[enemy.id] || 'heavy') : roll < 0.65 ? 'heavy' : 'attack';
     }
     if (behavior === 'boss') {
+        if (playerManaRatio >= 0.5 && roll < 0.4) return 'mana_burn';
         return roll < 0.4 ? 'heavy' : roll < 0.7 ? 'mana_burn' : 'attack';
     }
-    if (behavior === 'resilient' && healthRatio < 0.45 && roll < 0.5) return 'recover';
-    if (behavior === 'opportunist' && player.mana > 0 && roll < 0.3) return 'mana_burn';
-    if (behavior === 'aggressive' && roll < 0.35) return 'heavy';
+    if (behavior === 'resilient') {
+        if (getEnemyCleanseTarget(enemy) && roll < 0.7) return 'cleanse';
+        if (healthRatio < 0.45 && roll < 0.5) return 'recover';
+    }
+    if (behavior === 'opportunist') {
+        if (playerManaRatio >= 0.4 && roll < 0.45) return 'mana_burn';
+        if (playerHealthRatio <= 0.35 && roll < 0.2) return 'heavy';
+    }
+    if (behavior === 'aggressive') {
+        if (playerHealthRatio <= 0.4 && roll < 0.6) return 'pounce';
+        if (roll < 0.35) return 'heavy';
+    }
     return 'attack';
 }
 
@@ -324,7 +357,19 @@ export function planEnemyTurn(enemy, player, roll = Math.random()) {
         }
         return { action, warned: false, phaseChanged: false };
     }
-    if (enemy.behavior !== 'boss') return { action: chooseEnemyAction(enemy, player, roll), warned: false, phaseChanged: false };
+    if (enemy.behavior !== 'boss') {
+        if (enemy.intent) {
+            const action = enemy.intent;
+            enemy.intent = null;
+            return { action, warned: false, phaseChanged: false };
+        }
+        const action = chooseEnemyAction(enemy, player, roll);
+        if (['pounce', 'heavy', 'mana_burn'].includes(action)) {
+            enemy.intent = action;
+            return { action: null, warned: true, phaseChanged: false };
+        }
+        return { action, warned: false, phaseChanged: false };
+    }
     const phase = getBossPhase(enemy);
     const phaseChanged = enemy.phase !== undefined && phase !== enemy.phase;
     enemy.phase = phase;
@@ -351,6 +396,12 @@ export function planEnemyTurn(enemy, player, roll = Math.random()) {
 }
 
 export function applyEnemyAction(enemy, player, action, variance = 0, reduction = 0) {
+    if (action === 'cleanse') {
+        const key = getEnemyCleanseTarget(enemy);
+        if (!key) return { damage: 0, healed: 0, manaBurned: 0, reflected: 0, cleansed: null };
+        enemy.effects[key] = 0;
+        return { damage: 0, healed: 0, manaBurned: 0, reflected: 0, cleansed: key.replace('Turns', '') };
+    }
     if (action === 'adapt') {
         const type = enemy.pendingAdaptation;
         if (!DAMAGE_TYPE_LABELS[type]) return { damage: 0, healed: 0, manaBurned: 0, reflected: 0 };
@@ -367,7 +418,7 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     }
     const weakened = enemy.effects?.weakenTurns > 0;
     const enraged = enemy.eliteAffix === 'enraged' && enemy.maxHealth > 0 && enemy.health / enemy.maxHealth <= 0.5;
-    const multiplier = (action === 'heavy' ? 1.5 : action === 'mana_burn' ? 0.85 :
+    const multiplier = (action === 'heavy' ? 1.5 : action === 'pounce' ? 1.4 : action === 'mana_burn' ? 0.85 :
         action === 'ambush' ? 1.25 : action === 'crush' ? 1.2 : action === 'flame_breath' ? 1.15 :
         action === 'cataclysm' ? 1.8 : 1) *
         (weakened ? 0.75 : 1) * (enraged ? 1.4 : 1);

@@ -529,7 +529,7 @@ function enemyTurn() {
     if (plan.warned) {
         battleState.turn = 'player';
         isProcessing = false;
-        showBattleMessage(`⚠️ ${enemy.name} готовит особый удар! Защищайтесь или прервите подготовку!`);
+        showBattleMessage(getEnemyTacticHint(enemy) || `⚠️ ${enemy.name} готовит особый удар! Защищайтесь или прервите подготовку!`);
         updateBattleUI();
         return;
     }
@@ -544,8 +544,9 @@ function enemyTurn() {
         return;
     }
     const actionName = {
-        attack: 'атакует', heavy: 'готовит мощный удар',
-        mana_burn: 'готовит истощение маны', recover: 'восстанавливается',
+        attack: 'атакует', heavy: 'наносит сокрушительный удар',
+        pounce: 'прыгает на вас', mana_burn: 'истощает вашу ману',
+        recover: 'восстанавливается', cleanse: 'снимает с себя отрицательный эффект',
         ambush: 'устраивает засаду', crush: 'наносит сокрушительный удар сквозь броню',
         siphon: 'высасывает жизненные силы', flame_breath: 'извергает пламя',
         cataclysm: 'обрушивает катаклизм'
@@ -575,7 +576,10 @@ function enemyTurn() {
         
         battleState.enemySprite.isAttacking = false;
         
-        showBattleMessage(reborn ? '🔥 Корона феникса спасает вас от гибели! Здоровье восстановлено.' : result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
+        const cleansedNames = { burn: 'горение', poison: 'яд', bleed: 'кровотечение', weaken: 'ослабление' };
+        showBattleMessage(reborn ? '🔥 Корона феникса спасает вас от гибели! Здоровье восстановлено.' :
+            result.cleansed ? `${enemy.name} очищается от эффекта: ${cleansedNames[result.cleansed] || result.cleansed}!` :
+            result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
             `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}`);
         
         setTimeout(() => {

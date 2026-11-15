@@ -272,6 +272,51 @@ test('different enemy archetypes choose distinct tactics', () => {
     assert.equal(chooseEnemyAction({ behavior: 'boss', health: 100, maxHealth: 100 }, player, 0.5), 'mana_burn');
 });
 
+test('enemy archetypes react to player health, mana and their own active debuffs', () => {
+    const wolf = { id: 'wolf', behavior: 'aggressive', health: 30, maxHealth: 30, attack: 12, defense: 0 };
+    const woundedPlayer = { health: 30, maxHealth: 100, mana: 10, maxMana: 100, defense: 0 };
+    assert.equal(chooseEnemyAction(wolf, woundedPlayer, 0.1), 'pounce');
+    const pounceWarning = planEnemyTurn(wolf, woundedPlayer, 0.1);
+    assert.equal(pounceWarning.warned, true);
+    assert.equal(wolf.intent, 'pounce');
+    assert.match(getEnemyTacticHint(wolf), /прыжку/);
+    assert.equal(planEnemyTurn(wolf, woundedPlayer, 0.99).action, 'pounce');
+    assert.equal(wolf.intent, null);
+    const pounceDamage = applyEnemyAction(wolf, { ...woundedPlayer, health: 100 }, 'pounce', 0).damage;
+    const ordinaryDamage = applyEnemyAction(wolf, { ...woundedPlayer, health: 100 }, 'attack', 0).damage;
+    assert.ok(pounceDamage > ordinaryDamage);
+
+    const goblin = { id: 'goblin', behavior: 'opportunist', health: 50, maxHealth: 50, attack: 10 };
+    const manaRich = { health: 100, maxHealth: 100, mana: 80, maxMana: 100 };
+    const manaPoor = { health: 100, maxHealth: 100, mana: 10, maxMana: 100 };
+    assert.equal(chooseEnemyAction(goblin, manaRich, 0.2), 'mana_burn');
+    assert.equal(chooseEnemyAction(goblin, manaPoor, 0.2), 'attack');
+    const manaWarning = planEnemyTurn(goblin, manaRich, 0.2);
+    assert.equal(manaWarning.warned, true);
+    assert.match(getEnemyTacticHint(goblin), /запас маны/);
+    assert.equal(planEnemyTurn(goblin, manaRich, 0.99).action, 'mana_burn');
+
+    const chargingGoblin = { id: 'goblin', behavior: 'opportunist', health: 50, maxHealth: 50, attack: 10 };
+    planEnemyTurn(chargingGoblin, manaRich, 0.2);
+    assert.equal(interruptEnemyWindup(chargingGoblin), true);
+    assert.equal(planEnemyTurn(chargingGoblin, manaRich, 0.99).action, 'attack');
+
+    const skeleton = { id: 'skeleton', behavior: 'resilient', health: 70, maxHealth: 100, attack: 10,
+        effects: { burnTurns: 2, poisonTurns: 3, weakenTurns: 1 } };
+    assert.equal(chooseEnemyAction(skeleton, manaRich, 0.1), 'cleanse');
+    assert.match(getEnemyTacticHint(skeleton), /снять с себя/);
+    const cleanse = applyEnemyAction(skeleton, manaRich, 'cleanse');
+    assert.equal(cleanse.cleansed, 'burn');
+    assert.equal(skeleton.effects.burnTurns, 0);
+    assert.equal(skeleton.effects.poisonTurns, 3);
+    assert.equal(skeleton.effects.weakenTurns, 1);
+    assert.equal(applyEnemyAction({ effects: {} }, manaRich, 'cleanse').cleansed, null);
+    assert.equal(chooseEnemyAction({ ...skeleton, effects: {} }, manaRich, 0.1), 'attack');
+
+    const lowHealthSkeleton = { id: 'skeleton', behavior: 'resilient', health: 20, maxHealth: 100, attack: 10 };
+    assert.equal(chooseEnemyAction(lowHealthSkeleton, manaRich, 0.1), 'recover');
+});
+
 test('bosses and tactician elites adapt after two consecutive successful hits of one damage type', () => {
     const boss = { behavior: 'boss', health: 100, maxHealth: 100, damageModifiers: { fire: 1.2 } };
     assert.equal(recordEnemyDamageType(boss, 'fire', 20), false);

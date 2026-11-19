@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
 import { ParticleSystem } from '../js/systems/particles.js';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -246,4 +246,25 @@ test('warrior attack presentation has three distinct beats in one unchanged wind
     assert.equal(getWarriorComboPose(0).scaleX, 1);
     assert.equal(getWarriorComboPose(13).scaleX, -1);
     assert.ok(getWarriorComboPose(23).scaleX > 1);
+});
+
+test('warrior counter cue has a short bounded strike and recovery', () => {
+    assert.equal(getWarriorCounterPose(-1), null);
+    assert.equal(getWarriorCounterPose(18), null);
+    assert.equal(getWarriorCounterPose(Number.NaN), null);
+    const start = getWarriorCounterPose(0);
+    const strike = getWarriorCounterPose(8);
+    const recovery = getWarriorCounterPose(15);
+    assert.equal(start.offsetX, 0);
+    assert.ok(strike.offsetX > start.offsetX);
+    assert.ok(strike.radius > start.radius);
+    assert.ok(recovery.alpha < strike.alpha);
+});
+
+test('successful parry starts only a visual counter cue', () => {
+    const sprite = new Sprite('warrior', 0, 0);
+    sprite.startCounter(120);
+    assert.equal(sprite.counterStartFrame, 120);
+    sprite.startCounter(128);
+    assert.equal(sprite.counterStartFrame, 128);
 });

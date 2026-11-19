@@ -51,6 +51,21 @@ export function getWarriorComboPose(elapsed) {
     return { phase: 2, rotation: 0.28 * Math.sin(p * Math.PI), offsetX: 5 * (1 - p), scaleX: 1 + 0.04 * Math.sin(p * Math.PI) };
 }
 
+// The counter flash is a presentation cue for the already-resolved parry
+// damage; it never creates another combat action.
+export function getWarriorCounterPose(elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed >= 18) return null;
+    const progress = elapsed / 18;
+    const strike = Math.sin(Math.min(progress / 0.62, 1) * Math.PI / 2);
+    return {
+        progress,
+        offsetX: 8 * strike,
+        rotation: -0.34 * strike + (progress > 0.62 ? 0.08 * (progress - 0.62) / 0.38 : 0),
+        alpha: progress < 0.62 ? 1 : 1 - (progress - 0.62) / 0.38,
+        radius: 12 + progress * 24
+    };
+}
+
 export function getWarriorVisualPose(attacking, guarding) {
     return attacking ? 'attack' : guarding ? 'guard' : 'idle';
 }
@@ -234,6 +249,7 @@ export class Sprite {
         this.hitStartFrame = null;
         this.guardStartFrame = null;
         this.parryStartFrame = null;
+        this.counterStartFrame = null;
         this.deathStartFrame = null;
     }
 
@@ -248,6 +264,10 @@ export class Sprite {
 
     startParry(frame) {
         this.parryStartFrame = Number.isFinite(frame) ? frame : 0;
+    }
+
+    startCounter(frame) {
+        this.counterStartFrame = Number.isFinite(frame) ? frame : 0;
     }
 
     receiveHit(frame) {
@@ -338,6 +358,30 @@ export class Sprite {
                 ctx.arc(orbX, orbY, 2.5 + cast.charge * 2, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
+            }
+        }
+        if (this.type === 'warrior' && this.counterStartFrame !== null) {
+            const counter = getWarriorCounterPose(frame - this.counterStartFrame);
+            if (counter) {
+                ctx.save();
+                ctx.globalAlpha = counter.alpha;
+                ctx.translate(counter.offsetX, 0);
+                ctx.translate(0, 30);
+                ctx.rotate(counter.rotation);
+                ctx.translate(0, -30);
+                ctx.strokeStyle = '#fff0b3';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(24, -42, counter.radius, -0.95, 0.82);
+                ctx.stroke();
+                ctx.strokeStyle = '#f4d58a';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(24, -42, counter.radius * 0.72, -0.8, 0.65);
+                ctx.stroke();
+                ctx.restore();
+            } else if (frame - this.counterStartFrame >= 18) {
+                this.counterStartFrame = null;
             }
         }
         if (this.type === 'warrior' && this.parryStartFrame !== null) {

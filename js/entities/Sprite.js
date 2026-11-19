@@ -54,6 +54,18 @@ export function getWarriorParryPulse(elapsed) {
 }
 
 // A short, readable defeat sequence: stagger, kneel, then fall onto the ground.
+export function getMageCastEffect(elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed >= 28) return null;
+    const progress = elapsed / 28;
+    const charge = progress < 0.68 ? progress / 0.68 : 1 - (progress - 0.68) / 0.32;
+    return {
+        progress,
+        charge: Math.max(0, Math.min(1, charge)),
+        radius: 13 + Math.max(0, Math.min(1, charge)) * 13,
+        alpha: progress < 0.68 ? 0.45 + charge * 0.5 : Math.max(0, 1 - (progress - 0.68) / 0.32)
+    };
+}
+
 export function getWarriorDeathPose(elapsed) {
     if (!Number.isFinite(elapsed) || elapsed < 0) {
         return { rotation: 0, offsetY: 0, alpha: 1, active: false };
@@ -191,6 +203,34 @@ export class Sprite {
         if (this.isGuarding && this.guardStartFrame === null) this.guardStartFrame = frame;
         if (!this.isGuarding) this.guardStartFrame = null;
         this.drawSprite(ctx, frame);
+        if (this.type === 'mage' && this.isAttacking) {
+            const cast = getMageCastEffect(frame - (this.attackStartFrame ?? frame));
+            if (cast) {
+                const pulse = Math.sin(frame * 0.24) * 2;
+                ctx.save();
+                ctx.translate(20, -47);
+                ctx.globalAlpha = cast.alpha;
+                ctx.strokeStyle = '#67e8f9';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, cast.radius + pulse, cast.radius * 0.42,
+                    frame * 0.035, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = '#b7f4ff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, cast.radius * 0.68, cast.radius * 0.3,
+                    -frame * 0.05, 0, Math.PI * 2);
+                ctx.stroke();
+                const orbX = Math.cos(cast.progress * Math.PI * 2) * cast.radius;
+                const orbY = Math.sin(cast.progress * Math.PI * 2) * cast.radius * 0.42;
+                ctx.fillStyle = '#d9fbff';
+                ctx.beginPath();
+                ctx.arc(orbX, orbY, 2.5 + cast.charge * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
         if (this.type === 'warrior' && this.parryStartFrame !== null) {
             const pulse = getWarriorParryPulse(frame - this.parryStartFrame);
             if (pulse) {

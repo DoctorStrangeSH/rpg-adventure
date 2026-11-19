@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getMageCastEffect, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -126,4 +126,18 @@ test('sprite death transition clears attack and guard states', () => {
     assert.equal(sprite.isGuarding, false);
     assert.equal(sprite.attackStartFrame, null);
     assert.equal(sprite.guardStartFrame, null);
+});
+
+test('mage cast sigil charges, releases and expires within its animation window', () => {
+    assert.equal(getMageCastEffect(-1), null);
+    assert.equal(getMageCastEffect(Number.NaN), null);
+    assert.equal(getMageCastEffect(28), null);
+    const start = getMageCastEffect(0);
+    const charged = getMageCastEffect(14);
+    const release = getMageCastEffect(24);
+    assert.equal(start.progress, 0);
+    assert.ok(charged.charge > start.charge);
+    assert.ok(charged.radius > start.radius);
+    assert.ok(release.alpha < charged.alpha);
+    assert.ok(start.alpha > 0);
 });

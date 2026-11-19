@@ -21,5 +21,19 @@ test('unknown locations leave the original background untouched', () => {
         fillRect() { calls.push('fill'); }
     };
     drawArenaAtmosphere(ctx, 320, 240, getArenaTheme('forest'), 60);
-    assert.deepEqual(calls, ['save', 'fill', 'fill', 'restore']);
+    assert.equal(calls[0], 'save');
+    assert.equal(calls.at(-1), 'restore');
+    assert.equal(calls.filter(call => call === 'fill').length, 10); // tint + glow + 8 motes
+});
+
+test('larger arenas render bounded atmospheric motes', () => {
+    let fills = 0;
+    const ctx = {
+        save() {}, restore() {},
+        createLinearGradient() { return { addColorStop() {} }; },
+        createRadialGradient() { return { addColorStop() {} }; },
+        fillRect() { fills++; }
+    };
+    drawArenaAtmosphere(ctx, 800, 450, getArenaTheme('dragon_lair'), 120);
+    assert.equal(fills, 16);
 });

@@ -53,6 +53,30 @@ export function getWarriorParryPulse(elapsed) {
     return { radius: 12 + progress * 29, alpha: 1 - progress };
 }
 
+// A short, readable defeat sequence: stagger, kneel, then fall onto the ground.
+export function getWarriorDeathPose(elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 0) {
+        return { rotation: 0, offsetY: 0, alpha: 1, active: false };
+    }
+    if (elapsed < 12) {
+        const p = elapsed / 12;
+        return { rotation: -0.08 * p, offsetY: p * 2, alpha: 1, active: true };
+    }
+    if (elapsed < 30) {
+        const p = (elapsed - 12) / 18;
+        return { rotation: -0.08 - p * 0.24, offsetY: 2 + p * 12, alpha: 1, active: true };
+    }
+    if (elapsed < 54) {
+        const p = (elapsed - 30) / 24;
+        return { rotation: -0.32 - p * 1.12, offsetY: 14 + p * 18, alpha: 1, active: true };
+    }
+    if (elapsed < 72) {
+        const p = (elapsed - 54) / 18;
+        return { rotation: -1.44, offsetY: 32, alpha: 1 - p * 0.18, active: true };
+    }
+    return { rotation: -1.44, offsetY: 32, alpha: 0.82, active: false };
+}
+
 // A short two-beat impact: recoil away from the attacker, then settle.
 // Computed from render ticks, so no delayed callback can affect the next fight.
 export function getHitFeedback(elapsed, duration = 16) {
@@ -114,6 +138,15 @@ export class Sprite {
         this.hitStartFrame = null;
         this.guardStartFrame = null;
         this.parryStartFrame = null;
+        this.deathStartFrame = null;
+    }
+
+    beginDeath(frame) {
+        this.deathStartFrame = Number.isFinite(frame) ? frame : 0;
+        this.isAttacking = false;
+        this.isGuarding = false;
+        this.attackStartFrame = null;
+        this.guardStartFrame = null;
     }
 
     startParry(frame) {
@@ -128,6 +161,14 @@ export class Sprite {
         ctx.save();
         ctx.translate(this.x, this.y);
 
+        if (this.deathStartFrame !== null) {
+            const death = getWarriorDeathPose(frame - this.deathStartFrame);
+            ctx.translate(0, death.offsetY);
+            ctx.translate(0, -30);
+            ctx.rotate(death.rotation);
+            ctx.translate(0, 30);
+            ctx.globalAlpha *= death.alpha;
+        }
         if (this.isAttacking && this.attackStartFrame === null) this.attackStartFrame = frame;
         if (!this.isAttacking) this.attackStartFrame = null;
         

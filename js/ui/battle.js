@@ -34,6 +34,7 @@ let battleState = {
     enemySprite: null,
     currentEnemy: null,
     animationFrame: 0,
+    deathAnimationEndFrame: null,
     turn: 'player',
     isDungeonBattle: false,
     isBossBattle: false,
@@ -90,6 +91,7 @@ export function startBattle(location) {
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
     battleState.animationFrame = 0;
+    battleState.deathAnimationEndFrame = null;
     resetBattlePresentation();
     battleState.turn = 'player';
     battleState.isBossBattle = false;
@@ -112,7 +114,10 @@ export function animateBattle() {
     if (animationRunning) return;
     animationRunning = true;
     const frame = () => {
-        if (!battleState.isActive) {
+        const playingDeath = battleState.deathAnimationEndFrame !== null &&
+            battleState.animationFrame < battleState.deathAnimationEndFrame;
+        if (!battleState.isActive && !playingDeath) {
+            battleState.deathAnimationEndFrame = null;
             animationRunning = false;
             return;
         }
@@ -159,10 +164,12 @@ function drawBattle() {
         battleState.playerSprite.isGuarding = gameState.player?.class === 'warrior' &&
             battleState.guardReduction > 0;
         battleState.playerSprite.draw(ctx, battleState.animationFrame);
-        drawBattleHPBar(ctx, battleState.playerSprite, gameState.player, true);
+        if (battleState.playerSprite.deathStartFrame === null) {
+            drawBattleHPBar(ctx, battleState.playerSprite, gameState.player, true);
+        }
     }
     
-    if (battleState.enemySprite && battleState.currentEnemy) {
+    if (battleState.enemySprite && battleState.currentEnemy && battleState.playerSprite?.deathStartFrame === null) {
         battleState.enemySprite.draw(ctx, battleState.animationFrame);
         drawBattleHPBar(ctx, battleState.enemySprite, battleState.currentEnemy, false);
     }
@@ -741,6 +748,9 @@ export function battleDefeat() {
     
     battleState.isActive = false;
     isProcessing = false;
+    battleState.deathAnimationEndFrame = battleState.animationFrame + 72;
+    battleState.playerSprite?.beginDeath(battleState.animationFrame);
+    animateBattle();
     
     const goldLoss = Math.floor(player.gold * 0.1);
     player.gold -= goldLoss;
@@ -771,6 +781,7 @@ export function exitBattle() {
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
     battleState.guardReduction = 0;
+    battleState.deathAnimationEndFrame = null;
     isProcessing = false;
     
     window.showScreen('main-menu');

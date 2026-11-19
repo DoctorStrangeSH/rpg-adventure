@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -98,4 +98,32 @@ test('parry animation restarts on a new successful parry', () => {
     assert.equal(sprite.parryStartFrame, 40);
     sprite.startParry(47);
     assert.equal(sprite.parryStartFrame, 47);
+});
+
+test('warrior defeat animation progresses through stagger, kneel and fall', () => {
+    const start = getWarriorDeathPose(0);
+    const stagger = getWarriorDeathPose(6);
+    const kneel = getWarriorDeathPose(21);
+    const fall = getWarriorDeathPose(42);
+    const settle = getWarriorDeathPose(63);
+    const done = getWarriorDeathPose(72);
+    assert.equal(start.rotation, 0);
+    assert.ok(Math.abs(stagger.rotation) > 0);
+    assert.ok(kneel.offsetY > stagger.offsetY);
+    assert.ok(Math.abs(fall.rotation) > Math.abs(kneel.rotation));
+    assert.ok(settle.alpha < 1);
+    assert.equal(done.active, false);
+    assert.equal(getWarriorDeathPose(Number.NaN).active, false);
+});
+
+test('sprite death transition clears attack and guard states', () => {
+    const sprite = new Sprite('warrior', 10, 20);
+    sprite.isAttacking = true;
+    sprite.isGuarding = true;
+    sprite.beginDeath(90);
+    assert.equal(sprite.deathStartFrame, 90);
+    assert.equal(sprite.isAttacking, false);
+    assert.equal(sprite.isGuarding, false);
+    assert.equal(sprite.attackStartFrame, null);
+    assert.equal(sprite.guardStartFrame, null);
 });

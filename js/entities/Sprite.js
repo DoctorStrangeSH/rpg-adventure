@@ -51,7 +51,6 @@ export const BOSS_FALLBACKS = Object.freeze({
     forest_guardian: 'dragon',
     mountain_giant: 'death_knight',
     mountain_dragon: 'ancient_dragon',
-    lich_king: 'death_knight',
     world_eater: 'ancient_dragon'
 });
 
@@ -62,6 +61,13 @@ export function getDeathKnightPose(elapsed, attacking) {
     if (elapsed < 6) return 'windup';
     if (elapsed < 13) return 'slash';
     if (elapsed < 20) return 'recovery';
+    return 'idle';
+}
+
+export function getLichSpellPhase(elapsed, attacking) {
+    if (!attacking || !Number.isFinite(elapsed) || elapsed < 0) return 'idle';
+    if (elapsed < 8) return 'summon';
+    if (elapsed < 19) return 'release';
     return 'idle';
 }
 
@@ -142,6 +148,7 @@ export class Sprite {
             dragon: this.drawDragon,
             goblin_king: this.drawGoblinKing,
             death_knight: this.drawDeathKnight,
+            lich_king: this.drawLichKing,
             ancient_dragon: this.drawAncientDragon
         };
         
@@ -407,6 +414,95 @@ export class Sprite {
             ctx.beginPath();
             ctx.arc(-4, -22, 73, -0.7, 0.55);
             ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    drawLichKing(ctx, frame) {
+        const float = Math.sin(frame * 0.048) * 3;
+        const pulse = Math.sin(frame * 0.13) * 2;
+        const phase = getLichSpellPhase(frame - (this.attackStartFrame ?? frame), this.isAttacking);
+        ctx.save();
+        ctx.translate(0, float);
+        // A long split robe, not the armoured outline of the Death Knight.
+        ctx.fillStyle = '#151b32';
+        ctx.beginPath();
+        ctx.moveTo(-20, -39);
+        ctx.lineTo(-37, 31);
+        ctx.lineTo(-17, 20);
+        ctx.lineTo(-2, 32);
+        ctx.lineTo(15, 19);
+        ctx.lineTo(37, 31);
+        ctx.lineTo(19, -39);
+        ctx.fill();
+        ctx.fillStyle = '#604267';
+        ctx.beginPath();
+        ctx.moveTo(-11, -37);
+        ctx.lineTo(-17, 20);
+        ctx.lineTo(0, 30);
+        ctx.lineTo(14, 18);
+        ctx.lineTo(11, -37);
+        ctx.fill();
+        ctx.fillStyle = '#c3a579';
+        ctx.fillRect(-3, -18, 6, 41);
+        ctx.fillStyle = '#24283b';
+        ctx.fillRect(-25, -44, 50, 21);
+        ctx.fillStyle = '#7a627b';
+        ctx.fillRect(-29, -38, 58, 5);
+        ctx.fillStyle = '#aaa8b9';
+        ctx.fillRect(-15, -58, 30, 28);
+        ctx.fillStyle = '#343044';
+        ctx.fillRect(-12, -52, 24, 17);
+        ctx.fillStyle = '#dce1dc';
+        ctx.fillRect(-17, -63, 34, 13);
+        ctx.fillStyle = '#a05b92';
+        ctx.fillRect(-10, -47, 7, 4);
+        ctx.fillRect(3, -47, 7, 4);
+        ctx.fillStyle = '#e5aadd';
+        ctx.fillRect(-8, -47, 3, 2);
+        ctx.fillRect(5, -47, 3, 2);
+        // A jagged gold diadem with a single amethyst at its centre.
+        ctx.fillStyle = '#b29a6a';
+        ctx.beginPath();
+        ctx.moveTo(-22, -60);
+        ctx.lineTo(-24, -80);
+        ctx.lineTo(-12, -68);
+        ctx.lineTo(0, -91);
+        ctx.lineTo(12, -68);
+        ctx.lineTo(24, -80);
+        ctx.lineTo(22, -60);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#6a366f';
+        ctx.fillRect(-5, -73, 10, 10);
+        // The crooked staff follows the casting arm and holds a living rune.
+        ctx.save();
+        ctx.translate(34, -33);
+        ctx.rotate(phase === 'summon' ? -0.24 : phase === 'release' ? 0.18 : 0);
+        ctx.fillStyle = '#59465f';
+        ctx.fillRect(-3, -36, 6, 93);
+        ctx.fillStyle = '#c0a37b';
+        ctx.fillRect(-5, -38, 10, 7);
+        ctx.fillStyle = '#482d67';
+        ctx.beginPath();
+        ctx.moveTo(0, -62);
+        ctx.lineTo(14, -48);
+        ctx.lineTo(0, -34);
+        ctx.lineTo(-14, -48);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ca8fdb';
+        ctx.fillRect(-4, -52, 8, 8);
+        ctx.restore();
+        if (phase !== 'idle') {
+            const radius = phase === 'summon' ? 11 + pulse : 19 + pulse;
+            ctx.strokeStyle = '#aa6cc9';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(34, -81, radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = '#e0b2ef';
+            ctx.fillRect(30, -85, 8, 8);
         }
         ctx.restore();
     }

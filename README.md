@@ -1,8 +1,19 @@
-# RPG Adventure — Telegram Mini App\n\n> **План завершения версии 1.0:** [полное ТЗ и scope freeze](docs/PROJECT_SPEC.md) · [конечная дорожная карта](ROADMAP.md) · [релизный чек-лист](docs/RELEASE_CHECKLIST.md)\n\nНовые функции не добавляются без одобренного [Change Request](docs/CHANGE_REQUEST_TEMPLATE.md).
+# RPG Adventure — Telegram Mini App
+
+> **План завершения версии 1.0:** [полное ТЗ и scope freeze](docs/PROJECT_SPEC.md) · [конечная дорожная карта](ROADMAP.md) · [релизный чек-лист](docs/RELEASE_CHECKLIST.md)
+
+Новые функции не добавляются без одобренного [Change Request](docs/CHANGE_REQUEST_TEMPLATE.md).
 
 > Игра работает как Telegram Mini App и в обычном браузере для локальной разработки.
 
-## Документы проекта\n\n- [Полное ТЗ, критерии готовности и границы версии 1.0](docs/PROJECT_SPEC.md) — единственный источник требований.\n- [Дорожная карта](ROADMAP.md) — конечные этапы завершения, без бесконечного списка идей.\n- [Художественное направление](docs/ART_DIRECTION.md).\n- [Чек-лист релиза](docs/RELEASE_CHECKLIST.md).\n\n## Проверки качества
+## Документы проекта
+
+- [Полное ТЗ, критерии готовности и границы версии 1.0](docs/PROJECT_SPEC.md) — единственный источник требований.
+- [Дорожная карта](ROADMAP.md) — конечные этапы завершения, без бесконечного списка идей.
+- [Художественное направление](docs/ART_DIRECTION.md).
+- [Чек-лист релиза](docs/RELEASE_CHECKLIST.md).
+
+## Проверки качества
 
 Требуется Node.js 20 или новее. Зависимости устанавливать не нужно:
 

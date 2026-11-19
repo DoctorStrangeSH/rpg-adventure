@@ -4,6 +4,7 @@ import { getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
 import { getBattleState, resetBattlePresentation } from '../ui/battle.js';
+import { getBattlePositions } from '../ui/battleLayout.js';
 import { grantItem, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
@@ -211,13 +212,13 @@ export function startStageBattle() {
     gameState.player.stats.battles++;
     gameState.save();
     
-    const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
+    const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height);
     
     import('../entities/Sprite.js').then(module => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         const Sprite = module.Sprite;
-        battleState.playerSprite = new Sprite(gameState.player.class, 100, 200);
-        battleState.enemySprite = new Sprite(enemyData.id, canvasWidth - 100, 200);
+        battleState.playerSprite = new Sprite(gameState.player.class, positions.player.x, positions.player.y);
+        battleState.enemySprite = new Sprite(enemyData.id, positions.enemy.x, positions.enemy.y);
         
         window.updateBattleUI();
         window.animateBattle();
@@ -429,13 +430,13 @@ export function startBossFight(bossData) {
     gameState.player.stats.battles++;
     gameState.save();
     
-    const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
+    const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height, true);
     
     import('../entities/Sprite.js').then(module => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         const Sprite = module.Sprite;
-        battleState.playerSprite = new Sprite(gameState.player.class, 100, 200);
-        battleState.enemySprite = new Sprite(bossData.id, canvasWidth - 100, 150);
+        battleState.playerSprite = new Sprite(gameState.player.class, positions.player.x, positions.player.y);
+        battleState.enemySprite = new Sprite(bossData.id, positions.enemy.x, positions.enemy.y);
         
         window.updateBattleUI();
         window.animateBattle();

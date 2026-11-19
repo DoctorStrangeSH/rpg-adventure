@@ -6,6 +6,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
+import { getBattlePositions } from './battleLayout.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
 import { BossSpellFx } from '../systems/bossSpellFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
@@ -54,6 +55,10 @@ function resizeBattleCanvas() {
     const container = battleState.canvas.parentElement;
     battleState.canvas.width = container.offsetWidth;
     battleState.canvas.height = container.offsetHeight - 150;
+    const positions = getBattlePositions(battleState.canvas.width, battleState.canvas.height,
+        battleState.isBossBattle);
+    if (battleState.playerSprite) Object.assign(battleState.playerSprite, positions.player);
+    if (battleState.enemySprite) Object.assign(battleState.enemySprite, positions.enemy);
 }
 
 // Dungeon stages and boss fights share this canvas, but start in dungeon.js.
@@ -93,9 +98,9 @@ export function startBattle(location) {
     player.stats.battles++;
     gameState.save();
     
-    const canvasWidth = battleState.canvas ? battleState.canvas.width : 400;
-    battleState.playerSprite = new Sprite(player.class, 100, 200);
-    battleState.enemySprite = new Sprite(enemyData.id, canvasWidth - 100, 200);
+    const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height);
+    battleState.playerSprite = new Sprite(player.class, positions.player.x, positions.player.y);
+    battleState.enemySprite = new Sprite(enemyData.id, positions.enemy.x, positions.enemy.y);
     
     window.showScreen('battle-screen');
     updateBattleUI();

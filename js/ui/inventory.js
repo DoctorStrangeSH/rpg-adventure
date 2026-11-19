@@ -11,9 +11,15 @@ export function updateInventoryScreen() {
     const content = document.getElementById('inventory-content');
     
     const setBonuses = getEquipmentSetBonuses(player);
-    const setSummary = setBonuses.activeSets.length
-        ? setBonuses.activeSets.map(set => `${set.name} (+10 п.п. к шансу эффекта оружия)`).join(', ')
-        : 'Нет активных комплектов';
+    const setSummary = setBonuses.progress.map(set => {
+        const status = set.complete ? 'Комплект собран' : set.equippedPieces > 0
+            ? `Собрано: ${set.equippedPieces}/${set.requiredPieces}` : 'Пока не найдено';
+        return `<div class="set-progress ${set.complete ? 'set-complete' : ''}">
+            <div class="set-progress-heading"><strong>${set.name}</strong><span>${status}</span></div>
+            <div class="set-progress-track"><span style="width:${set.equippedPieces / set.requiredPieces * 100}%"></span></div>
+            <small>${set.description}</small>
+        </div>`;
+    }).join('');
     content.innerHTML = `
         <div class="section-title">⚔️ Экипировка</div>
         <div class="equipment-slots">
@@ -23,7 +29,7 @@ export function updateInventoryScreen() {
         <div class="inventory-hint">Нажмите на предмет, чтобы надеть его. Нажмите на слот, чтобы снять экипировку.</div>
         
         <div class="section-title">✨ Комплекты</div>
-        <div class="equipment-set-summary">${setSummary}${setBonuses.attack ? ` · +${setBonuses.attack} атаки` : ''}${setBonuses.defense ? ` · +${setBonuses.defense} защиты` : ''}</div>
+        <div class="equipment-set-summary">${setSummary || 'Комплекты пока не обнаружены'}</div>
         <div class="section-title">🎒 Предметы</div>
         <div class="inventory-grid">
             ${player.inventory.length > 0 ? player.inventory.map((item, index) => 

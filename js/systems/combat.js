@@ -569,16 +569,51 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
 // stats. Equipping, unequipping and loading saves cannot stack the bonus.
 export function getEquipmentSetBonuses(player) {
     const equipped = Object.values(player?.equipment || {}).filter(Boolean);
-    const sets = [
-        { id: 'emberguard', name: 'Страж пепла', pieces: ['ember_sword', 'guardian_armor'], attack: 6, defense: 0 },
-        { id: 'frostwarden', name: 'Хранитель стужи', pieces: ['frost_blade', 'frost_armor'], attack: 0, defense: 7 },
-        { id: 'bloodhunter', name: 'Охотник за кровью', pieces: ['blood_dagger', 'blood_armor'], attack: 4, defense: 3 }
+    const definitions = [
+        {
+            id: 'emberguard', name: 'Страж пепла',
+            pieces: ['ember_sword', 'guardian_armor'],
+            partial: { attack: 0, defense: 2 },
+            complete: { attack: 6, defense: 0 },
+            description: '1 часть: +2 защиты · полный комплект: +6 атаки и +10 п.п. к шансу поджога'
+        },
+        {
+            id: 'frostwarden', name: 'Хранитель стужи',
+            pieces: ['frost_blade', 'frost_armor'],
+            partial: { attack: 0, defense: 3 },
+            complete: { attack: 0, defense: 7 },
+            description: '1 часть: +3 защиты · полный комплект: ещё +7 защиты и +10 п.п. к шансу заморозки'
+        },
+        {
+            id: 'bloodhunter', name: 'Охотник за кровью',
+            pieces: ['blood_dagger', 'blood_armor'],
+            partial: { attack: 2, defense: 0 },
+            complete: { attack: 4, defense: 3 },
+            description: '1 часть: +2 атаки · полный комплект: ещё +4 атаки, +3 защиты и +10 п.п. к эффекту кровотечения'
+        }
     ];
-    const activeSets = sets.filter(set => set.pieces.every(id => equipped.includes(id)));
+    const progress = definitions.map(set => {
+        const equippedPieces = set.pieces.filter(id => equipped.includes(id));
+        const count = equippedPieces.length;
+        const complete = count === set.pieces.length;
+        return {
+            id: set.id,
+            name: set.name,
+            equippedPieces: count,
+            requiredPieces: set.pieces.length,
+            equippedItemIds: equippedPieces,
+            complete,
+            description: set.description,
+            attack: (count > 0 ? set.partial.attack : 0) + (complete ? set.complete.attack : 0),
+            defense: (count > 0 ? set.partial.defense : 0) + (complete ? set.complete.defense : 0)
+        };
+    });
+    const activeSets = progress.filter(set => set.complete).map(({ id, name }) => ({ id, name }));
     return {
-        attack: activeSets.reduce((sum, set) => sum + set.attack, 0),
-        defense: activeSets.reduce((sum, set) => sum + set.defense, 0),
-        activeSets: activeSets.map(({ id, name }) => ({ id, name }))
+        attack: progress.reduce((sum, set) => sum + set.attack, 0),
+        defense: progress.reduce((sum, set) => sum + set.defense, 0),
+        activeSets,
+        progress
     };
 }
 

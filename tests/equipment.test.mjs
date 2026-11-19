@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { equipInventoryItem, unequipEquipmentItem, getEquipmentSlotForItem } from '../js/systems/equipment.js';
 import { getItem, getItemLore, getEquipmentComparison } from '../js/data/items.js';
+import { getEquipmentSetBonuses, getEffectiveCombatStats } from '../js/systems/combat.js';
 
 function makePlayer() {
     return {
@@ -72,4 +73,36 @@ test('equipment comparison reports exact upgrade and downgrade values', () => {
     assert.equal(stronger.delta, -25);
     assert.equal(stronger.isDowngrade, true);
     assert.equal(getEquipmentComparison(getItem('health_potion'), null), null);
+});
+
+test('themed sets grant a partial bonus and unlock stronger complete-set bonuses', () => {
+    const player = makePlayer();
+    player.equipment.weapon = 'ember_sword';
+    const partial = getEquipmentSetBonuses(player);
+    assert.equal(partial.progress.find(set => set.id === 'emberguard').equippedPieces, 1);
+    assert.equal(partial.attack, 0);
+    assert.equal(partial.defense, 2);
+    assert.equal(partial.activeSets.length, 0);
+
+    player.equipment.armor = 'guardian_armor';
+    const complete = getEquipmentSetBonuses(player);
+    assert.equal(complete.progress.find(set => set.id === 'emberguard').complete, true);
+    assert.equal(complete.attack, 6);
+    assert.equal(complete.defense, 2);
+    assert.deepEqual(complete.activeSets, [{ id: 'emberguard', name: 'Страж пепла' }]);
+});
+
+test('set bonuses are calculated dynamically and do not mutate saved base stats', () => {
+    const player = makePlayer();
+    player.equipment.weapon = 'blood_dagger';
+    player.equipment.armor = 'blood_armor';
+    const baseAttack = player.attack;
+    const baseDefense = player.defense;
+    const first = getEffectiveCombatStats(player);
+    const second = getEffectiveCombatStats(player);
+    assert.equal(first.attack, baseAttack + 6);
+    assert.equal(first.defense, baseDefense + 3);
+    assert.equal(second.attack, first.attack);
+    assert.equal(player.attack, baseAttack);
+    assert.equal(player.defense, baseDefense);
 });

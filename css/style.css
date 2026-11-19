@@ -1470,3 +1470,14 @@ body {
     .equipment-slot { padding: 14px 8px; }
     .slot-item { font-size: 13px; overflow-wrap: anywhere; }
 }
+
+
+/* Set collection progress */
+.set-progress { padding: 10px 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.018); }
+.set-progress-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; }
+.set-progress-heading span { color:var(--text-muted); font-size:11px; white-space:nowrap; }
+.set-progress-track { height:5px; margin:8px 0 7px; border-radius:99px; overflow:hidden; background:rgba(255,255,255,.08); }
+.set-progress-track span { display:block; height:100%; border-radius:inherit; background:var(--gold); transition:width .2s ease; }
+.set-progress small { display:block; color:var(--text-muted); font-size:11px; line-height:1.45; }
+.set-progress.set-complete { border-color:color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.set-progress.set-complete .set-progress-heading span { color:var(--gold); }

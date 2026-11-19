@@ -18,12 +18,34 @@ export class ParticleSystem {
         }
     }
     
+    createImpactBurst(x, y, damageType = 'physical', isCrit = false) {
+        const palette = {
+            fire: ['#ff6b35', '#ffbd59', '#fff0a6'],
+            ice: ['#65dfff', '#b8f4ff', '#f0fdff'],
+            poison: ['#86c65b', '#c5e879', '#efffae'],
+            arcane: ['#9d78e8', '#d4b5ff', '#f3eaff'],
+            physical: ['#c5c0b5', '#f1d38a', '#ffffff']
+        };
+        const colors = palette[damageType] || palette.physical;
+        const count = isCrit ? 22 : 10;
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const speed = (isCrit ? 3.8 : 2.4) + (i % 3) * 0.7;
+            this.particles.push({
+                x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                life: 1, color: colors[i % colors.length],
+                size: isCrit ? 3 + (i % 3) : 2 + (i % 2),
+                gravity: 0.08, impactShard: true
+            });
+        }
+    }
+
     update() {
         this.particles.forEach(particle => {
             particle.x += particle.vx;
             particle.y += particle.vy;
-            particle.vy += 0.2;
-            particle.life -= 0.02;
+            particle.vy += particle.gravity ?? 0.2;
+            particle.life -= particle.impactShard ? 0.045 : 0.02;
         });
         
         this.particles = this.particles.filter(p => p.life > 0);

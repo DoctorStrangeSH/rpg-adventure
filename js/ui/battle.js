@@ -396,10 +396,13 @@ export function playerAttack() {
         damageType
     );
     
+    particleSystem.createImpactBurst(
+        battleState.enemySprite.x, battleState.enemySprite.y - 18, damageType, isCrit
+    );
     particleSystem.createExplosion(
         battleState.enemySprite.x,
         battleState.enemySprite.y,
-        '#ff4444',
+        damageFeedback.color || '#ff4444',
         isCrit ? 30 : 15
     );
     

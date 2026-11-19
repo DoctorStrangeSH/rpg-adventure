@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
+import { ParticleSystem } from '../js/systems/particles.js';
 import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
@@ -204,4 +205,30 @@ test('damage text distinguishes critical hits and elemental damage types', () =>
     assert.ok(critical.fontSize > physical.fontSize);
     assert.equal(critical.label, 'КРИТ!');
     assert.equal(getDamageTextStyle({ damageType: 'unknown' }).color, physical.color);
+});
+
+test('impact bursts use deterministic radial shards and elemental palettes', () => {
+    const system = new ParticleSystem();
+    system.createImpactBurst(40, 60, 'ice', true);
+    assert.equal(system.particles.length, 22);
+    const first = system.particles[0];
+    const opposite = system.particles[11];
+    assert.equal(first.x, 40);
+    assert.equal(first.y, 60);
+    assert.ok(first.vx > 0);
+    assert.ok(opposite.vx < 0);
+    assert.equal(first.color, '#65dfff');
+    assert.equal(first.impactShard, true);
+    system.update();
+    assert.ok(system.particles[0].life < 1);
+});
+
+test('normal and critical impact bursts have distinct intensity', () => {
+    const system = new ParticleSystem();
+    system.createImpactBurst(0, 0, 'physical', false);
+    assert.equal(system.particles.length, 10);
+    system.particles = [];
+    system.createImpactBurst(0, 0, 'physical', true);
+    assert.equal(system.particles.length, 22);
+    assert.ok(system.particles[0].size >= 3);
 });

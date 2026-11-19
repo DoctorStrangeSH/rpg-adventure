@@ -5,11 +5,13 @@ export const Storage = {
     save(data) {
         try {
             localStorage.setItem(GAME_CONFIG.saveKey, JSON.stringify(data));
+            return true;
         } catch (error) {
             console.error('Error saving:', error);
+            return false;
         }
     },
-    
+
     load() {
         try {
             const saved = localStorage.getItem(GAME_CONFIG.saveKey);
@@ -19,8 +21,14 @@ export const Storage = {
             return null;
         }
     },
-    
+
     clear() {
-        localStorage.removeItem(GAME_CONFIG.saveKey);
+        try {
+            localStorage.removeItem(GAME_CONFIG.saveKey);
+            return true;
+        } catch (error) {
+            console.error('Error clearing save:', error);
+            return false;
+        }
     }
 };

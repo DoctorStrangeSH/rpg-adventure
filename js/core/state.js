@@ -99,7 +99,7 @@ class GameState {
     }
     
     save() {
-        Storage.save(this.data);
+        return Storage.save(this.data);
     }
     
     load() {

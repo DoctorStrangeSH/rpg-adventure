@@ -56,6 +56,16 @@ function resizeBattleCanvas() {
     battleState.canvas.height = container.offsetHeight - 150;
 }
 
+// Dungeon stages and boss fights share this canvas, but start in dungeon.js.
+// Always discard transient effects before reusing it for another encounter.
+export function resetBattlePresentation() {
+    projectileFx.clear();
+    bossSpellFx.clear();
+    particleSystem.particles.length = 0;
+    damageTexts = [];
+    isProcessing = false;
+}
+
 export function startBattle(location) {
     const player = gameState.player;
     if (!player || !location?.enemies?.length || battleState.isActive) return;
@@ -74,14 +84,12 @@ export function startBattle(location) {
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
     battleState.animationFrame = 0;
-    projectileFx.clear();
-    bossSpellFx.clear();
+    resetBattlePresentation();
     battleState.turn = 'player';
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
     battleState.guardReduction = 0;
     battleState.relicEffects = { phoenixRebirthUsed: false };
-    isProcessing = false;
     player.stats.battles++;
     gameState.save();
     

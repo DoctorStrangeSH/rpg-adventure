@@ -3,7 +3,7 @@ import { gameState } from '../core/state.js';
 import { getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
-import { getBattleState } from '../ui/battle.js';
+import { getBattleState, resetBattlePresentation } from '../ui/battle.js';
 import { grantItem, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
@@ -199,6 +199,7 @@ export function startStageBattle() {
     if (pursuer.pursued) locationState.bloodPursuerPending = false;
     
     const battleState = getBattleState();
+    resetBattlePresentation();
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
     battleState.animationFrame = 0;
@@ -416,6 +417,7 @@ export function startBossFight(bossData) {
     };
     
     const battleState = getBattleState();
+    resetBattlePresentation();
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
     battleState.animationFrame = 0;

@@ -2,7 +2,8 @@ const DEFAULT_BACKDROP = 'assets/backgrounds/moonlit-courtyard.webp';
 const REGION_BACKDROPS = Object.freeze({
     forest: 'assets/backgrounds/dark-forest.webp',
     mountains: 'assets/backgrounds/forgotten-mountains.webp',
-    ruins: 'assets/backgrounds/cursed-ruins.webp'
+    ruins: 'assets/backgrounds/cursed-ruins.webp',
+    dragon_lair: 'assets/backgrounds/dragon-lair.webp'
 });
 
 export function getArenaBackdropPath(locationId) {

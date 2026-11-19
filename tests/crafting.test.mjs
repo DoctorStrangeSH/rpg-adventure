@@ -74,3 +74,27 @@ test('upgrade visual profile maps level and weapon family to distinct visual tie
  assert.equal(getUpgradeVisualProfile('frost_blade',5).theme,'frost');assert.equal(getUpgradeVisualProfile('blood_dagger',8).tier,'awakened');
  assert.equal(getUpgradeVisualProfile('dragon_sword',10).className,'upgrade-ascended theme-dragon');assert.equal(getUpgradeVisualProfile('dragon_sword',99).level,10);
 });
+
+test('rune inscription consumes materials, obeys socket gates and adds combat bonuses',async()=>{
+ const {inscribeRune,getWeaponRunes,getRuneSocketCount}=await import('../js/systems/enchanting.js');
+ const {getEffectiveCombatStats,getWeaponDamageType}=await import('../js/systems/combat.js');
+ const p={attack:10,defense:5,equipment:{weapon:'iron_sword'},itemUpgrades:{iron_sword:1},inventory:[{id:'ember_core',quantity:2}]};
+ assert.equal(getRuneSocketCount(p,'iron_sword'),1);
+ assert.equal(inscribeRune(p,'iron_sword','flame').ok,true);
+ assert.deepEqual(getWeaponRunes(p),['flame']);assert.equal(p.inventory.length,0);
+ assert.equal(getEffectiveCombatStats(p).attack,14);assert.equal(getWeaponDamageType(p),'fire');
+ assert.equal(inscribeRune(p,'iron_sword','frost').reason,'sockets_full');
+});
+test('rune effects apply status effects with a bounded chance',async()=>{
+ const {triggerRuneEffect}=await import('../js/systems/enchanting.js');
+ const p={equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['frost']}};
+ const enemy={health:100,effects:{}};
+ assert.equal(triggerRuneEffect(p,enemy,0.1),'freeze');assert.equal(enemy.effects.freezeTurns,1);
+ assert.equal(triggerRuneEffect(p,enemy,0.9),null);assert.equal(triggerRuneEffect(p,enemy,1),null);
+});
+test('failed rune inscription leaves inventory and weapon runes unchanged',async()=>{
+ const {inscribeRune}=await import('../js/systems/enchanting.js');
+ const p={equipment:{weapon:'iron_sword'},itemUpgrades:{iron_sword:1},inventory:[{id:'ember_core',quantity:1}]};
+ const snapshot=structuredClone(p);const result=inscribeRune(p,'iron_sword','flame');
+ assert.equal(result.reason,'materials');assert.deepEqual(p,snapshot);
+});

@@ -1515,3 +1515,12 @@ body {
 .theme-steel{--upgrade-glow:#b9c6d8}.theme-ember{--upgrade-glow:#ff8a42}.theme-dragon{--upgrade-glow:#f04c39}.theme-frost{--upgrade-glow:#75dfff}.theme-blood{--upgrade-glow:#d94c68}.theme-moon{--upgrade-glow:#c1a5ff}.theme-arcane{--upgrade-glow:#d0a5ff}
 @keyframes upgradeAura{0%,100%{filter:brightness(1)}50%{filter:brightness(1.08)}}@keyframes upgradeAscended{0%,100%{filter:brightness(1)}50%{filter:brightness(1.13)}}
 @media(prefers-reduced-motion:reduce){.upgrade-awakened,.upgrade-ascended{animation:none}}
+
+.enchant-panel{margin:12px 0 18px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);display:flex;flex-direction:column;gap:9px}
+.enchant-panel>strong{color:var(--gold);font-size:13px}.enchant-panel>small{color:var(--text-muted);font-size:10px}
+.rune-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.rune-card{min-width:0;padding:10px;border:1px solid color-mix(in srgb,var(--rune-color) 45%,var(--border));border-radius:9px;display:flex;flex-direction:column;gap:5px;background:color-mix(in srgb,var(--rune-color) 6%,var(--bg-secondary))}
+.rune-card b{font-size:11px;color:var(--rune-color)}.rune-card small{font-size:9px;color:var(--text-muted);line-height:1.4}
+.rune-button{padding:7px;border:1px solid var(--rune-color);border-radius:7px;background:color-mix(in srgb,var(--rune-color) 12%,transparent);color:var(--text);font-size:10px}
+.rune-button:disabled{opacity:.4}
+@media(max-width:420px){.rune-grid{grid-template-columns:1fr}}

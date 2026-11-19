@@ -8,6 +8,7 @@ import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems
 import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
 import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
+import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune } from '../systems/enchanting.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -55,6 +56,7 @@ export function updateInventoryScreen() {
         }).join('')}
         </div>
         
+        ${createRuneEnchantPanel(player)}
         <div class="section-title">✨ Комплекты</div>
         <div class="equipment-set-summary">${setSummary || 'Комплекты пока не обнаружены'}</div>
         <div class="section-title">🏆 Охота за трофеями</div>
@@ -247,3 +249,46 @@ export function upgradeInventoryItem(itemId) {
     window.updateMainMenu?.();
 }
 window.upgradeInventoryItem = upgradeInventoryItem;
+
+function createRuneEnchantPanel(player) {
+    const weaponId = player.equipment?.weapon;
+    if (!weaponId) return '<div class="enchant-panel"><strong>ᚱ Руническое зачарование</strong><small>Наденьте оружие, чтобы открыть рунические гнёзда.</small></div>';
+    const slots = getRuneSocketCount(player, weaponId);
+    const runes = getWeaponRunes(player, weaponId);
+    const labels = runes.map(id => RUNE_CATALOG[id].icon + ' ' + RUNE_CATALOG[id].name).join(' · ');
+    const cards = Object.values(RUNE_CATALOG).map(rune => {
+        const preview = getEnchantPreview(player, weaponId, rune.id);
+        let label = 'Вставить';
+        if (preview.reason === 'upgrade_required') label = 'Требуется +1';
+        else if (preview.reason === 'sockets_full') label = 'Гнёзда заняты';
+        else if (preview.reason === 'duplicate') label = 'Уже установлена';
+        else if (preview.reason === 'materials') label = 'Не хватает материалов';
+        const cost = Object.entries(rune.cost).map(([id, qty]) => (getItem(id)?.icon || '◆') + ' ×' + qty).join(' ');
+        const stats = (rune.attack ? '+' + rune.attack + ' атаки ' : '') +
+            (rune.defense ? '+' + rune.defense + ' защиты ' : '') +
+            (rune.critChance ? '+' + Math.round(rune.critChance * 100) + '% крит. шанса ' : '') +
+            (rune.effect ? '· эффект при попадании' : '');
+        return '<div class="rune-card" style="--rune-color:' + rune.color + '"><b>' + rune.icon + ' ' + rune.name +
+            '</b><small>' + cost + '</small><small>' + stats + '</small><button class="rune-button" ' +
+            (preview.available ? '' : 'disabled') + ' onclick="window.inscribeInventoryRune(\'' + weaponId + '\',\'' + rune.id + '\')">' +
+            label + '</button></div>';
+    }).join('');
+    return '<div class="enchant-panel"><strong>ᚱ Руническое зачарование</strong><small>Гнёзда: ' +
+        runes.length + '/' + slots + ' · ' + (labels || 'Пока пусто') + '</small><div class="rune-grid">' + cards + '</div></div>';
+}
+export function inscribeInventoryRune(weaponId, runeId) {
+    const player = gameState.player;
+    if (!player) return;
+    const result = inscribeRune(player, weaponId, runeId);
+    if (!result.ok) {
+        const message = result.reason === 'upgrade_required' ? 'Сначала улучшите оружие до +1' :
+            result.reason === 'sockets_full' ? 'Нет свободных рунических гнёзд' :
+            result.reason === 'duplicate' ? 'Эта руна уже установлена' : 'Не хватает материалов';
+        window.showNotification(message, 'error');
+        return;
+    }
+    gameState.save();
+    window.showNotification('Установлена руна: ' + result.rune.name, 'success');
+    updateInventoryScreen();
+}
+window.inscribeInventoryRune = inscribeInventoryRune;

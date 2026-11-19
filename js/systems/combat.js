@@ -1,3 +1,4 @@
+import { getWeaponRuneBonuses, getWeaponRuneDamageType, triggerRuneEffect } from './enchanting.js';
 // Pure combat rules: shared by battles and automated regression tests.
 import { getItem } from '../data/items.js';
 import { getTalentBonuses } from './talents.js';
@@ -115,6 +116,8 @@ export function triggerRangerEffect(player, enemy, roll = Math.random()) {
 
 export function triggerWeaponEffect(player, enemy, roll = Math.random()) {
     if (!enemy || enemy.health <= 0 || !player?.equipment?.weapon) return null;
+    const runeEffect = triggerRuneEffect(player, enemy, roll);
+    if (runeEffect) return runeEffect;
     const effect = getItem(player.equipment.weapon)?.onHit;
     if (!effect || !Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
     // A complete elemental set improves the proc chance of its matching weapon
@@ -192,7 +195,7 @@ export function calculateTypedDamage(attack, defense, variance = 0, multiplier =
 }
 
 export function getWeaponDamageType(player) {
-    return getItem(player?.equipment?.weapon)?.damageType || 'physical';
+    return getWeaponRuneDamageType(player) || getItem(player?.equipment?.weapon)?.damageType || 'physical';
 }
 
 // Bosses and elite tacticians study repeated damage types. Two consecutive
@@ -623,11 +626,12 @@ export function getEffectiveCombatStats(player) {
     const relics = getRelicBonuses(player);
     const upgradeAttack = player?.equipment?.weapon ? (Number(player.itemUpgrades?.[player.equipment.weapon]) || 0) * 2 : 0;
     const upgradeDefense = player?.equipment?.armor ? (Number(player.itemUpgrades?.[player.equipment.armor]) || 0) * 2 : 0;
+    const runeBonuses = getWeaponRuneBonuses(player);
     return {
-        attack: Math.max(0, Math.floor(((Number(player?.attack) || 0) + bonuses.attack + talents.attack + relics.attack + upgradeAttack) *
+        attack: Math.max(0, Math.floor(((Number(player?.attack) || 0) + bonuses.attack + talents.attack + relics.attack + upgradeAttack + runeBonuses.attack) *
             (hasSpecialization(player, 'warrior_berserker') && player.maxHealth > 0 && player.health / player.maxHealth <= 0.35 ? 1.3 : 1))),
-        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense + relics.defense + upgradeDefense),
-        critChance: Math.min(1, 0.15 + talents.critChance + relics.critChance),
+        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense + relics.defense + upgradeDefense + runeBonuses.defense),
+        critChance: Math.min(1, 0.15 + talents.critChance + relics.critChance + runeBonuses.critChance),
         activeSets: bonuses.activeSets
     };
 }

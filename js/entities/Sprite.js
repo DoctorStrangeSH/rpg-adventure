@@ -28,18 +28,30 @@ if (typeof Image !== 'undefined') {
     }
 }
 
-// Validate a horizontal sprite atlas before drawing. Invalid dimensions return
-// null so the existing procedural/canvas fallback remains available.
-export function getHorizontalAtlasFrame(imageWidth, imageHeight, frameCount, frameIndex) {
+// Validate a uniform grid atlas before drawing. Invalid dimensions return null
+// so the existing procedural/canvas fallback remains available.
+export function getGridAtlasFrame(imageWidth, imageHeight, columns, rows, frameIndex) {
     if (!Number.isInteger(imageWidth) || imageWidth <= 0 ||
         !Number.isInteger(imageHeight) || imageHeight <= 0 ||
-        !Number.isInteger(frameCount) || frameCount <= 0 ||
-        imageWidth % frameCount !== 0 ||
-        !Number.isInteger(frameIndex) || frameIndex < 0 || frameIndex >= frameCount) {
+        !Number.isInteger(columns) || columns <= 0 ||
+        !Number.isInteger(rows) || rows <= 0 ||
+        imageWidth % columns !== 0 || imageHeight % rows !== 0 ||
+        !Number.isInteger(frameIndex) || frameIndex < 0 || frameIndex >= columns * rows) {
         return null;
     }
-    const frameWidth = imageWidth / frameCount;
-    return { x: frameIndex * frameWidth, y: 0, width: frameWidth, height: imageHeight };
+    const width = imageWidth / columns;
+    const height = imageHeight / rows;
+    return {
+        x: (frameIndex % columns) * width,
+        y: Math.floor(frameIndex / columns) * height,
+        width,
+        height
+    };
+}
+
+// Horizontal compatibility wrapper for existing four-frame character sheets.
+export function getHorizontalAtlasFrame(imageWidth, imageHeight, frameCount, frameIndex) {
+    return getGridAtlasFrame(imageWidth, imageHeight, frameCount, 1, frameIndex);
 }
 
 // Four hand-drawn attack frames, each lasting seven render ticks. The index

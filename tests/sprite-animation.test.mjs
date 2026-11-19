@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
 import { ParticleSystem } from '../js/systems/particles.js';
-import { getAttackFrame, getHorizontalAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHorizontalAtlasFrame, getGridAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -279,4 +279,17 @@ test('horizontal sprite atlas validation returns exact integer frame rectangles'
     assert.equal(getHorizontalAtlasFrame(512, 128, 0, 0), null);
     assert.equal(getHorizontalAtlasFrame(512, 128, 4, 4), null);
     assert.equal(getHorizontalAtlasFrame(Number.NaN, 128, 4, 0), null);
+});
+
+test('grid atlas validation supports directional rows with exact frame bounds', () => {
+    assert.deepEqual(getGridAtlasFrame(512, 512, 4, 4, 0),
+        { x: 0, y: 0, width: 128, height: 128 });
+    assert.deepEqual(getGridAtlasFrame(512, 512, 4, 4, 6),
+        { x: 256, y: 128, width: 128, height: 128 });
+    assert.deepEqual(getGridAtlasFrame(512, 512, 4, 4, 15),
+        { x: 384, y: 384, width: 128, height: 128 });
+    assert.equal(getGridAtlasFrame(510, 512, 4, 4, 0), null);
+    assert.equal(getGridAtlasFrame(512, 510, 4, 4, 0), null);
+    assert.equal(getGridAtlasFrame(512, 512, 4, 4, 16), null);
+    assert.equal(getGridAtlasFrame(512, 512, 0, 4, 0), null);
 });

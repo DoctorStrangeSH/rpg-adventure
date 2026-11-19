@@ -38,6 +38,22 @@ export function inscribeRune(player,weaponId,runeId){
  player.weaponRunes ||= {};player.weaponRunes[weaponId] ||= [];player.weaponRunes[weaponId].push(runeId);
  return {ok:true,rune:preview.rune,used:player.weaponRunes[weaponId].length,slots:preview.slots};
 }
+export const RUNE_EXTRACTION_GOLD = 50;
+export function getRuneExtractionPreview(player,weaponId,index){
+ const runes=getWeaponRunes(player,weaponId);
+ if(!player||player.equipment?.weapon!==weaponId)return {available:false,reason:'not_equipped'};
+ if(!Number.isInteger(index)||index<0||index>=runes.length)return {available:false,reason:'invalid_socket'};
+ const gold=Math.max(0,Number(player.gold)||0);
+ return {available:gold>=RUNE_EXTRACTION_GOLD,reason:gold>=RUNE_EXTRACTION_GOLD?null:'gold',cost:RUNE_EXTRACTION_GOLD,rune:RUNE_CATALOG[runes[index]],index};
+}
+export function extractRune(player,weaponId,index){
+ const preview=getRuneExtractionPreview(player,weaponId,index);
+ if(!preview.available)return {ok:false,...preview};
+ player.gold-=preview.cost;
+ player.weaponRunes[weaponId].splice(index,1);
+ if(player.weaponRunes[weaponId].length===0)delete player.weaponRunes[weaponId];
+ return {ok:true,rune:preview.rune,cost:preview.cost,remaining:getWeaponRunes(player,weaponId).length};
+}
 export const RUNE_SYNERGIES = Object.freeze({
  'blood+flame': {id:'crimson_flare',name:'Алый пожар',icon:'🔥🩸',description:'Горение и кровотечение накладываются вместе; +2 к атаке.',attack:2,critChance:0,effects:['burn','bleed'],turns:2},
  'frost+storm': {id:'frozen_tempest',name:'Гром ледяной бури',icon:'❄️⚡',description:'Заморозка ослабляет противника; +3% к критическому шансу.',attack:0,critChance:0.03,effects:['freeze','weaken'],turns:1}

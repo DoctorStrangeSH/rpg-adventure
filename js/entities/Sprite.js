@@ -3,6 +3,7 @@
 // and test environments can fall back to the original canvas silhouettes.
 const HERO_IMAGES = {};
 const HERO_ATTACK_IMAGES = {};
+const HERO_GUARD_IMAGES = {};
 if (typeof Image !== 'undefined') {
     for (const hero of ['warrior', 'mage', 'archer']) {
         const image = new Image();
@@ -14,6 +15,9 @@ if (typeof Image !== 'undefined') {
         attack.src = `assets/characters/heroes/${hero}-attack.png`;
         HERO_ATTACK_IMAGES[hero] = attack;
     }
+    const warriorGuard = new Image();
+    warriorGuard.src = 'assets/characters/heroes/warrior-guard.png';
+    HERO_GUARD_IMAGES.warrior = warriorGuard;
     for (const enemy of ['skeleton', 'wolf', 'goblin']) {
         const idle = new Image();
         idle.src = `assets/characters/enemies/${enemy}-idle.png`;
@@ -29,6 +33,10 @@ if (typeof Image !== 'undefined') {
 export function getAttackFrame(elapsed, frames = 4, ticksPerFrame = 7) {
     if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;
     return Math.max(0, Math.min(frames - 1, Math.floor(elapsed / ticksPerFrame)));
+}
+
+export function getWarriorVisualPose(attacking, guarding) {
+    return attacking ? 'attack' : guarding ? 'guard' : 'idle';
 }
 
 // A short two-beat impact: recoil away from the attacker, then settle.
@@ -86,6 +94,7 @@ export class Sprite {
         this.width = 60;
         this.height = 60;
         this.isAttacking = false;
+        this.isGuarding = false;
         this.isHit = false;
         this.attackStartFrame = null;
         this.hitStartFrame = null;
@@ -134,6 +143,15 @@ export class Sprite {
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(attackImage, frameIndex * frameWidth, 0, frameWidth,
                 attackImage.naturalHeight, -width / 2, 30 - height, width, height);
+            return;
+        }
+        const guardImage = HERO_GUARD_IMAGES[this.type];
+        if (getWarriorVisualPose(this.isAttacking, this.isGuarding) === 'guard' &&
+            guardImage?.complete && guardImage.naturalWidth > 0) {
+            const height = 103;
+            const width = height * guardImage.naturalWidth / guardImage.naturalHeight;
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(guardImage, -width / 2, 30 - height, width, height);
             return;
         }
         const heroImage = HERO_IMAGES[this.type];

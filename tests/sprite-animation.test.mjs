@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, Sprite } from '../js/entities/Sprite.js';
+
+test('warrior guards while protected but attacks take visual priority', () => {
+    assert.equal(getWarriorVisualPose(false, false), 'idle');
+    assert.equal(getWarriorVisualPose(false, true), 'guard');
+    assert.equal(getWarriorVisualPose(true, true), 'attack');
+    assert.equal(getWarriorVisualPose(true, false), 'attack');
+    assert.equal(new Sprite('warrior', 0, 0).isGuarding, false);
+});
 
 test('dragon wing motion is smooth, bounded and slower for ancient dragons', () => {
     assert.equal(getDragonWingLift(0), 0);

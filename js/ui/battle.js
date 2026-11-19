@@ -156,6 +156,8 @@ function drawBattle() {
         getArenaTheme(locationId, battleState.currentEnemy?.id), battleState.animationFrame);
     
     if (battleState.playerSprite) {
+        battleState.playerSprite.isGuarding = gameState.player?.class === 'warrior' &&
+            battleState.guardReduction > 0;
         battleState.playerSprite.draw(ctx, battleState.animationFrame);
         drawBattleHPBar(ctx, battleState.playerSprite, gameState.player, true);
     }

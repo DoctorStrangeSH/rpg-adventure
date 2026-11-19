@@ -7,6 +7,7 @@ import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
 import { getBattlePositions } from './battleLayout.js';
+import { getArenaTheme, drawArenaAtmosphere } from './arenaTheme.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
 import { BossSpellFx } from '../systems/bossSpellFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
@@ -149,6 +150,9 @@ function drawBattle() {
         ctx.fillStyle = '#393343';
         ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
     }
+    const locationId = window.getLocationState?.()?.currentLocation?.id;
+    drawArenaAtmosphere(ctx, canvas.width, canvas.height,
+        getArenaTheme(locationId, battleState.currentEnemy?.id), battleState.animationFrame);
     
     if (battleState.playerSprite) {
         battleState.playerSprite.draw(ctx, battleState.animationFrame);

@@ -96,7 +96,11 @@ export const ITEMS = {
     ember_core: { id: 'ember_core', name: 'Угольное ядро', icon: '🔥', type: 'material', rarity: 'rare', price: 45 },
     frost_crystal: { id: 'frost_crystal', name: 'Кристалл стужи', icon: '❄️', type: 'material', rarity: 'rare', price: 50 },
     blood_essence: { id: 'blood_essence', name: 'Кровавая эссенция', icon: '🩸', type: 'material', rarity: 'rare', price: 55 },
-    dragon_scale: { id: 'dragon_scale', name: 'Чешуя дракона', icon: '🐉', type: 'material', rarity: 'epic', price: 120 }
+    dragon_scale: { id: 'dragon_scale', name: 'Чешуя дракона', icon: '🐉', type: 'material', rarity: 'epic', price: 120 },
+    rune_verdant_heart: { id: 'rune_verdant_heart', name: 'Сердце древнего леса', icon: '🌿', type: 'material', rarity: 'legendary', price: 260 },
+    rune_dragon_heart: { id: 'rune_dragon_heart', name: 'Сердце горного дракона', icon: '🐉', type: 'material', rarity: 'legendary', price: 320 },
+    rune_lich_soul: { id: 'rune_lich_soul', name: 'Печать Короля-лича', icon: '☠️', type: 'material', rarity: 'legendary', price: 340 },
+    rune_world_fragment: { id: 'rune_world_fragment', name: 'Осколок Пожирателя миров', icon: '🌑', type: 'material', rarity: 'legendary', price: 420 }
 
 };
 

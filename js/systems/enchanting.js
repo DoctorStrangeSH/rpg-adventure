@@ -3,7 +3,11 @@ export const RUNE_CATALOG = Object.freeze({
  flame:{id:'flame',name:'Руна пламени',icon:'🔥',color:'#ff8748',damageType:'fire',effect:'burn',turns:2,attack:2,cost:{ember_core:2}},
  frost:{id:'frost',name:'Руна стужи',icon:'❄️',color:'#78dfff',damageType:'ice',effect:'freeze',turns:1,defense:2,cost:{frost_crystal:2}},
  blood:{id:'blood',name:'Руна крови',icon:'🩸',color:'#e45b75',damageType:'poison',effect:'bleed',turns:2,attack:2,cost:{blood_essence:2}},
- storm:{id:'storm',name:'Руна грозы',icon:'⚡',color:'#d5b4ff',damageType:'physical',effect:null,turns:0,critChance:0.04,cost:{iron_ore:5,ember_core:1}}
+ storm:{id:'storm',name:'Руна грозы',icon:'⚡',color:'#d5b4ff',damageType:'physical',effect:null,turns:0,critChance:0.04,cost:{iron_ore:5,ember_core:1},
+ verdant:{id:'verdant',name:'Сердце древнего леса',icon:'🌿',color:'#83d18b',damageType:'poison',effect:'poison',turns:2,defense:3,cost:{rune_verdant_heart:1},bossRune:true},
+ dragon:{id:'dragon',name:'Сердце горного дракона',icon:'🐉',color:'#ff754c',damageType:'fire',effect:'burn',turns:3,attack:3,cost:{rune_dragon_heart:1},bossRune:true},
+ lich:{id:'lich',name:'Печать Короля-лича',icon:'☠️',color:'#b99aff',damageType:'poison',effect:'poison',turns:3,critChance:0.03,cost:{rune_lich_soul:1},bossRune:true},
+ world:{id:'world',name:'Осколок Пожирателя миров',icon:'🌑',color:'#d58bff',damageType:'physical',effect:'bleed',turns:3,attack:2,critChance:0.02,cost:{rune_world_fragment:1},bossRune:true}
 });
 export function getRuneSocketCount(player,weaponId){
  const level=Math.max(0,Math.min(10,Math.floor(Number(player?.itemUpgrades?.[weaponId])||0)));
@@ -52,7 +56,13 @@ export function extractRune(player,weaponId,index){
  player.gold-=preview.cost;
  player.weaponRunes[weaponId].splice(index,1);
  if(player.weaponRunes[weaponId].length===0)delete player.weaponRunes[weaponId];
- return {ok:true,rune:preview.rune,cost:preview.cost,remaining:getWeaponRunes(player,weaponId).length};
+ player.inventory ||= [];
+ for(const [itemId,quantity] of Object.entries(preview.rune.cost)){
+  const stack=player.inventory.find(item=>item.id===itemId);
+  if(stack)stack.quantity+=quantity;
+  else player.inventory.push({id:itemId,quantity});
+ }
+ return {ok:true,rune:preview.rune,cost:preview.cost,returnedMaterials:{...preview.rune.cost},remaining:getWeaponRunes(player,weaponId).length};
 }
 export const RUNE_SYNERGIES = Object.freeze({
  'blood+flame': {id:'crimson_flare',name:'Алый пожар',icon:'🔥🩸',description:'Горение и кровотечение накладываются вместе; +2 к атаке.',attack:2,critChance:0,effects:['burn','bleed'],turns:2},

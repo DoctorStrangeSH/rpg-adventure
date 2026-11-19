@@ -22,14 +22,27 @@ const BOSS_TROPHIES = Object.freeze({
     lich_king: 'blood_armor',
     world_eater: 'dragon_sword'
 });
+export const BOSS_RUNE_DROPS = Object.freeze({
+    forest_guardian: 'verdant',
+    mountain_dragon: 'dragon',
+    lich_king: 'lich',
+    world_eater: 'world'
+});
+const BOSS_RUNE_ITEMS = Object.freeze({
+    forest_guardian: 'rune_verdant_heart',
+    mountain_dragon: 'rune_dragon_heart',
+    lich_king: 'rune_lich_soul',
+    world_eater: 'rune_world_fragment'
+});
 
 // Story bosses favor loot tied to their region; the remaining rolls retain
 // the normal boss pool, so repeat encounters can still yield varied equipment.
 export function rollLoot(isBoss = false, random = Math.random, bossId = null) {
     const roll = random();
     if (!Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
-    if (isBoss && Object.hasOwn(BOSS_TROPHIES, bossId) && roll < 0.65) {
-        return BOSS_TROPHIES[bossId];
+    if (isBoss && Object.hasOwn(BOSS_TROPHIES, bossId)) {
+        if (roll < 0.18) return BOSS_RUNE_ITEMS[bossId];
+        if (roll < 0.65) return BOSS_TROPHIES[bossId];
     }
     if (!isBoss && roll >= 0.18) return null;
     const tier = isBoss ? roll : roll / 0.18;

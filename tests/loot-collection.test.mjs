@@ -12,3 +12,17 @@ test('failed quantity overflow does not unlock an item in the collection', () =>
     assert.deepEqual(player.discoveredItems, undefined);
     assert.equal(player.inventory[0].quantity, Number.MAX_SAFE_INTEGER);
 });
+
+test('story bosses can drop their own legendary rune materials',()=>{
+ const cases=[
+  ['forest_guardian','rune_verdant_heart'],
+  ['mountain_dragon','rune_dragon_heart'],
+  ['lich_king','rune_lich_soul'],
+  ['world_eater','rune_world_fragment']
+ ];
+ for(const [bossId,itemId] of cases) assert.equal(rollLoot(true,()=>0.1,bossId),itemId);
+});
+test('boss rune drops are limited to known story bosses and preserve trophy drops',()=>{
+ assert.equal(rollLoot(true,()=>0.1,'unknown_boss'),'dragon_sword');
+ assert.equal(rollLoot(true,()=>0.3,'forest_guardian'),'guardian_armor');
+});

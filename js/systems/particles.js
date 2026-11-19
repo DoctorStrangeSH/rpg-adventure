@@ -39,27 +39,52 @@ export class ParticleSystem {
     }
 }
 
+export function getDamageTextStyle({ isCrit = false, damageType = 'physical' } = {}) {
+    const elemental = {
+        fire: '#ff9b42',
+        ice: '#8deaff',
+        poison: '#a6df75',
+        arcane: '#c5a4ff'
+    };
+    return {
+        color: isCrit ? '#ffdf91' : (elemental[damageType] || '#f1d38a'),
+        fontSize: isCrit ? 27 : 20,
+        weight: isCrit ? '900' : '700',
+        outline: isCrit ? '#7b2637' : '#302b28',
+        label: isCrit ? 'КРИТ!' : null
+    };
+}
+
 export class DamageText {
-    constructor(x, y, text, color) {
+    constructor(x, y, text, color, options = {}) {
         this.x = x;
         this.y = y;
         this.text = text;
         this.color = color;
+        this.style = getDamageTextStyle(options);
+        this.critical = options.isCrit === true;
         this.life = 1;
-        this.vy = -3;
+        this.vy = this.critical ? -3.8 : -3;
     }
     
     update() {
         this.y += this.vy;
-        this.life -= 0.02;
+        this.life -= this.critical ? 0.024 : 0.02;
     }
     
     draw(ctx) {
-        ctx.fillStyle = this.color;
+        ctx.save();
         ctx.globalAlpha = this.life;
-        ctx.font = 'bold 20px Arial';
         ctx.textAlign = 'center';
+        ctx.lineJoin = 'round';
+        ctx.font = `${this.style.weight} ${this.style.fontSize}px Arial`;
+        ctx.lineWidth = this.critical ? 4 : 2;
+        ctx.strokeStyle = this.style.outline;
+        ctx.strokeText(this.text, this.x, this.y);
+        ctx.fillStyle = this.color;
+        ctx.shadowColor = this.critical ? '#ff9d5c' : 'transparent';
+        ctx.shadowBlur = this.critical ? 9 : 0;
         ctx.fillText(this.text, this.x, this.y);
-        ctx.globalAlpha = 1;
+        ctx.restore();
     }
 }

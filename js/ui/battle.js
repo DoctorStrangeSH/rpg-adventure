@@ -392,7 +392,8 @@ export function playerAttack() {
         battleState.enemySprite.x,
         battleState.enemySprite.y - 50,
         damage,
-        isCrit
+        isCrit,
+        damageType
     );
     
     particleSystem.createExplosion(
@@ -680,10 +681,10 @@ function enemyTurn() {
     }, 500);
 }
 
-function addDamageText(x, y, damage, isCrit = false) {
-    const color = isCrit ? '#ff4444' : '#ffd700';
-    const text = isCrit ? `CRIT! ${damage}` : `-${damage}`;
-    damageTexts.push(new DamageText(x, y, text, color));
+function addDamageText(x, y, damage, isCrit = false, damageType = 'physical') {
+    const text = isCrit ? `КРИТ! ${damage}` : `-${damage}`;
+    damageTexts.push(new DamageText(x, y, text,
+        isCrit ? '#ffdf91' : undefined, { isCrit, damageType }));
 }
 
 export function battleVictory() {

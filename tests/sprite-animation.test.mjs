@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getDamageTextStyle } from '../js/systems/particles.js';
 import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
@@ -190,4 +191,17 @@ test('hero hit reactions have distinct class silhouettes and expire safely', () 
     assert.equal(getHeroHitPose('mage', 16).active, false);
     assert.equal(getHeroHitPose('archer', Number.NaN).active, false);
     assert.equal(getHeroHitPose('warrior', -1).active, false);
+});
+
+test('damage text distinguishes critical hits and elemental damage types', () => {
+    const physical = getDamageTextStyle({ damageType: 'physical' });
+    const fire = getDamageTextStyle({ damageType: 'fire' });
+    const ice = getDamageTextStyle({ damageType: 'ice' });
+    const critical = getDamageTextStyle({ isCrit: true, damageType: 'fire' });
+    assert.notEqual(physical.color, fire.color);
+    assert.notEqual(fire.color, ice.color);
+    assert.equal(critical.color, '#ffdf91');
+    assert.ok(critical.fontSize > physical.fontSize);
+    assert.equal(critical.label, 'КРИТ!');
+    assert.equal(getDamageTextStyle({ damageType: 'unknown' }).color, physical.color);
 });

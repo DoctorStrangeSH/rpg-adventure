@@ -49,15 +49,26 @@ export function getRuneSynergy(player,weaponId=player?.equipment?.weapon){
  return RUNE_SYNERGIES[key]||null;
 }
 export function getWeaponRuneBonuses(player,weaponId=player?.equipment?.weapon){
- return getWeaponRunes(player,weaponId).reduce((sum,id)=>{
+ const total=getWeaponRunes(player,weaponId).reduce((sum,id)=>{
   const rune=RUNE_CATALOG[id];sum.attack+=rune.attack||0;sum.defense+=rune.defense||0;sum.critChance+=rune.critChance||0;return sum;
  },{attack:0,defense:0,critChance:0});
+ const synergy=getRuneSynergy(player,weaponId);
+ if(synergy){total.attack+=synergy.attack||0;total.critChance+=synergy.critChance||0;}
+ return total;
 }
 export function getWeaponRuneDamageType(player){
  const runes=getWeaponRunes(player);return runes.length?RUNE_CATALOG[runes[runes.length-1]].damageType:null;
 }
 export function triggerRuneEffect(player,enemy,roll=Math.random()){
  if(!enemy||enemy.health<=0||!Number.isFinite(roll)||roll<0||roll>=1)return null;
+ const synergy=getRuneSynergy(player);
+ if(synergy&&roll<0.15){
+  enemy.effects ||= {};
+  for(const effect of synergy.effects){
+   const key=effect+'Turns';enemy.effects[key]=Math.max(enemy.effects[key]||0,synergy.turns);
+  }
+  return synergy.id;
+ }
  const runes=getWeaponRunes(player),rune=runes.length?RUNE_CATALOG[runes[runes.length-1]]:null;
  if(!rune?.effect||roll>=0.2)return null;
  const key=rune.effect+'Turns';enemy.effects ||= {};enemy.effects[key]=Math.max(enemy.effects[key]||0,rune.turns);return rune.effect;

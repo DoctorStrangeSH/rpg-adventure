@@ -4,6 +4,7 @@ import { getItem, getItemAbilityDescription, getItemLore, getEquipmentComparison
 import { getEquipmentSetBonuses } from '../systems/combat.js';
 import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.js';
 import { getBossTrophyCatalog, getCollectionProgress } from '../systems/loot.js';
+import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems/crafting.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -14,6 +15,12 @@ export function updateInventoryScreen() {
     const setBonuses = getEquipmentSetBonuses(player);
     const collection = getCollectionProgress(player.discoveredItems);
     const trophyCatalog = getBossTrophyCatalog(player.discoveredItems);
+    const craftingCards = CRAFTING_RECIPES.map(recipe => {
+        const availability = getCraftingAvailability(player, recipe);
+        const output = getItem(recipe.output);
+        const ingredients = Object.entries(recipe.materials).map(([id, qty]) => `${getItem(id)?.icon || '◆'} ${getItem(id)?.name || id} ×${qty}`).join(' · ');
+        return `<div class="crafting-recipe"><div class="crafting-recipe-head"><strong>${output?.icon || '⚒️'} ${recipe.name}</strong><span>${recipe.gold} золота</span></div><small>${ingredients}</small><small>Уровень ${recipe.requiredLevel}${recipe.requiresDiscovery ? ' · Требуется особый материал' : ''}</small><button class="craft-button" ${availability.available ? '' : 'disabled'} onclick="window.craftInventoryItem('${recipe.id}')">${availability.available ? '⚒️ Создать' : availability.reason === 'level' ? `Нужен ${recipe.requiredLevel} уровень` : availability.reason === 'discovery' ? 'Нужен редкий материал' : availability.reason === 'gold' ? `Не хватает ${availability.missing} золота` : 'Не хватает материалов'}</button></div>`;
+    }).join('');
     const setSummary = setBonuses.progress.map(set => {
         const status = set.complete ? 'Комплект собран' : set.equippedPieces > 0
             ? `Собрано: ${set.equippedPieces}/${set.requiredPieces}` : 'Пока не найдено';
@@ -36,7 +43,7 @@ export function updateInventoryScreen() {
         <div class="section-title">🏆 Охота за трофеями</div>
         <div class="collection-summary"><strong>${collection.discovered}/${collection.total}</strong><span>уникальных трофеев боссов найдено</span></div>
         <div class="boss-trophy-grid">${trophyCatalog.map(entry => { const item = getItem(entry.itemId); return `<div class="boss-trophy ${entry.discovered ? 'trophy-found' : 'trophy-unknown'}"><div class="boss-trophy-icon">${entry.discovered ? item?.icon || '🏆' : '❔'}</div><div class="boss-trophy-info"><strong>${entry.discovered ? item?.name : 'Неизвестный трофей'}</strong><small>${entry.bossName} · ${entry.region}</small></div><span>${entry.discovered ? 'Найдено' : 'Не найдено'}</span></div>`; }).join('')}</div>
-        <div class="section-title">🎒 Предметы</div>
+        <div class="section-title">⚒️ Кузница</div><div class="crafting-grid">${craftingCards}</div>\n        <div class="section-title">🎒 Предметы</div>
         <div class="inventory-grid">
             ${player.inventory.length > 0 ? player.inventory.map((item, index) => 
                 createInventoryItem(item, index, player)
@@ -177,3 +184,20 @@ export function unequipItem(slot) {
     window.updateCharacterScreen?.();
     window.updateMainMenu?.();
 }
+
+export function craftInventoryItem(recipeId) {
+    const player = gameState.player;
+    if (!player) return;
+    const result = craftItem(player, recipeId);
+    if (!result.ok) {
+        window.showNotification(result.reason === 'materials' ? 'Не хватает материалов' :
+            result.reason === 'gold' ? 'Недостаточно золота' :
+            result.reason === 'level' ? `Требуется ${result.requiredLevel} уровень` :
+            result.reason === 'discovery' ? 'Сначала найдите редкий материал' : 'Не удалось создать предмет', 'error');
+        return;
+    }
+    gameState.save();
+    window.showNotification(`Создано: ${result.item.name}`, 'success');
+    updateInventoryScreen();
+}
+window.craftInventoryItem = craftInventoryItem;

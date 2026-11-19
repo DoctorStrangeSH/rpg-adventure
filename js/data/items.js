@@ -91,7 +91,13 @@ export const ITEMS = {
         type: 'weapon', rarity: 'uncommon', attackBonus: 12,
         requiredLevel: 3, price: 320, setId: 'bloodhunter',
         onHit: { type: 'bleed', chance: 0.35, turns: 2 }
-    }
+    },
+    iron_ore: { id: 'iron_ore', name: 'Железная руда', icon: '⛏️', type: 'material', rarity: 'common', price: 8 },
+    ember_core: { id: 'ember_core', name: 'Угольное ядро', icon: '🔥', type: 'material', rarity: 'rare', price: 45 },
+    frost_crystal: { id: 'frost_crystal', name: 'Кристалл стужи', icon: '❄️', type: 'material', rarity: 'rare', price: 50 },
+    blood_essence: { id: 'blood_essence', name: 'Кровавая эссенция', icon: '🩸', type: 'material', rarity: 'rare', price: 55 },
+    dragon_scale: { id: 'dragon_scale', name: 'Чешуя дракона', icon: '🐉', type: 'material', rarity: 'epic', price: 120 }
+
 };
 
 export function getItem(itemId) {

@@ -1483,3 +1483,12 @@ body {
 .set-progress.set-complete .set-progress-heading span { color:var(--gold); }
 
 .collection-summary{display:flex;align-items:baseline;gap:9px;padding:10px 12px;color:var(--text-muted);font-size:12px}.collection-summary strong{color:var(--gold);font-size:22px}.boss-trophy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:18px}.boss-trophy{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--bg-card);min-width:0}.boss-trophy-icon{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,.04);font-size:20px}.boss-trophy-info{min-width:0;display:flex;flex-direction:column;gap:3px}.boss-trophy-info strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.boss-trophy-info small{color:var(--text-muted);font-size:10px;line-height:1.35}.boss-trophy>span{grid-column:2;color:var(--text-muted);font-size:10px}.trophy-found{border-color:color-mix(in srgb,var(--gold) 40%,var(--border))}.trophy-found>span{color:var(--gold)}.trophy-unknown{opacity:.78}@media(max-width:480px){.boss-trophy-grid{grid-template-columns:1fr}}
+
+.crafting-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.crafting-recipe{min-width:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);display:flex;flex-direction:column;gap:7px}
+.crafting-recipe-head{display:flex;justify-content:space-between;gap:8px;font-size:12px}
+.crafting-recipe-head span{color:var(--gold);white-space:nowrap}
+.crafting-recipe small{color:var(--text-muted);font-size:10px;line-height:1.4}
+.craft-button{margin-top:auto;border:1px solid var(--gold);border-radius:8px;padding:9px;background:rgba(214,169,79,.12);color:var(--text-primary);font-weight:600}
+.craft-button:disabled{opacity:.45;border-color:var(--border);cursor:not-allowed}
+@media(max-width:480px){.crafting-grid{grid-template-columns:1fr}}

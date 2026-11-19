@@ -47,8 +47,15 @@ export function getRuneExtractionPreview(player,weaponId,index){
  const runes=getWeaponRunes(player,weaponId);
  if(!player||player.equipment?.weapon!==weaponId)return {available:false,reason:'not_equipped'};
  if(!Number.isInteger(index)||index<0||index>=runes.length)return {available:false,reason:'invalid_socket'};
+ const rune=RUNE_CATALOG[runes[index]];
+ const inventory=Array.isArray(player.inventory)?player.inventory:[];
+ for(const [itemId,quantity] of Object.entries(rune.cost)){
+  const stack=inventory.find(item=>item.id===itemId);
+  if(stack&&(!Number.isSafeInteger(stack.quantity)||stack.quantity<0||stack.quantity>Number.MAX_SAFE_INTEGER-quantity))
+   return {available:false,reason:'inventory_capacity',rune,index};
+ }
  const gold=Math.max(0,Number(player.gold)||0);
- return {available:gold>=RUNE_EXTRACTION_GOLD,reason:gold>=RUNE_EXTRACTION_GOLD?null:'gold',cost:RUNE_EXTRACTION_GOLD,rune:RUNE_CATALOG[runes[index]],index};
+ return {available:gold>=RUNE_EXTRACTION_GOLD,reason:gold>=RUNE_EXTRACTION_GOLD?null:'gold',cost:RUNE_EXTRACTION_GOLD,rune,index};
 }
 export function extractRune(player,weaponId,index){
  const preview=getRuneExtractionPreview(player,weaponId,index);

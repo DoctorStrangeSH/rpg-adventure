@@ -138,3 +138,22 @@ test('rune extraction refuses insufficient gold or invalid sockets without mutat
  assert.equal(extractRune(p,'iron_sword',0).reason,'gold');assert.deepEqual(p,snapshot);
  assert.equal(extractRune(p,'iron_sword',3).reason,'invalid_socket');assert.deepEqual(p,snapshot);
 });
+
+test('boss-only runes can be inscribed with their exact boss drop and extracted safely',async()=>{
+ const {inscribeRune,extractRune,getWeaponRunes}=await import('../js/systems/enchanting.js');
+ const p={gold:100,equipment:{weapon:'iron_sword'},itemUpgrades:{iron_sword:4},inventory:[{id:'rune_dragon_heart',quantity:1}]};
+ assert.equal(inscribeRune(p,'iron_sword','dragon').ok,true);
+ assert.deepEqual(getWeaponRunes(p),['dragon']);
+ assert.equal(p.inventory.length,0);
+ const result=extractRune(p,'iron_sword',0);
+ assert.equal(result.ok,true);
+ assert.deepEqual(p.inventory,[{id:'rune_dragon_heart',quantity:1}]);
+ assert.equal(p.gold,50);
+});
+test('rune extraction refuses inventory overflow without charging or removing the rune',async()=>{
+ const {extractRune}=await import('../js/systems/enchanting.js');
+ const p={gold:100,equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['flame']},inventory:[{id:'ember_core',quantity:Number.MAX_SAFE_INTEGER}]};
+ const snapshot=structuredClone(p);
+ assert.equal(extractRune(p,'iron_sword',0).reason,'inventory_capacity');
+ assert.deepEqual(p,snapshot);
+});

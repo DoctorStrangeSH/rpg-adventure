@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
 import { ParticleSystem } from '../js/systems/particles.js';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHorizontalAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -267,4 +267,16 @@ test('successful parry starts only a visual counter cue', () => {
     assert.equal(sprite.counterStartFrame, 120);
     sprite.startCounter(128);
     assert.equal(sprite.counterStartFrame, 128);
+});
+
+test('horizontal sprite atlas validation returns exact integer frame rectangles', () => {
+    assert.deepEqual(getHorizontalAtlasFrame(512, 128, 4, 0),
+        { x: 0, y: 0, width: 128, height: 128 });
+    assert.deepEqual(getHorizontalAtlasFrame(512, 128, 4, 3),
+        { x: 384, y: 0, width: 128, height: 128 });
+    assert.equal(getHorizontalAtlasFrame(510, 128, 4, 0), null);
+    assert.equal(getHorizontalAtlasFrame(512, 0, 4, 0), null);
+    assert.equal(getHorizontalAtlasFrame(512, 128, 0, 0), null);
+    assert.equal(getHorizontalAtlasFrame(512, 128, 4, 4), null);
+    assert.equal(getHorizontalAtlasFrame(Number.NaN, 128, 4, 0), null);
 });

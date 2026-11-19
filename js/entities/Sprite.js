@@ -28,6 +28,20 @@ if (typeof Image !== 'undefined') {
     }
 }
 
+// Validate a horizontal sprite atlas before drawing. Invalid dimensions return
+// null so the existing procedural/canvas fallback remains available.
+export function getHorizontalAtlasFrame(imageWidth, imageHeight, frameCount, frameIndex) {
+    if (!Number.isInteger(imageWidth) || imageWidth <= 0 ||
+        !Number.isInteger(imageHeight) || imageHeight <= 0 ||
+        !Number.isInteger(frameCount) || frameCount <= 0 ||
+        imageWidth % frameCount !== 0 ||
+        !Number.isInteger(frameIndex) || frameIndex < 0 || frameIndex >= frameCount) {
+        return null;
+    }
+    const frameWidth = imageWidth / frameCount;
+    return { x: frameIndex * frameWidth, y: 0, width: frameWidth, height: imageHeight };
+}
+
 // Four hand-drawn attack frames, each lasting seven render ticks. The index
 // is clamped so slower devices cannot draw beyond the last sprite-sheet cell.
 export function getAttackFrame(elapsed, frames = 4, ticksPerFrame = 7) {
@@ -424,14 +438,18 @@ export class Sprite {
     drawSprite(ctx, frame) {
         const attackImage = HERO_ATTACK_IMAGES[this.type];
         if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
-            const frameWidth = attackImage.naturalWidth / 4;
             const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame),
                 4, ['skeleton', 'wolf', 'goblin'].includes(this.type) ? 5 : 7);
-            const height = 112;
-            const width = height * frameWidth / attackImage.naturalHeight;
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(attackImage, frameIndex * frameWidth, 0, frameWidth,
-                attackImage.naturalHeight, -width / 2, 30 - height, width, height);
+            const source = getHorizontalAtlasFrame(attackImage.naturalWidth,
+                attackImage.naturalHeight, 4, frameIndex);
+            if (source) {
+                const height = 112;
+                const width = height * source.width / source.height;
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(attackImage, source.x, source.y, source.width,
+                    source.height, -width / 2, 30 - height, width, height);
+                return;
+            }
             return;
         }
         const guardImage = HERO_GUARD_IMAGES[this.type];

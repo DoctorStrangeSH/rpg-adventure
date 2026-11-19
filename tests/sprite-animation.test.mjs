@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -175,4 +175,19 @@ test('mage cast sigil charges, releases and expires within its animation window'
     assert.ok(charged.radius > start.radius);
     assert.ok(release.alpha < charged.alpha);
     assert.ok(start.alpha > 0);
+});
+
+test('hero hit reactions have distinct class silhouettes and expire safely', () => {
+    const warrior = getHeroHitPose('warrior', 4);
+    const mage = getHeroHitPose('mage', 4);
+    const archer = getHeroHitPose('archer', 4);
+    assert.equal(warrior.active, true);
+    assert.equal(mage.active, true);
+    assert.equal(archer.active, true);
+    assert.notEqual(warrior.rotation, mage.rotation);
+    assert.notEqual(mage.offsetY, archer.offsetY);
+    assert.ok(mage.glow > archer.glow);
+    assert.equal(getHeroHitPose('mage', 16).active, false);
+    assert.equal(getHeroHitPose('archer', Number.NaN).active, false);
+    assert.equal(getHeroHitPose('warrior', -1).active, false);
 });

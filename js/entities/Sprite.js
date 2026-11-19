@@ -152,6 +152,25 @@ export function getHitFeedback(elapsed, duration = 16) {
     };
 }
 
+export function getHeroHitPose(type, elapsed) {
+    const base = getHitFeedback(elapsed);
+    if (!base.active) return { ...base, rotation: 0, offsetY: 0, glow: 0 };
+    const progress = elapsed / 16;
+    if (type === 'mage') {
+        return { ...base, recoil: base.recoil * 0.72, rotation: -0.12 * Math.sin(progress * Math.PI),
+            offsetY: -3 * Math.sin(progress * Math.PI), glow: progress < 0.3 ? 0.7 : 0.15 };
+    }
+    if (type === 'archer') {
+        return { ...base, recoil: base.recoil * 1.18, rotation: 0.16 * Math.sin(progress * Math.PI),
+            offsetY: 2 * Math.sin(progress * Math.PI), glow: progress < 0.25 ? 0.35 : 0 };
+    }
+    if (type === 'warrior') {
+        return { ...base, recoil: base.recoil * 0.82, rotation: -0.045 * Math.sin(progress * Math.PI),
+            offsetY: 0, glow: progress < 0.25 ? 0.2 : 0 };
+    }
+    return { ...base, rotation: 0, offsetY: 0, glow: 0 };
+}
+
 // Location bosses must remain visible even before their dedicated atlases ship.
 // Keep these aliases explicit so a newly added boss cannot silently disappear.
 export const BOSS_FALLBACKS = Object.freeze({
@@ -241,11 +260,19 @@ export class Sprite {
             ctx.translate(this.type === 'mage' || this.type === 'archer' ? 20 : -12, 0);
         }
         
-        const hit = getHitFeedback(frame - (this.hitStartFrame ?? Number.NEGATIVE_INFINITY));
+        const hit = getHeroHitPose(this.type, frame - (this.hitStartFrame ?? Number.NEGATIVE_INFINITY));
         if (hit.active) {
             ctx.translate(this.type === 'warrior' || this.type === 'mage' || this.type === 'archer'
-                ? -hit.recoil : hit.recoil, 0);
+                ? -hit.recoil : hit.recoil, hit.offsetY);
+            ctx.translate(0, 30);
+            ctx.rotate(hit.rotation);
+            ctx.translate(0, -30);
             if (hit.flash) ctx.filter = 'brightness(1.9) saturate(0.5)';
+            if (hit.glow > 0) {
+                ctx.shadowColor = this.type === 'mage' ? '#8deaff' :
+                    this.type === 'archer' ? '#b9e69b' : '#f3d18b';
+                ctx.shadowBlur = 8 * hit.glow;
+            }
         } else {
             this.hitStartFrame = null;
         }

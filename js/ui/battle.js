@@ -8,6 +8,7 @@ import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
 import { getBattlePositions } from './battleLayout.js';
 import { getArenaTheme, drawArenaAtmosphere } from './arenaTheme.js';
+import { createArenaBackdropCache } from './arenaBackdrop.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
 import { BossSpellFx } from '../systems/bossSpellFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
@@ -21,10 +22,9 @@ const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотече
 let damageTexts = [];
 let isProcessing = false;
 let animationRunning = false;
-// The arena is shared by every encounter. Keep procedural scenery as a safe
-// fallback when offline, while the image is still loading, or in older clients.
-const arenaBackdrop = typeof Image === 'undefined' ? null : new Image();
-if (arenaBackdrop) arenaBackdrop.src = 'assets/backgrounds/moonlit-courtyard.webp';
+// Region illustrations are lazy-loaded and cached. The courtyard and the
+// gradient remain available when a new background has not loaded yet.
+const arenaBackdrops = createArenaBackdropCache();
 
 let battleState = {
     canvas: null,
@@ -131,7 +131,9 @@ function drawBattle() {
     
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    if (arenaBackdrop?.complete && arenaBackdrop.naturalWidth > 0) {
+    const locationId = window.getLocationState?.()?.currentLocation?.id;
+    const arenaBackdrop = arenaBackdrops.get(locationId);
+    if (arenaBackdrop) {
         // Cover the canvas without distorting pixel proportions on tall phones.
         const scale = Math.max(canvas.width / arenaBackdrop.naturalWidth,
             canvas.height / arenaBackdrop.naturalHeight);
@@ -150,7 +152,6 @@ function drawBattle() {
         ctx.fillStyle = '#393343';
         ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
     }
-    const locationId = window.getLocationState?.()?.currentLocation?.id;
     drawArenaAtmosphere(ctx, canvas.width, canvas.height,
         getArenaTheme(locationId, battleState.currentEnemy?.id), battleState.animationFrame);
     

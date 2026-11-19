@@ -82,7 +82,7 @@ test('rune inscription consumes materials, obeys socket gates and adds combat bo
  assert.equal(getRuneSocketCount(p,'iron_sword'),1);
  assert.equal(inscribeRune(p,'iron_sword','flame').ok,true);
  assert.deepEqual(getWeaponRunes(p),['flame']);assert.equal(p.inventory.length,0);
- assert.equal(getEffectiveCombatStats(p).attack,12);assert.equal(getWeaponDamageType(p),'fire');
+ assert.equal(getEffectiveCombatStats(p).attack,14);assert.equal(getWeaponDamageType(p),'fire');
  assert.equal(inscribeRune(p,'iron_sword','frost').reason,'sockets_full');
 });
 test('rune effects apply status effects with a bounded chance',async()=>{

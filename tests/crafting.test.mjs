@@ -51,3 +51,19 @@ test('salvage overflow is rejected atomically',async()=>{
  const snapshot=structuredClone(p),r=salvageEquipment(p,0);
  assert.equal(r.reason,'inventory_limit');assert.deepEqual(p,snapshot);
 });
+
+test('upgrade is deterministic, resource-gated and improves equipped combat stats',async()=>{
+ const {upgradeEquipment,getItemUpgradeLevel,getUpgradePreview}=await import('../js/systems/upgrades.js');
+ const {getEffectiveCombatStats}=await import('../js/systems/combat.js');
+ const p={gold:5000,attack:10,defense:5,equipment:{weapon:'iron_sword',armor:null},inventory:[{id:'iron_ore',quantity:100},{id:'ember_core',quantity:20},{id:'frost_crystal',quantity:20},{id:'blood_essence',quantity:20}]};
+ const before=getEffectiveCombatStats(p).attack;assert.equal(getUpgradePreview(p,'iron_sword').next,1);
+ const result=upgradeEquipment(p,'iron_sword');assert.equal(result.ok,true);assert.equal(getItemUpgradeLevel(p,'iron_sword'),1);
+ assert.equal(getEffectiveCombatStats(p).attack,before+2);
+});
+test('upgrade refuses unequipped or maxed items without spending resources',async()=>{
+ const {upgradeEquipment}=await import('../js/systems/upgrades.js');
+ const p={gold:5000,equipment:{weapon:null,armor:null},inventory:[{id:'iron_ore',quantity:100}]};const snapshot=structuredClone(p);
+ assert.equal(upgradeEquipment(p,'iron_sword').reason,'not_equipped');assert.deepEqual(p,snapshot);
+ p.equipment.weapon='iron_sword';p.itemUpgrades={iron_sword:10};const maxed=structuredClone(p);
+ assert.equal(upgradeEquipment(p,'iron_sword').reason,'max_level');assert.deepEqual(p,maxed);
+});

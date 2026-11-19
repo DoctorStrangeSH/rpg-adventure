@@ -621,10 +621,12 @@ export function getEffectiveCombatStats(player) {
     const bonuses = getEquipmentSetBonuses(player);
     const talents = getTalentBonuses(player);
     const relics = getRelicBonuses(player);
+    const upgradeAttack = player?.equipment?.weapon ? (Number(player.itemUpgrades?.[player.equipment.weapon]) || 0) * 2 : 0;
+    const upgradeDefense = player?.equipment?.armor ? (Number(player.itemUpgrades?.[player.equipment.armor]) || 0) * 2 : 0;
     return {
-        attack: Math.max(0, Math.floor(((Number(player?.attack) || 0) + bonuses.attack + talents.attack + relics.attack) *
+        attack: Math.max(0, Math.floor(((Number(player?.attack) || 0) + bonuses.attack + talents.attack + relics.attack + upgradeAttack) *
             (hasSpecialization(player, 'warrior_berserker') && player.maxHealth > 0 && player.health / player.maxHealth <= 0.35 ? 1.3 : 1))),
-        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense + relics.defense),
+        defense: Math.max(0, (Number(player?.defense) || 0) + bonuses.defense + talents.defense + relics.defense + upgradeDefense),
         critChance: Math.min(1, 0.15 + talents.critChance + relics.critChance),
         activeSets: bonuses.activeSets
     };

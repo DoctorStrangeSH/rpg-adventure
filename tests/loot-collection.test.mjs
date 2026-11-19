@@ -23,6 +23,6 @@ test('story bosses can drop their own legendary rune materials',()=>{
  for(const [bossId,itemId] of cases) assert.equal(rollLoot(true,()=>0.1,bossId),itemId);
 });
 test('boss rune drops are limited to known story bosses and preserve trophy drops',()=>{
- assert.equal(rollLoot(true,()=>0.1,'unknown_boss'),'dragon_sword');
+ assert.equal(rollLoot(true,()=>0.1,'unknown_boss'),'moonblade');
  assert.equal(rollLoot(true,()=>0.3,'forest_guardian'),'guardian_armor');
 });

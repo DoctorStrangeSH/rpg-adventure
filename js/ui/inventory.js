@@ -8,7 +8,7 @@ import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems
 import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
 import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
-import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy } from '../systems/enchanting.js';
+import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD } from '../systems/enchanting.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -256,6 +256,13 @@ function createRuneEnchantPanel(player) {
     const slots = getRuneSocketCount(player, weaponId);
     const runes = getWeaponRunes(player, weaponId);
     const labels = runes.map(id => RUNE_CATALOG[id].icon + ' ' + RUNE_CATALOG[id].name).join(' · ');
+    const installed = runes.map((id, index) => {
+        const preview = getRuneExtractionPreview(player, weaponId, index);
+        return '<div class="installed-rune"><span>' + RUNE_CATALOG[id].icon + ' ' + RUNE_CATALOG[id].name +
+            '</span><button class="rune-extract-button" ' + (preview.available ? '' : 'disabled') +
+            ' onclick="window.extractInventoryRune(\\'' + weaponId + '\\',' + index + ')">Извлечь · ' +
+            RUNE_EXTRACTION_GOLD + ' золота</button></div>';
+    }).join('');
     const synergy = getRuneSynergy(player, weaponId);
     const cards = Object.values(RUNE_CATALOG).map(rune => {
         const preview = getEnchantPreview(player, weaponId, rune.id);
@@ -275,7 +282,7 @@ function createRuneEnchantPanel(player) {
             label + '</button></div>';
     }).join('');
     return '<div class="enchant-panel"><strong>ᚱ Руническое зачарование</strong><small>Гнёзда: ' +
-        runes.length + '/' + slots + ' · ' + (labels || 'Пока пусто') + '</small>' + (synergy ? '<div class="rune-synergy"><b>' + synergy.icon + ' Синергия: ' + synergy.name + '</b><small>' + synergy.description + '</small></div>' : '') + '<div class="rune-grid">' + cards + '</div></div>';
+        runes.length + '/' + slots + ' · ' + (labels || 'Пока пусто') + '</small>' + (installed ? '<div class="installed-runes">' + installed + '</div>' : '') + (synergy ? '<div class="rune-synergy"><b>' + synergy.icon + ' Синергия: ' + synergy.name + '</b><small>' + synergy.description + '</small></div>' : '') + '<div class="rune-grid">' + cards + '</div></div>';
 }
 export function inscribeInventoryRune(weaponId, runeId) {
     const player = gameState.player;
@@ -293,3 +300,16 @@ export function inscribeInventoryRune(weaponId, runeId) {
     updateInventoryScreen();
 }
 window.inscribeInventoryRune = inscribeInventoryRune;
+export function extractInventoryRune(weaponId, index) {
+    const player = gameState.player;
+    if (!player) return;
+    const result = extractRune(player, weaponId, index);
+    if (!result.ok) {
+        window.showNotification(result.reason === 'gold' ? 'Для извлечения нужно 50 золота' : 'Невозможно извлечь эту руну', 'error');
+        return;
+    }
+    gameState.save();
+    window.showNotification('Извлечена руна: ' + result.rune.name, 'success');
+    updateInventoryScreen();
+}
+window.extractInventoryRune = extractInventoryRune;

@@ -1524,3 +1524,8 @@ body {
 .rune-button{padding:7px;border:1px solid var(--rune-color);border-radius:7px;background:color-mix(in srgb,var(--rune-color) 12%,transparent);color:var(--text);font-size:10px}
 .rune-button:disabled{opacity:.4}
 @media(max-width:420px){.rune-grid{grid-template-columns:1fr}}
+
+.installed-runes{display:flex;flex-direction:column;gap:6px}
+.installed-rune{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg-secondary);font-size:10px}
+.rune-extract-button{flex:0 0 auto;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--text-muted);font-size:9px}
+.rune-extract-button:disabled{opacity:.4}

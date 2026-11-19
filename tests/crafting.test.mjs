@@ -122,3 +122,19 @@ test('unknown rune combinations do not create a synergy',async()=>{
  const p={equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['flame','frost']}};
  assert.equal(getRuneSynergy(p),null);
 });
+
+test('rune extraction charges gold and frees the selected socket',async()=>{
+ const {extractRune,getRuneExtractionPreview,getWeaponRunes}=await import('../js/systems/enchanting.js');
+ const p={gold:100,equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['flame','blood']}};
+ assert.equal(getRuneExtractionPreview(p,'iron_sword',0).available,true);
+ const result=extractRune(p,'iron_sword',0);
+ assert.equal(result.ok,true);assert.equal(result.rune.id,'flame');assert.equal(p.gold,50);
+ assert.deepEqual(getWeaponRunes(p),['blood']);
+});
+test('rune extraction refuses insufficient gold or invalid sockets without mutation',async()=>{
+ const {extractRune}=await import('../js/systems/enchanting.js');
+ const p={gold:49,equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['flame']}};
+ const snapshot=structuredClone(p);
+ assert.equal(extractRune(p,'iron_sword',0).reason,'gold');assert.deepEqual(p,snapshot);
+ assert.equal(extractRune(p,'iron_sword',3).reason,'invalid_socket');assert.deepEqual(p,snapshot);
+});

@@ -3,7 +3,7 @@ export const RUNE_CATALOG = Object.freeze({
  flame:{id:'flame',name:'Руна пламени',icon:'🔥',color:'#ff8748',damageType:'fire',effect:'burn',turns:2,attack:2,cost:{ember_core:2}},
  frost:{id:'frost',name:'Руна стужи',icon:'❄️',color:'#78dfff',damageType:'ice',effect:'freeze',turns:1,defense:2,cost:{frost_crystal:2}},
  blood:{id:'blood',name:'Руна крови',icon:'🩸',color:'#e45b75',damageType:'poison',effect:'bleed',turns:2,attack:2,cost:{blood_essence:2}},
- storm:{id:'storm',name:'Руна грозы',icon:'⚡',color:'#d5b4ff',damageType:'physical',effect:null,turns:0,critChance:0.04,cost:{iron_ore:5,ember_core:1},
+ storm:{id:'storm',name:'Руна грозы',icon:'⚡',color:'#d5b4ff',damageType:'physical',effect:null,turns:0,critChance:0.04,cost:{iron_ore:5,ember_core:1}},
  verdant:{id:'verdant',name:'Сердце древнего леса',icon:'🌿',color:'#83d18b',damageType:'poison',effect:'poison',turns:2,defense:3,cost:{rune_verdant_heart:1},bossRune:true},
  dragon:{id:'dragon',name:'Сердце горного дракона',icon:'🐉',color:'#ff754c',damageType:'fire',effect:'burn',turns:3,attack:3,cost:{rune_dragon_heart:1},bossRune:true},
  lich:{id:'lich',name:'Печать Короля-лича',icon:'☠️',color:'#b99aff',damageType:'poison',effect:'poison',turns:3,critChance:0.03,cost:{rune_lich_soul:1},bossRune:true},
@@ -80,6 +80,26 @@ export function getRuneSynergy(player,weaponId=player?.equipment?.weapon){
  if(runes.length<2)return null;
  const key=[...runes].sort().join('+');
  return RUNE_SYNERGIES[key]||null;
+}
+export function getRuneLoadoutPreview(player,weaponId,runeId){
+ const rune=RUNE_CATALOG[runeId];
+ if(!player||!rune)return {available:false,reason:'invalid'};
+ const current=getWeaponRuneBonuses(player,weaponId);
+ const simulated={
+  ...player,
+  weaponRunes:{...(player.weaponRunes||{}),[weaponId]:[...getWeaponRunes(player,weaponId),runeId]}
+ };
+ const projected=getWeaponRuneBonuses(simulated,weaponId);
+ return {
+  available:true,
+  current,
+  projected,
+  delta:{
+   attack:projected.attack-current.attack,
+   defense:projected.defense-current.defense,
+   critChance:projected.critChance-current.critChance
+  }
+ };
 }
 export function getWeaponRuneBonuses(player,weaponId=player?.equipment?.weapon){
  const total=getWeaponRunes(player,weaponId).reduce((sum,id)=>{

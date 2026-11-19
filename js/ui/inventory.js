@@ -1,14 +1,14 @@
 // Экран инвентаря
 import { gameState } from '../core/state.js';
 import { getItem, getItemAbilityDescription, getItemLore, getEquipmentComparison, RARITIES } from '../data/items.js';
-import { getEquipmentSetBonuses } from '../systems/combat.js';
+import { getEquipmentSetBonuses, getEffectiveCombatStats } from '../systems/combat.js';
 import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.js';
 import { getBossTrophyCatalog, getCollectionProgress } from '../systems/loot.js';
 import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems/crafting.js';
 import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
 import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
-import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD } from '../systems/enchanting.js';
+import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD, getRuneLoadoutPreview } from '../systems/enchanting.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -252,38 +252,57 @@ window.upgradeInventoryItem = upgradeInventoryItem;
 
 function createRuneEnchantPanel(player) {
     const weaponId = player.equipment?.weapon;
-    if (!weaponId) return '<div class="enchant-panel"><strong>ᚱ Руническое зачарование</strong><small>Наденьте оружие, чтобы открыть рунические гнёзда.</small></div>';
+    if (!weaponId) return '<section class="forge-panel"><header class="forge-heading"><span>⚒️</span><div><strong>Кузница рун</strong><small>Наденьте оружие, чтобы начать зачарование</small></div></header></section>';
+    const weapon = getItem(weaponId);
     const slots = getRuneSocketCount(player, weaponId);
     const runes = getWeaponRunes(player, weaponId);
-    const labels = runes.map(id => RUNE_CATALOG[id].icon + ' ' + RUNE_CATALOG[id].name).join(' · ');
-    const installed = runes.map((id, index) => {
-        const preview = getRuneExtractionPreview(player, weaponId, index);
-        return '<div class="installed-rune"><span>' + RUNE_CATALOG[id].icon + ' ' + RUNE_CATALOG[id].name +
-            '</span><button class="rune-extract-button" ' + (preview.available ? '' : 'disabled') +
-            ' onclick="window.extractInventoryRune(\\'' + weaponId + '\\',' + index + ')">Извлечь · ' +
-            RUNE_EXTRACTION_GOLD + ' золота</button></div>';
-    }).join('');
     const synergy = getRuneSynergy(player, weaponId);
+    const stats = getEffectiveCombatStats(player);
+    const sockets = Array.from({length:3}, (_,index) => {
+        const runeId = runes[index];
+        const rune = runeId ? RUNE_CATALOG[runeId] : null;
+        const locked = index >= slots;
+        return '<div class="forge-socket ' + (rune ? 'socket-filled' : locked ? 'socket-locked' : 'socket-empty') +
+            '" style="' + (rune ? '--rune-color:' + rune.color : '') + '"><span>' + (rune ? rune.icon : locked ? '🔒' : '◇') +
+            '</span><small>' + (rune ? rune.name : locked ? 'Заточка +' + [1,4,8][index] : 'Свободно') + '</small></div>';
+    }).join('');
+    const installed = runes.map((id,index) => {
+        const rune = RUNE_CATALOG[id];
+        const preview = getRuneExtractionPreview(player,weaponId,index);
+        return '<div class="forge-installed"><span style="color:' + rune.color + '">' + rune.icon + ' ' + rune.name +
+            '</span><button class="rune-extract-button" ' + (preview.available ? '' : 'disabled') +
+            ' onclick="window.extractInventoryRune(\'' + weaponId + '\',' + index + ')">Извлечь · 50 золота</button></div>';
+    }).join('');
     const cards = Object.values(RUNE_CATALOG).map(rune => {
-        const preview = getEnchantPreview(player, weaponId, rune.id);
+        const preview = getEnchantPreview(player,weaponId,rune.id);
+        const projected = getRuneLoadoutPreview(player,weaponId,rune.id);
         let label = 'Вставить';
-        if (preview.reason === 'upgrade_required') label = 'Требуется +1';
-        else if (preview.reason === 'sockets_full') label = 'Гнёзда заняты';
+        if (preview.reason === 'upgrade_required') label = 'Нужна заточка +1';
+        else if (preview.reason === 'sockets_full') label = 'Все гнёзда заняты';
         else if (preview.reason === 'duplicate') label = 'Уже установлена';
         else if (preview.reason === 'materials') label = 'Не хватает материалов';
-        const cost = Object.entries(rune.cost).map(([id, qty]) => (getItem(id)?.icon || '◆') + ' ×' + qty).join(' ');
-        const stats = (rune.attack ? '+' + rune.attack + ' атаки ' : '') +
-            (rune.defense ? '+' + rune.defense + ' защиты ' : '') +
-            (rune.critChance ? '+' + Math.round(rune.critChance * 100) + '% крит. шанса ' : '') +
-            (rune.effect ? '· эффект при попадании' : '');
-        return '<div class="rune-card" style="--rune-color:' + rune.color + '"><b>' + rune.icon + ' ' + rune.name +
-            '</b><small>' + cost + '</small><small>' + stats + '</small><button class="rune-button" ' +
+        const cost = Object.entries(rune.cost).map(([id,qty]) => (getItem(id)?.icon || '◆') + ' ×' + qty).join(' · ');
+        const changes = [
+            projected.delta.attack ? (projected.delta.attack > 0 ? '+' : '') + projected.delta.attack + ' атаки' : '',
+            projected.delta.defense ? (projected.delta.defense > 0 ? '+' : '') + projected.delta.defense + ' защиты' : '',
+            projected.delta.critChance ? (projected.delta.critChance > 0 ? '+' : '') + (projected.delta.critChance * 100).toFixed(0) + '% крит. шанса' : ''
+        ].filter(Boolean).join(' · ') || 'Без изменения характеристик';
+        return '<article class="forge-rune-card" style="--rune-color:' + rune.color + '"><div class="forge-rune-title"><b>' +
+            rune.icon + ' ' + rune.name + '</b>' + (rune.bossRune ? '<span>БОСС</span>' : '') +
+            '</div><small>' + (rune.effect ? 'Эффект при попадании · ' + rune.turns + ' ход.' : 'Пассивный эффект') +
+            '</small><small>Цена: ' + cost + '</small><div class="forge-preview">После установки: ' + changes + '</div><button class="rune-button" ' +
             (preview.available ? '' : 'disabled') + ' onclick="window.inscribeInventoryRune(\'' + weaponId + '\',\'' + rune.id + '\')">' +
-            label + '</button></div>';
+            label + '</button></article>';
     }).join('');
-    return '<div class="enchant-panel"><strong>ᚱ Руническое зачарование</strong><small>Гнёзда: ' +
-        runes.length + '/' + slots + ' · ' + (labels || 'Пока пусто') + '</small>' + (installed ? '<div class="installed-runes">' + installed + '</div>' : '') + (synergy ? '<div class="rune-synergy"><b>' + synergy.icon + ' Синергия: ' + synergy.name + '</b><small>' + synergy.description + '</small></div>' : '') + '<div class="rune-grid">' + cards + '</div></div>';
+    return '<section class="forge-panel"><header class="forge-heading"><span>⚒️</span><div><strong>Кузница рун</strong><small>' +
+        (weapon?.icon || '⚔️') + ' ' + (weapon?.name || weaponId) + ' · Заточка +' + (player.itemUpgrades?.[weaponId] || 0) +
+        '</small></div><b>⚔️ ' + stats.attack + ' <i>🛡️ ' + stats.defense + '</i></b></header>' +
+        '<div class="forge-socket-title">РУНИЧЕСКИЕ ГНЕЗДА · ' + runes.length + '/' + slots + '</div><div class="forge-sockets">' +
+        sockets + '</div>' + (installed ? '<div class="forge-installed-list">' + installed + '</div>' : '') +
+        (synergy ? '<div class="rune-synergy"><b>' + synergy.icon + ' ' + synergy.name + '</b><small>' + synergy.description + '</small></div>' : '') +
+        '<div class="forge-rune-heading">ДОСТУПНЫЕ РУНЫ</div><div class="rune-grid">' + cards + '</div></section>';
 }
+
 export function inscribeInventoryRune(weaponId, runeId) {
     const player = gameState.player;
     if (!player) return;

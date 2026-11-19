@@ -157,3 +157,18 @@ test('rune extraction refuses inventory overflow without charging or removing th
  assert.equal(extractRune(p,'iron_sword',0).reason,'inventory_capacity');
  assert.deepEqual(p,snapshot);
 });
+
+test('rune loadout preview calculates the incremental bonus and synergy before spending materials',async()=>{
+ const {getRuneLoadoutPreview,inscribeRune}=await import('../js/systems/enchanting.js');
+ const p={equipment:{weapon:'iron_sword'},itemUpgrades:{iron_sword:4},weaponRunes:{iron_sword:['flame']},inventory:[]};
+ const preview=getRuneLoadoutPreview(p,'iron_sword','blood');
+ assert.equal(preview.delta.attack,4);
+ assert.equal(preview.delta.defense,0);
+ assert.deepEqual(p.weaponRunes.iron_sword,['flame']);
+ assert.equal(inscribeRune(p,'iron_sword','blood').reason,'materials');
+});
+test('rune socket thresholds expose exactly three forge sockets',async()=>{
+ const {getRuneSocketCount}=await import('../js/systems/enchanting.js');
+ const p={itemUpgrades:{blade:0}};
+ assert.deepEqual([0,1,4,8,10].map(level=>{p.itemUpgrades.blade=level;return getRuneSocketCount(p,'blade')}),[0,1,2,3,3]);
+});

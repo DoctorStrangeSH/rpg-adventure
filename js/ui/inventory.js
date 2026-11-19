@@ -6,6 +6,7 @@ import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.j
 import { getBossTrophyCatalog, getCollectionProgress } from '../systems/loot.js';
 import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems/crafting.js';
 import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
+import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -38,6 +39,20 @@ export function updateInventoryScreen() {
             ${createEquipmentSlot('armor', '🛡️', 'Броня', player.equipment.armor)}
         </div>
         <div class="inventory-hint">Нажмите на предмет, чтобы надеть его. Нажмите на слот, чтобы снять экипировку.</div>
+        <div class="upgrade-panel"><strong>✨ Заточка экипировки</strong>
+        ${['weapon','armor'].map(slot => {
+            const id = player.equipment?.[slot];
+            if (!id) return '';
+            const item = getItem(id);
+            const level = getItemUpgradeLevel(player, id);
+            const preview = getUpgradePreview(player, id);
+            const detail = preview.reason === 'max_level' ? 'Максимальный уровень' :
+                preview.available ? `Следующий уровень +${preview.next} · ${preview.gold} золота` :
+                preview.reason === 'gold' ? 'Не хватает золота' :
+                preview.reason === 'materials' ? `Не хватает: ${preview.missing.map(x => `${getItem(x.id)?.name || x.id} ×${x.missing}`).join(', ')}` : '';
+            return `<div class="upgrade-row"><div><b>${item?.icon || '⚒️'} ${item?.name || id} · +${level}</b><small>${detail}</small></div><button class="upgrade-button" ${preview.available ? '' : 'disabled'} onclick="window.upgradeInventoryItem('${id}')">${preview.available ? 'Улучшить' : 'Недоступно'}</button></div>`;
+        }).join('')}
+        </div>
         
         <div class="section-title">✨ Комплекты</div>
         <div class="equipment-set-summary">${setSummary || 'Комплекты пока не обнаружены'}</div>
@@ -210,3 +225,21 @@ export function salvageInventoryItem(index,event){
  gameState.save();window.showNotification(`Разобрано: ${result.item.name}`,'success');updateInventoryScreen();
 }
 window.salvageInventoryItem=salvageInventoryItem;
+
+export function upgradeInventoryItem(itemId) {
+    const player = gameState.player;
+    if (!player) return;
+    const result = upgradeEquipment(player, itemId);
+    if (!result.ok) {
+        window.showNotification(result.reason === 'materials' ? 'Не хватает материалов' :
+            result.reason === 'gold' ? 'Недостаточно золота' :
+            result.reason === 'max_level' ? 'Достигнут максимум +10' : 'Можно улучшать только надетую экипировку', 'error');
+        return;
+    }
+    gameState.save();
+    window.showNotification(`${result.item.name} улучшен до +${result.level}!`, 'success');
+    updateInventoryScreen();
+    window.updateCharacterScreen?.();
+    window.updateMainMenu?.();
+}
+window.upgradeInventoryItem = upgradeInventoryItem;

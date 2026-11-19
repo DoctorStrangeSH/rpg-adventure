@@ -53,7 +53,7 @@ export function getWarriorParryPulse(elapsed) {
     return { radius: 12 + progress * 29, alpha: 1 - progress };
 }
 
-// A short, readable defeat sequence: stagger, kneel, then fall onto the ground.
+// The casting sigil follows the same 28-tick attack window as the hero atlas.
 export function getMageCastEffect(elapsed) {
     if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed >= 28) return null;
     const progress = elapsed / 28;
@@ -72,7 +72,7 @@ export function getWarriorDeathPose(elapsed) {
     }
     if (elapsed < 12) {
         const p = elapsed / 12;
-        return { rotation: -0.08 * p, offsetY: p * 2, alpha: 1, active: true };
+        return { rotation: p === 0 ? 0 : -0.08 * p, offsetY: p * 2, alpha: 1, active: true };
     }
     if (elapsed < 30) {
         const p = (elapsed - 12) / 18;
@@ -87,6 +87,55 @@ export function getWarriorDeathPose(elapsed) {
         return { rotation: -1.44, offsetY: 32, alpha: 1 - p * 0.18, active: true };
     }
     return { rotation: -1.44, offsetY: 32, alpha: 0.82, active: false };
+}
+
+// Each hero gets a distinct defeat silhouette within the shared 72-tick window.
+// The last pose remains stable while the battle screen fades out.
+export function getHeroDeathPose(type, elapsed) {
+    if (type === 'warrior') return getWarriorDeathPose(elapsed);
+    if (!Number.isFinite(elapsed) || elapsed < 0) {
+        return { rotation: 0, offsetX: 0, offsetY: 0, alpha: 1, active: false };
+    }
+    if (type === 'mage') {
+        const p = Math.min(elapsed / 72, 1);
+        const dissolve = Math.max(0, (p - 0.18) / 0.82);
+        return {
+            rotation: -0.1 * Math.min(p * 3, 1),
+            offsetX: -5 * p,
+            offsetY: -14 * p,
+            alpha: Math.max(0, 1 - dissolve),
+            active: elapsed < 72
+        };
+    }
+    if (type === 'archer') {
+        const stagger = Math.min(elapsed / 15, 1);
+        const fall = Math.min(Math.max((elapsed - 15) / 35, 0), 1);
+        return {
+            rotation: 0.12 * stagger + 1.27 * fall,
+            offsetX: 5 * stagger + 15 * fall,
+            offsetY: 3 * stagger + 30 * fall,
+            alpha: 1 - 0.22 * Math.min(Math.max((elapsed - 50) / 22, 0), 1),
+            active: elapsed < 72
+        };
+    }
+    return getWarriorDeathPose(elapsed);
+}
+
+// Deterministic particles: no random flicker when frames are skipped or redrawn.
+export function getMageDeathMotes(elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 10 || elapsed >= 72) return [];
+    const progress = (elapsed - 10) / 62;
+    return Array.from({ length: 14 }, (_, index) => {
+        const angle = index * 2.39996;
+        const distance = 9 + progress * (25 + index % 5 * 7);
+        return {
+            x: Math.cos(angle) * distance,
+            y: -40 - progress * (18 + index % 4 * 9) + Math.sin(angle) * distance * 0.6,
+            size: index % 3 === 0 ? 3 : 2,
+            alpha: Math.min(1, progress * 5) * (1 - progress),
+            color: index % 3 === 0 ? '#e1fbff' : index % 2 ? '#7ee3ff' : '#bd91ff'
+        };
+    });
 }
 
 // A short two-beat impact: recoil away from the attacker, then settle.
@@ -159,6 +208,7 @@ export class Sprite {
         this.isGuarding = false;
         this.attackStartFrame = null;
         this.guardStartFrame = null;
+        this.hitStartFrame = null;
     }
 
     startParry(frame) {
@@ -174,8 +224,8 @@ export class Sprite {
         ctx.translate(this.x, this.y);
 
         if (this.deathStartFrame !== null) {
-            const death = getWarriorDeathPose(frame - this.deathStartFrame);
-            ctx.translate(0, death.offsetY);
+            const death = getHeroDeathPose(this.type, frame - this.deathStartFrame);
+            ctx.translate(death.offsetX ?? 0, death.offsetY);
             ctx.translate(0, 30);
             ctx.rotate(death.rotation);
             ctx.translate(0, -30);
@@ -253,6 +303,19 @@ export class Sprite {
         }
 
         ctx.restore();
+        if (this.type === 'mage' && this.deathStartFrame !== null) {
+            const motes = getMageDeathMotes(frame - this.deathStartFrame);
+            if (motes.length) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                for (const mote of motes) {
+                    ctx.globalAlpha = mote.alpha;
+                    ctx.fillStyle = mote.color;
+                    ctx.fillRect(Math.round(mote.x), Math.round(mote.y), mote.size, mote.size);
+                }
+                ctx.restore();
+            }
+        }
     }
     
     drawSprite(ctx, frame) {

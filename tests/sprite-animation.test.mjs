@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getMageCastEffect, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -126,6 +126,41 @@ test('sprite death transition clears attack and guard states', () => {
     assert.equal(sprite.isGuarding, false);
     assert.equal(sprite.attackStartFrame, null);
     assert.equal(sprite.guardStartFrame, null);
+});
+
+test('mage dissolves upwards while archer falls forward, distinct from warrior', () => {
+    const mageStart = getHeroDeathPose('mage', 0);
+    const mageMid = getHeroDeathPose('mage', 36);
+    const mageEnd = getHeroDeathPose('mage', 72);
+    const archerMid = getHeroDeathPose('archer', 36);
+    const archerEnd = getHeroDeathPose('archer', 72);
+    assert.equal(mageStart.alpha, 1);
+    assert.ok(mageMid.offsetY < 0);
+    assert.ok(mageMid.alpha < 1);
+    assert.equal(mageEnd.alpha, 0);
+    assert.equal(mageEnd.active, false);
+    assert.ok(archerMid.rotation > 0);
+    assert.ok(archerMid.offsetX > 0);
+    assert.ok(archerEnd.rotation > 1);
+    assert.equal(archerEnd.active, false);
+    assert.ok(getWarriorDeathPose(36).rotation < 0);
+    assert.equal(getHeroDeathPose('mage', Number.NaN).active, false);
+    assert.equal(getHeroDeathPose('archer', -1).active, false);
+    assert.deepEqual(getHeroDeathPose('warrior', 36), getWarriorDeathPose(36));
+});
+
+test('mage defeat emits deterministic motes that fade out by the end', () => {
+    assert.deepEqual(getMageDeathMotes(-1), []);
+    assert.deepEqual(getMageDeathMotes(Number.NaN), []);
+    assert.deepEqual(getMageDeathMotes(9), []);
+    assert.deepEqual(getMageDeathMotes(72), []);
+    const early = getMageDeathMotes(20);
+    const late = getMageDeathMotes(60);
+    assert.equal(early.length, 14);
+    assert.deepEqual(getMageDeathMotes(20), early);
+    assert.ok(late[0].y < early[0].y);
+    assert.ok(late[0].alpha < early[0].alpha);
+    assert.ok(early.every(mote => Number.isFinite(mote.x) && Number.isFinite(mote.y)));
 });
 
 test('mage cast sigil charges, releases and expires within its animation window', () => {

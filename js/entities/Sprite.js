@@ -54,6 +54,13 @@ export function getHorizontalAtlasFrame(imageWidth, imageHeight, frameCount, fra
     return getGridAtlasFrame(imageWidth, imageHeight, frameCount, 1, frameIndex);
 }
 
+// Short visual blend at state boundaries. It changes opacity only, never the
+// attack/guard duration or the number of combat actions.
+export function getHeroStateBlend(elapsed, duration = 4) {
+    if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || duration <= 0 || elapsed < 0) return 0;
+    return Math.max(0, Math.min(1, elapsed / duration));
+}
+
 // Four hand-drawn attack frames, each lasting seven render ticks. The index
 // is clamped so slower devices cannot draw beyond the last sprite-sheet cell.
 export function getAttackFrame(elapsed, frames = 4, ticksPerFrame = 7) {
@@ -274,6 +281,8 @@ export class Sprite {
         this.attackStartFrame = null;
         this.hitStartFrame = null;
         this.guardStartFrame = null;
+        this.visualState = 'idle';
+        this.visualStateStartFrame = 0;
         this.parryStartFrame = null;
         this.counterStartFrame = null;
         this.deathStartFrame = null;
@@ -448,6 +457,12 @@ export class Sprite {
     }
     
     drawSprite(ctx, frame) {
+        const nextState = getWarriorVisualPose(this.isAttacking, this.isGuarding);
+        if (nextState !== this.visualState) {
+            this.visualState = nextState;
+            this.visualStateStartFrame = frame;
+        }
+        const blend = getHeroStateBlend(frame - this.visualStateStartFrame);
         const attackImage = HERO_ATTACK_IMAGES[this.type];
         if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
             const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame),
@@ -457,10 +472,13 @@ export class Sprite {
             if (source) {
                 const height = 112;
                 const width = height * source.width / source.height;
+                ctx.save();
+                ctx.globalAlpha *= blend;
                 ctx.imageSmoothingEnabled = false;
                 ctx.drawImage(attackImage, source.x, source.y, source.width,
                     source.height, -width / 2, 30 - height, width, height);
-                return;
+                ctx.restore();
+                if (blend >= 1) return;
             }
             return;
         }
@@ -471,12 +489,13 @@ export class Sprite {
             const width = height * guardImage.naturalWidth / guardImage.naturalHeight;
             const motion = getWarriorGuardMotion(frame - (this.guardStartFrame ?? frame));
             ctx.save();
+            ctx.globalAlpha *= blend;
             ctx.translate(0, -motion.lift);
             ctx.rotate(motion.tilt);
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(guardImage, -width / 2, 30 - height, width, height);
             ctx.restore();
-            return;
+            if (blend >= 1) return;
         }
         const heroImage = HERO_IMAGES[this.type];
         if (heroImage?.complete && heroImage.naturalWidth > 0) {

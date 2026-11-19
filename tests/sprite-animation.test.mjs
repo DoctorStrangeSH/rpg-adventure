@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
 import { ParticleSystem } from '../js/systems/particles.js';
-import { getAttackFrame, getHorizontalAtlasFrame, getGridAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHeroStateBlend, getHorizontalAtlasFrame, getGridAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -292,4 +292,14 @@ test('grid atlas validation supports directional rows with exact frame bounds', 
     assert.equal(getGridAtlasFrame(512, 510, 4, 4, 0), null);
     assert.equal(getGridAtlasFrame(512, 512, 4, 4, 16), null);
     assert.equal(getGridAtlasFrame(512, 512, 0, 4, 0), null);
+});
+
+test('hero state blends are bounded and complete without changing action timing', () => {
+    assert.equal(getHeroStateBlend(-1), 0);
+    assert.equal(getHeroStateBlend(0), 0);
+    assert.equal(getHeroStateBlend(2), 0.5);
+    assert.equal(getHeroStateBlend(4), 1);
+    assert.equal(getHeroStateBlend(100), 1);
+    assert.equal(getHeroStateBlend(Number.NaN), 0);
+    assert.equal(getHeroStateBlend(2, 0), 0);
 });

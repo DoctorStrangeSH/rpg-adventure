@@ -164,9 +164,9 @@ export class Sprite {
         if (this.deathStartFrame !== null) {
             const death = getWarriorDeathPose(frame - this.deathStartFrame);
             ctx.translate(0, death.offsetY);
-            ctx.translate(0, -30);
-            ctx.rotate(death.rotation);
             ctx.translate(0, 30);
+            ctx.rotate(death.rotation);
+            ctx.translate(0, -30);
             ctx.globalAlpha *= death.alpha;
         }
         if (this.isAttacking && this.attackStartFrame === null) this.attackStartFrame = frame;

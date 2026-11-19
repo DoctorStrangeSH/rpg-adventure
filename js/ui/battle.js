@@ -7,12 +7,14 @@ import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
+import { BossSpellFx } from '../systems/bossSpellFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
 const particleSystem = new ParticleSystem();
 const projectileFx = new ProjectileFx();
+const bossSpellFx = new BossSpellFx();
 const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
 let damageTexts = [];
 let isProcessing = false;
@@ -73,6 +75,7 @@ export function startBattle(location) {
     battleState.isActive = true;
     battleState.animationFrame = 0;
     projectileFx.clear();
+    bossSpellFx.clear();
     battleState.turn = 'player';
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
@@ -144,6 +147,7 @@ function drawBattle() {
         drawBattleHPBar(ctx, battleState.enemySprite, battleState.currentEnemy, false);
     }
     projectileFx.draw(ctx, battleState.animationFrame);
+    bossSpellFx.draw(ctx, battleState.animationFrame);
     
     particleSystem.update();
     particleSystem.draw(ctx);
@@ -592,6 +596,8 @@ function enemyTurn() {
     showBattleMessage(`${enemy.name} ${actionName}!`);
     
     battleState.enemySprite.isAttacking = true;
+    bossSpellFx.start(action, battleState.enemySprite, battleState.playerSprite,
+        battleState.animationFrame);
     
     setTimeout(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;

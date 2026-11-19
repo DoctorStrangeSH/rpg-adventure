@@ -2,6 +2,7 @@
 import { gameState } from '../core/state.js';
 import { getItem, getItemAbilityDescription, RARITIES } from '../data/items.js';
 import { getEquipmentSetBonuses } from '../systems/combat.js';
+import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -92,11 +93,17 @@ export function useInventoryItem(index) {
             if (!useConsumable(player, item, itemData, index)) return;
             break;
         case 'weapon':
-            if (!equipItem(player, item, 'weapon')) return;
+        case 'armor': {
+            const result = equipInventoryItem(player, index);
+            if (!result.ok) {
+                if (result.reason === 'level_required') window.showNotification(`Требуется ${result.requiredLevel} уровень!`, 'error');
+                else if (result.reason === 'already_equipped') window.showNotification('Предмет уже экипирован', 'info');
+                else window.showNotification('Не удалось экипировать предмет', 'error');
+                return;
+            }
+            window.showNotification(`${itemData.name} экипирован!`, 'success');
             break;
-        case 'armor':
-            if (!equipItem(player, item, 'armor')) return;
-            break;
+        }
         default:
             return;
     }
@@ -131,63 +138,15 @@ function useConsumable(player, item, itemData, index) {
     return true;
 }
 
-function equipItem(player, item, slot) {
-    const itemData = getItem(item.id);
-    if ((itemData.requiredLevel || 1) > player.level) {
-        window.showNotification(`Требуется ${itemData.requiredLevel} уровень!`, 'error');
-        return false;
-    }
-    if (player.equipment[slot] === item.id) {
-        window.showNotification('Предмет уже экипирован', 'info');
-        return false;
-    }
-    
-    // Снимаем старый предмет
-    if (player.equipment[slot]) {
-        const oldItemData = getItem(player.equipment[slot]);
-        
-        if (oldItemData?.attackBonus) {
-            player.attack -= oldItemData.attackBonus;
-        }
-        if (oldItemData?.defenseBonus) {
-            player.defense -= oldItemData.defenseBonus;
-        }
-    }
-    
-    // Надеваем новый
-    player.equipment[slot] = item.id;
-    
-    if (itemData.attackBonus) {
-        player.attack += itemData.attackBonus;
-    }
-    if (itemData.defenseBonus) {
-        player.defense += itemData.defenseBonus;
-    }
-    
-    window.showNotification(`${itemData.name} экипирован!`, 'success');
-    return true;
-}
-
 export function unequipItem(slot) {
     const player = gameState.player;
-    if (!player || !['weapon', 'armor'].includes(slot)) return;
-    
-    if (!player.equipment[slot]) {
-        window.showNotification('Слот пуст', 'info');
+    if (!player) return;
+    const result = unequipEquipmentItem(player, slot);
+    if (!result.ok) {
+        window.showNotification(result.reason === 'empty_slot' ? 'Слот пуст' : 'Недопустимый слот', 'info');
         return;
     }
-    
-    const itemData = getItem(player.equipment[slot]);
-    
-    if (itemData?.attackBonus) {
-        player.attack -= itemData.attackBonus;
-    }
-    if (itemData?.defenseBonus) {
-        player.defense -= itemData.defenseBonus;
-    }
-    
-    player.equipment[slot] = null;
-    
+    const itemData = getItem(result.itemId);
     window.showNotification(`${itemData?.name || 'Предмет'} снят`, 'info');
     gameState.save();
     updateInventoryScreen();

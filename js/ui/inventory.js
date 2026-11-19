@@ -222,7 +222,6 @@ export function craftInventoryItem(recipeId) {
     window.showNotification(`Создано: ${result.item.name}`, 'success');
     updateInventoryScreen();
 }
-window.craftInventoryItem = craftInventoryItem;
 
 export function salvageInventoryItem(index,event){
  event?.stopPropagation?.();const player=gameState.player;if(!player)return;
@@ -230,7 +229,6 @@ export function salvageInventoryItem(index,event){
  if(!result.ok){window.showNotification(result.reason==='equipped'?'Сначала снимите предмет':result.reason==='inventory_limit'?'Недостаточно места для материалов':'Не удалось разобрать предмет','error');return;}
  gameState.save();window.showNotification(`Разобрано: ${result.item.name}`,'success');updateInventoryScreen();
 }
-window.salvageInventoryItem=salvageInventoryItem;
 
 export function upgradeInventoryItem(itemId) {
     const player = gameState.player;
@@ -248,7 +246,6 @@ export function upgradeInventoryItem(itemId) {
     window.updateCharacterScreen?.();
     window.updateMainMenu?.();
 }
-window.upgradeInventoryItem = upgradeInventoryItem;
 
 function createRuneEnchantPanel(player) {
     const weaponId = player.equipment?.weapon;
@@ -318,7 +315,7 @@ export function inscribeInventoryRune(weaponId, runeId) {
     window.showNotification('Установлена руна: ' + result.rune.name, 'success');
     updateInventoryScreen();
 }
-window.inscribeInventoryRune = inscribeInventoryRune;
+
 export function extractInventoryRune(weaponId, index) {
     const player = gameState.player;
     if (!player) return;
@@ -331,4 +328,13 @@ export function extractInventoryRune(weaponId, index) {
     window.showNotification('Извлечена руна: ' + result.rune.name, 'success');
     updateInventoryScreen();
 }
-window.extractInventoryRune = extractInventoryRune;
+
+// Expose UI actions only in a browser; keeping module imports safe enables
+// Node-based rule tests without requiring a fake window at module evaluation.
+if (typeof window !== 'undefined') {
+    window.craftInventoryItem = craftInventoryItem;
+    window.salvageInventoryItem = salvageInventoryItem;
+    window.upgradeInventoryItem = upgradeInventoryItem;
+    window.inscribeInventoryRune = inscribeInventoryRune;
+    window.extractInventoryRune = extractInventoryRune;
+}

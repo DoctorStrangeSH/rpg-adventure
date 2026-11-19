@@ -627,6 +627,7 @@ function enemyTurn() {
         const damage = result.damage;
         if (damage > 0) battleState.playerSprite?.receiveHit(battleState.animationFrame);
         const parried = resolveWarriorParry(player, enemy, guardedWindup, battleState.guardReduction);
+        if (parried) battleState.playerSprite?.startParry(battleState.animationFrame);
         const reborn = tryPhoenixRebirth(player, battleState.relicEffects);
         battleState.guardReduction = 0;
         gameState.save();

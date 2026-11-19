@@ -39,6 +39,20 @@ export function getWarriorVisualPose(attacking, guarding) {
     return attacking ? 'attack' : guarding ? 'guard' : 'idle';
 }
 
+// A compact four-step shield raise, followed by a stable held guard pose.
+export function getWarriorGuardMotion(elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 0) return { lift: 0, tilt: 0 };
+    const progress = Math.min(1, elapsed / 8);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    return { lift: eased * 7, tilt: eased * -0.045 };
+}
+
+export function getWarriorParryPulse(elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed >= 14) return null;
+    const progress = elapsed / 14;
+    return { radius: 12 + progress * 29, alpha: 1 - progress };
+}
+
 // A short two-beat impact: recoil away from the attacker, then settle.
 // Computed from render ticks, so no delayed callback can affect the next fight.
 export function getHitFeedback(elapsed, duration = 16) {
@@ -98,6 +112,12 @@ export class Sprite {
         this.isHit = false;
         this.attackStartFrame = null;
         this.hitStartFrame = null;
+        this.guardStartFrame = null;
+        this.parryStartFrame = null;
+    }
+
+    startParry(frame) {
+        this.parryStartFrame = Number.isFinite(frame) ? frame : 0;
     }
 
     receiveHit(frame) {
@@ -127,8 +147,30 @@ export class Sprite {
             this.hitStartFrame = null;
         }
         
+        if (this.isGuarding && this.guardStartFrame === null) this.guardStartFrame = frame;
+        if (!this.isGuarding) this.guardStartFrame = null;
         this.drawSprite(ctx, frame);
-        
+        if (this.type === 'warrior' && this.parryStartFrame !== null) {
+            const pulse = getWarriorParryPulse(frame - this.parryStartFrame);
+            if (pulse) {
+                ctx.save();
+                ctx.globalAlpha = pulse.alpha;
+                ctx.strokeStyle = '#f4d58a';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(25, -43, pulse.radius, -1.05, 1.05);
+                ctx.stroke();
+                ctx.strokeStyle = '#d8efff';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(25, -43, pulse.radius * 0.78, -0.9, 0.9);
+                ctx.stroke();
+                ctx.restore();
+            } else if (frame - this.parryStartFrame >= 14) {
+                this.parryStartFrame = null;
+            }
+        }
+
         ctx.restore();
     }
     
@@ -150,8 +192,13 @@ export class Sprite {
             guardImage?.complete && guardImage.naturalWidth > 0) {
             const height = 103;
             const width = height * guardImage.naturalWidth / guardImage.naturalHeight;
+            const motion = getWarriorGuardMotion(frame - (this.guardStartFrame ?? frame));
+            ctx.save();
+            ctx.translate(0, -motion.lift);
+            ctx.rotate(motion.tilt);
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(guardImage, -width / 2, 30 - height, width, height);
+            ctx.restore();
             return;
         }
         const heroImage = HERO_IMAGES[this.type];

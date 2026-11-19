@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -69,4 +69,33 @@ test('receiving a second hit restarts the feedback timer', () => {
     sprite.receiveHit(34);
     assert.equal(sprite.hitStartFrame, 34);
     assert.equal(getHitFeedback(37 - sprite.hitStartFrame).active, true);
+});
+
+test('warrior shield raise eases into a stable guard pose', () => {
+    assert.deepEqual(getWarriorGuardMotion(-1), { lift: 0, tilt: 0 });
+    assert.deepEqual(getWarriorGuardMotion(Number.NaN), { lift: 0, tilt: 0 });
+    assert.equal(getWarriorGuardMotion(0).lift, 0);
+    assert.ok(getWarriorGuardMotion(4).lift > 0);
+    assert.ok(getWarriorGuardMotion(8).lift > getWarriorGuardMotion(4).lift);
+    assert.deepEqual(getWarriorGuardMotion(80), getWarriorGuardMotion(8));
+});
+
+test('successful parry produces a short bounded visual pulse', () => {
+    assert.equal(getWarriorParryPulse(-1), null);
+    assert.equal(getWarriorParryPulse(14), null);
+    assert.equal(getWarriorParryPulse(Number.NaN), null);
+    const first = getWarriorParryPulse(0);
+    const middle = getWarriorParryPulse(7);
+    assert.equal(first.alpha, 1);
+    assert.ok(middle.radius > first.radius);
+    assert.ok(middle.alpha < first.alpha);
+    assert.ok(getWarriorParryPulse(13).alpha > 0);
+});
+
+test('parry animation restarts on a new successful parry', () => {
+    const sprite = new Sprite('warrior', 0, 0);
+    sprite.startParry(40);
+    assert.equal(sprite.parryStartFrame, 40);
+    sprite.startParry(47);
+    assert.equal(sprite.parryStartFrame, 47);
 });

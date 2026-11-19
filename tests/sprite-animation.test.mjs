@@ -303,3 +303,13 @@ test('hero state blends are bounded and complete without changing action timing'
     assert.equal(getHeroStateBlend(Number.NaN), 0);
     assert.equal(getHeroStateBlend(2, 0), 0);
 });
+
+test('state blend opacity is complementary for a true crossfade', () => {
+    for (const elapsed of [0, 1, 2, 3, 4, 10]) {
+        const incoming = getHeroStateBlend(elapsed);
+        const outgoing = 1 - incoming;
+        assert.ok(incoming >= 0 && incoming <= 1);
+        assert.ok(outgoing >= 0 && outgoing <= 1);
+        assert.equal(incoming + outgoing, 1);
+    }
+});

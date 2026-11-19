@@ -463,13 +463,46 @@ export class Sprite {
             this.visualStateStartFrame = frame;
         }
         const blend = getHeroStateBlend(frame - this.visualStateStartFrame);
+        const heroImage = HERO_IMAGES[this.type];
         const attackImage = HERO_ATTACK_IMAGES[this.type];
+        const guardImage = HERO_GUARD_IMAGES[this.type];
+
+        // Draw the resting pose underneath transient action art. Its opacity is
+        // reduced by exactly the amount gained by the new state (true crossfade).
+        const drawBasePose = (alpha) => {
+            if (alpha <= 0) return;
+            ctx.save();
+            ctx.globalAlpha *= alpha;
+            if (heroImage?.complete && heroImage.naturalWidth > 0) {
+                const height = 100;
+                const width = height * heroImage.naturalWidth / heroImage.naturalHeight;
+                const breathing = Math.sin(frame * 0.055) * 2;
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(heroImage, -width / 2, 30 - height + breathing, width, height);
+            } else {
+                const drawFunctions = {
+                    warrior: this.drawWarrior, mage: this.drawMage, archer: this.drawArcher,
+                    wolf: this.drawWolf, goblin: this.drawGoblin, skeleton: this.drawSkeleton,
+                    dragon: this.drawDragon, goblin_king: this.drawGoblinKing,
+                    death_knight: this.drawDeathKnight, lich_king: this.drawLichKing,
+                    ancient_dragon: this.drawAncientDragon
+                };
+                const drawFunc = drawFunctions[this.type] || drawFunctions[BOSS_FALLBACKS[this.type]];
+                if (drawFunc) {
+                    if (BOSS_FALLBACKS[this.type]) ctx.scale(1.18, 1.18);
+                    drawFunc.call(this, ctx, frame);
+                }
+            }
+            ctx.restore();
+        };
+
         if (this.isAttacking && attackImage?.complete && attackImage.naturalWidth > 0) {
             const frameIndex = getAttackFrame(frame - (this.attackStartFrame ?? frame),
                 4, ['skeleton', 'wolf', 'goblin'].includes(this.type) ? 5 : 7);
             const source = getHorizontalAtlasFrame(attackImage.naturalWidth,
                 attackImage.naturalHeight, 4, frameIndex);
             if (source) {
+                drawBasePose(1 - blend);
                 const height = 112;
                 const width = height * source.width / source.height;
                 ctx.save();
@@ -478,13 +511,13 @@ export class Sprite {
                 ctx.drawImage(attackImage, source.x, source.y, source.width,
                     source.height, -width / 2, 30 - height, width, height);
                 ctx.restore();
-                if (blend >= 1) return;
+                return;
             }
-            return;
         }
-        const guardImage = HERO_GUARD_IMAGES[this.type];
+
         if (getWarriorVisualPose(this.isAttacking, this.isGuarding) === 'guard' &&
             guardImage?.complete && guardImage.naturalWidth > 0) {
+            drawBasePose(1 - blend);
             const height = 103;
             const width = height * guardImage.naturalWidth / guardImage.naturalHeight;
             const motion = getWarriorGuardMotion(frame - (this.guardStartFrame ?? frame));
@@ -495,40 +528,12 @@ export class Sprite {
             ctx.imageSmoothingEnabled = false;
             ctx.drawImage(guardImage, -width / 2, 30 - height, width, height);
             ctx.restore();
-            if (blend >= 1) return;
-        }
-        const heroImage = HERO_IMAGES[this.type];
-        if (heroImage?.complete && heroImage.naturalWidth > 0) {
-            const height = 100;
-            const width = height * heroImage.naturalWidth / heroImage.naturalHeight;
-            const breathing = Math.sin(frame * 0.055) * 2;
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(heroImage, -width / 2, 30 - height + breathing, width, height);
             return;
         }
-        const drawFunctions = {
-            warrior: this.drawWarrior,
-            mage: this.drawMage,
-            archer: this.drawArcher,
-            wolf: this.drawWolf,
-            goblin: this.drawGoblin,
-            skeleton: this.drawSkeleton,
-            dragon: this.drawDragon,
-            goblin_king: this.drawGoblinKing,
-            death_knight: this.drawDeathKnight,
-            lich_king: this.drawLichKing,
-            ancient_dragon: this.drawAncientDragon
-        };
-        
-        const drawFunc = drawFunctions[this.type] || drawFunctions[BOSS_FALLBACKS[this.type]];
-        if (drawFunc) {
-            // Temporary oversized silhouettes communicate boss presence while
-            // dedicated sprites are being created. Save/restore is in draw().
-            if (BOSS_FALLBACKS[this.type]) ctx.scale(1.18, 1.18);
-            drawFunc.call(this, ctx, frame);
-        }
+
+        drawBasePose(1);
     }
-    
+
     drawWarrior(ctx, frame) {
         const bounce = Math.sin(frame * 0.1) * 5;
         ctx.fillStyle = '#4a90e2';

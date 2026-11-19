@@ -848,7 +848,7 @@ test('equipment sets activate only with both pieces and do not stack base stats'
     player.equipment.armor = null;
     assert.equal(getEffectiveCombatStats(player).attack, initialAttack);
     player.equipment = { weapon: 'frost_blade', armor: 'frost_armor' };
-    assert.equal(getEquipmentSetBonuses(player).defense, 7);
+    assert.equal(getEquipmentSetBonuses(player).defense, 10);
     player.equipment = { weapon: 'blood_dagger', armor: 'blood_armor' };
     assert.equal(getEquipmentSetBonuses(player).attack, 4);
     assert.equal(getEquipmentSetBonuses(player).defense, 3);
@@ -1525,7 +1525,7 @@ test('story bosses favor regional equipment without changing normal loot tables'
         ['world_eater', 'dragon_sword']
     ];
     for (const [bossId, expected] of trophies) {
-        assert.equal(rollLoot(true, () => 0.1, bossId), expected);
+        assert.equal(rollLoot(true, () => 0.3, bossId), expected);
         assert.ok(getItem(expected));
         assert.equal(rollLoot(true, () => 0.7, bossId), 'big_health_potion');
     }

@@ -79,7 +79,8 @@ function createEquipmentSlot(slot, icon, name, itemId) {
     const itemData = itemId ? getItem(itemId) : null;
     
     const rarity = itemData ? RARITIES[itemData.rarity] || RARITIES.common : null;
-    const upgradeProfile = itemId ? getUpgradeVisualProfile(itemId, getItemUpgradeLevel(gameState.player, itemId)) : null;
+    const upgradeLevel = itemData ? getItemUpgradeLevel(gameState.player, itemId) : 0;
+    const upgradeProfile = itemId ? getUpgradeVisualProfile(itemId, upgradeLevel) : null;
     const stat = itemData?.attackBonus ? `⚔️ +${itemData.attackBonus} атаки`
         : itemData?.defenseBonus ? `🛡️ +${itemData.defenseBonus} защиты` : '';
     return `

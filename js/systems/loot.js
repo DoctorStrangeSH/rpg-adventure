@@ -5,15 +5,12 @@ export function grantItem(player, itemId, quantity = 1) {
     if (!player || !Array.isArray(player.inventory) || !getItem(itemId) ||
         !Number.isSafeInteger(quantity) || quantity <= 0) return 0;
     const existing = player.inventory.find(item => item.id === itemId);
+    if (existing && (!Number.isSafeInteger(existing.quantity) || existing.quantity < 0 ||
+        existing.quantity > Number.MAX_SAFE_INTEGER - quantity)) return 0;
+    if (existing) existing.quantity += quantity;
+    else player.inventory.push({ id: itemId, quantity });
     if (!Array.isArray(player.discoveredItems)) player.discoveredItems = [];
     if (!player.discoveredItems.includes(itemId)) player.discoveredItems.push(itemId);
-    if (existing) {
-        if (!Number.isSafeInteger(existing.quantity) || existing.quantity < 0 ||
-            existing.quantity > Number.MAX_SAFE_INTEGER - quantity) return 0;
-        existing.quantity += quantity;
-    } else {
-        player.inventory.push({ id: itemId, quantity });
-    }
     return quantity;
 }
 

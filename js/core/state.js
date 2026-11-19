@@ -63,8 +63,8 @@ class GameState {
             speed: classData.stats.speed,
             gold: 100,
             unlockedLocations: ['forest'],
-            inventory: [
-                { id: 'health_potion', quantity: 3 },
+            discoveredItems: [],
+            inventory: [                { id: 'health_potion', quantity: 3 },
                 { id: 'mana_potion', quantity: 2 }
             ],
             equipment: {
@@ -110,6 +110,15 @@ class GameState {
             Array.isArray(saved.player.inventory) &&
             saved.player.equipment && typeof saved.player.equipment === 'object') {
             this.data = { player: saved.player, screen: 'main-menu' };
+            if (!Array.isArray(this.player.discoveredItems)) {
+                this.player.discoveredItems = this.player.inventory
+                    .filter(entry => entry && typeof entry.id === 'string')
+                    .map(entry => entry.id);
+            }
+            this.player.discoveredItems = [...new Set(this.player.discoveredItems.filter(id =>
+                typeof id === 'string' && this.player.inventory.some(entry => entry?.id === id) ||
+                typeof id === 'string'
+            ))];
             if (!Array.isArray(this.player.talents)) this.player.talents = [];
             if (!Array.isArray(this.player.relics)) this.player.relics = [];
             if (!Array.isArray(this.player.activeRelics)) this.player.activeRelics = [];

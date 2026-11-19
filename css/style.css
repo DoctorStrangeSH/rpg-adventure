@@ -1419,3 +1419,54 @@ body {
 .adventure-event h3 { color: var(--gold); margin: 0; }
 .adventure-event p { color: var(--text-muted); margin: 0 0 6px; }
 .adventure-event .battle-btn { width: min(100%, 330px); }
+
+
+/* Inventory presentation: rarity is a restrained frame accent, not a full-card flood. */
+.inventory-hint {
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+    margin: -8px 0 16px;
+}
+.equipment-slot {
+    border-color: color-mix(in srgb, var(--item-rarity, var(--border)) 48%, var(--border));
+    background: linear-gradient(145deg, var(--bg-card), rgba(255,255,255,.015));
+}
+.equipment-slot.slot-filled {
+    border-color: var(--item-rarity, var(--gold));
+    box-shadow: inset 0 0 18px color-mix(in srgb, var(--item-rarity, var(--gold)) 9%, transparent);
+}
+.slot-stat, .slot-rarity {
+    margin-top: 7px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.inventory-item {
+    border-color: color-mix(in srgb, var(--item-rarity, var(--border)) 42%, var(--border));
+    background: linear-gradient(160deg, color-mix(in srgb, var(--item-rarity, transparent) 7%, var(--bg-card)), var(--bg-card) 68%);
+    min-width: 0;
+}
+.inventory-item.equipped {
+    border-color: var(--item-rarity, var(--gold));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--item-rarity, var(--gold)) 30%, transparent);
+}
+.item-type-label {
+    color: var(--text-muted);
+    font-size: 9px;
+    letter-spacing: .12em;
+    margin-bottom: 7px;
+}
+.item-rarity {
+    font-size: 11px;
+    margin: 4px 0;
+}
+.item-stats {
+    overflow-wrap: anywhere;
+}
+@media (max-width: 420px) {
+    .inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .inventory-item { padding: 11px 8px; }
+    .equipment-slots { gap: 8px; }
+    .equipment-slot { padding: 14px 8px; }
+    .slot-item { font-size: 13px; overflow-wrap: anywhere; }
+}

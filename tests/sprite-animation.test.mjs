@@ -342,3 +342,38 @@ test('equipment layer registration accepts supported slots and removes invalid r
     assert.equal(sprite.setEquipmentLayer('weapon', null), false);
     assert.equal(sprite.equipmentLayers.weapon, undefined);
 });
+
+test('equipment image loader registers only successfully loaded supported layers', async () => {
+    class MockImage {
+        set src(value) {
+            this._src = value;
+            queueMicrotask(() => {
+                if (value.includes('broken')) this.onerror?.();
+                else {
+                    this.complete = true;
+                    this.naturalWidth = 64;
+                    this.naturalHeight = 96;
+                    this.onload?.();
+                }
+            });
+        }
+    }
+    const sprite = new Sprite('warrior', 0, 0);
+    assert.equal(await sprite.loadEquipmentLayer('weapon', 'sword.png', {}, MockImage), true);
+    assert.equal(sprite.equipmentLayers.weapon.image.complete, true);
+    assert.equal(await sprite.loadEquipmentLayer('shield', 'broken.png', {}, MockImage), false);
+    assert.equal(sprite.equipmentLayers.shield, undefined);
+    assert.equal(await sprite.loadEquipmentLayer('cape', 'cape.png', {}, MockImage), false);
+    assert.equal(await sprite.loadEquipmentLayer('back', 'cape.png', {}, null), false);
+});
+
+test('equipment layers can be removed without disturbing other slots', () => {
+    const sprite = new Sprite('warrior', 0, 0);
+    const image = { complete: true, naturalWidth: 32, naturalHeight: 32 };
+    sprite.setEquipmentLayer('weapon', image);
+    sprite.setEquipmentLayer('shield', image);
+    assert.equal(sprite.removeEquipmentLayer('weapon'), true);
+    assert.equal(sprite.equipmentLayers.weapon, undefined);
+    assert.equal(sprite.equipmentLayers.shield.image, image);
+    assert.equal(sprite.removeEquipmentLayer('weapon'), false);
+});

@@ -325,6 +325,33 @@ export class Sprite {
         this.equipmentLayers = Object.create(null);
     }
 
+    loadEquipmentLayer(slot, source, options = {}, ImageConstructor = globalThis.Image) {
+        if (!['weapon', 'shield', 'back'].includes(slot) ||
+            typeof source !== 'string' || source.trim() === '' ||
+            typeof ImageConstructor !== 'function') return Promise.resolve(false);
+        return new Promise(resolve => {
+            const image = new ImageConstructor();
+            image.onload = () => {
+                const accepted = this.setEquipmentLayer(slot, image, options);
+                resolve(accepted);
+            };
+            image.onerror = () => {
+                if (this.equipmentLayers[slot]?.image === image) {
+                    delete this.equipmentLayers[slot];
+                }
+                resolve(false);
+            };
+            image.src = source;
+        });
+    }
+
+    removeEquipmentLayer(slot) {
+        if (!['weapon', 'shield', 'back'].includes(slot)) return false;
+        const existed = Object.hasOwn(this.equipmentLayers, slot);
+        delete this.equipmentLayers[slot];
+        return existed;
+    }
+
     setEquipmentLayer(slot, image, options = {}) {
         if (!['weapon', 'shield', 'back'].includes(slot)) return false;
         if (!image || typeof image !== 'object') {

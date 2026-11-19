@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
 import { ParticleSystem } from '../js/systems/particles.js';
-import { getAttackFrame, getHeroEquipmentAnchor, getHeroStateBlend, getHorizontalAtlasFrame, getGridAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getEquipmentDrawRect, getHeroEquipmentAnchor, getHeroStateBlend, getHorizontalAtlasFrame, getGridAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -323,4 +323,22 @@ test('equipment attachment anchors are stable, pose-aware and reject unknown lay
     assert.ok(guardShield.x < 0);
     assert.equal(getHeroEquipmentAnchor('dragon', 'weapon'), null);
     assert.equal(getHeroEquipmentAnchor('warrior', 'cape'), null);
+});
+
+test('equipment draw rectangles preserve aspect ratio and center on pose anchors', () => {
+    assert.deepEqual(getEquipmentDrawRect(2, 1, { x: 20, y: -10 }, 40),
+        { x: -20, y: -30, width: 80, height: 40 });
+    assert.equal(getEquipmentDrawRect(0, 32, { x: 0, y: 0 }), null);
+    assert.equal(getEquipmentDrawRect(32, 32, null), null);
+    assert.equal(getEquipmentDrawRect(32, 32, { x: 0, y: 0 }, -1), null);
+});
+
+test('equipment layer registration accepts supported slots and removes invalid resources', () => {
+    const sprite = new Sprite('warrior', 0, 0);
+    const fakeImage = { complete: true, naturalWidth: 64, naturalHeight: 64 };
+    assert.equal(sprite.setEquipmentLayer('weapon', fakeImage), true);
+    assert.equal(sprite.equipmentLayers.weapon.image, fakeImage);
+    assert.equal(sprite.setEquipmentLayer('cape', fakeImage), false);
+    assert.equal(sprite.setEquipmentLayer('weapon', null), false);
+    assert.equal(sprite.equipmentLayers.weapon, undefined);
 });

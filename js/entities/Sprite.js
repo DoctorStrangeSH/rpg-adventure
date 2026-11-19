@@ -62,6 +62,16 @@ export function getHeroStateBlend(elapsed, duration = 4) {
     return progress * progress * (3 - 2 * progress);
 }
 
+export function getEquipmentDrawRect(imageWidth, imageHeight, anchor, targetHeight = 54) {
+    if (!Number.isFinite(imageWidth) || imageWidth <= 0 ||
+        !Number.isFinite(imageHeight) || imageHeight <= 0 ||
+        !anchor || !Number.isFinite(anchor.x) || !Number.isFinite(anchor.y) ||
+        !Number.isFinite(targetHeight) || targetHeight <= 0) return null;
+    const height = targetHeight;
+    const width = height * imageWidth / imageHeight;
+    return { x: anchor.x - width / 2, y: anchor.y - height / 2, width, height };
+}
+
 export function getHeroEquipmentAnchor(heroType, equipment, pose = 'idle') {
     if (!['warrior', 'mage', 'archer'].includes(heroType)) return null;
     if (!['weapon', 'shield', 'back'].includes(equipment)) return null;
@@ -312,6 +322,41 @@ export class Sprite {
         this.parryStartFrame = null;
         this.counterStartFrame = null;
         this.deathStartFrame = null;
+        this.equipmentLayers = Object.create(null);
+    }
+
+    setEquipmentLayer(slot, image, options = {}) {
+        if (!['weapon', 'shield', 'back'].includes(slot)) return false;
+        if (!image || typeof image !== 'object') {
+            delete this.equipmentLayers[slot];
+            return false;
+        }
+        const targetHeight = Number.isFinite(options.targetHeight) && options.targetHeight > 0
+            ? options.targetHeight : (slot === 'shield' ? 48 : 58);
+        const rotation = Number.isFinite(options.rotation) ? options.rotation : 0;
+        this.equipmentLayers[slot] = { image, targetHeight, rotation };
+        return true;
+    }
+
+    drawEquipmentLayers(ctx, pose) {
+        const order = ['back', 'weapon', 'shield'];
+        for (const slot of order) {
+            const layer = this.equipmentLayers[slot];
+            const image = layer?.image;
+            if (!image?.complete || !Number.isFinite(image.naturalWidth) ||
+                !Number.isFinite(image.naturalHeight) || image.naturalWidth <= 0 ||
+                image.naturalHeight <= 0) continue;
+            const anchor = getHeroEquipmentAnchor(this.type, slot, pose);
+            const rect = getEquipmentDrawRect(image.naturalWidth, image.naturalHeight,
+                anchor, layer.targetHeight);
+            if (!rect) continue;
+            ctx.save();
+            ctx.translate(anchor.x, anchor.y);
+            ctx.rotate(layer.rotation);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(image, -rect.width / 2, -rect.height / 2, rect.width, rect.height);
+            ctx.restore();
+        }
     }
 
     beginDeath(frame) {
@@ -393,6 +438,8 @@ export class Sprite {
         } else {
             this.drawSprite(ctx, frame);
         }
+        const equipmentPose = getWarriorVisualPose(this.isAttacking, this.isGuarding);
+        this.drawEquipmentLayers(ctx, equipmentPose);
         if (this.type === 'mage' && this.isAttacking) {
             const cast = getMageCastEffect(frame - (this.attackStartFrame ?? frame));
             if (cast) {

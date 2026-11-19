@@ -60,8 +60,8 @@ export class DamageText {
         this.x = x;
         this.y = y;
         this.text = text;
-        this.color = color;
         this.style = getDamageTextStyle(options);
+        this.color = color || this.style.color;
         this.critical = options.isCrit === true;
         this.life = 1;
         this.vy = this.critical ? -3.8 : -3;

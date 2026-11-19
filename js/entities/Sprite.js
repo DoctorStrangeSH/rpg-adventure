@@ -58,7 +58,33 @@ export function getHorizontalAtlasFrame(imageWidth, imageHeight, frameCount, fra
 // attack/guard duration or the number of combat actions.
 export function getHeroStateBlend(elapsed, duration = 4) {
     if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || duration <= 0 || elapsed < 0) return 0;
-    return Math.max(0, Math.min(1, elapsed / duration));
+    const progress = Math.max(0, Math.min(1, elapsed / duration));
+    return progress * progress * (3 - 2 * progress);
+}
+
+export function getHeroEquipmentAnchor(heroType, equipment, pose = 'idle') {
+    if (!['warrior', 'mage', 'archer'].includes(heroType)) return null;
+    if (!['weapon', 'shield', 'back'].includes(equipment)) return null;
+    const anchors = {
+        warrior: {
+            idle: { weapon: [20, -43], shield: [-19, -35], back: [0, -74] },
+            attack: { weapon: [27, -46], shield: [-17, -32], back: [0, -74] },
+            guard: { weapon: [17, -39], shield: [-23, -38], back: [0, -74] }
+        },
+        mage: {
+            idle: { weapon: [19, -43], shield: [-18, -34], back: [0, -73] },
+            attack: { weapon: [24, -48], shield: [-18, -34], back: [0, -73] },
+            guard: { weapon: [19, -43], shield: [-18, -34], back: [0, -73] }
+        },
+        archer: {
+            idle: { weapon: [20, -42], shield: [-18, -34], back: [0, -73] },
+            attack: { weapon: [25, -45], shield: [-18, -34], back: [0, -73] },
+            guard: { weapon: [20, -42], shield: [-18, -34], back: [0, -73] }
+        }
+    };
+    const selectedPose = anchors[heroType][pose] || anchors[heroType].idle;
+    const [x, y] = selectedPose[equipment];
+    return { x, y, originX: 0, originY: -30 };
 }
 
 // Four hand-drawn attack frames, each lasting seven render ticks. The index

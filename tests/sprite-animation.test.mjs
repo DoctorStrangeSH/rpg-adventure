@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
 import { ParticleSystem } from '../js/systems/particles.js';
-import { getAttackFrame, getHeroStateBlend, getHorizontalAtlasFrame, getGridAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHeroEquipmentAnchor, getHeroStateBlend, getHorizontalAtlasFrame, getGridAtlasFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorCounterPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -312,4 +312,15 @@ test('state blend opacity is complementary for a true crossfade', () => {
         assert.ok(outgoing >= 0 && outgoing <= 1);
         assert.equal(incoming + outgoing, 1);
     }
+});
+
+test('equipment attachment anchors are stable, pose-aware and reject unknown layers', () => {
+    const idleSword = getHeroEquipmentAnchor('warrior', 'weapon', 'idle');
+    const attackSword = getHeroEquipmentAnchor('warrior', 'weapon', 'attack');
+    const guardShield = getHeroEquipmentAnchor('warrior', 'shield', 'guard');
+    assert.deepEqual(idleSword, { x: 20, y: -43, originX: 0, originY: -30 });
+    assert.notDeepEqual(idleSword, attackSword);
+    assert.ok(guardShield.x < 0);
+    assert.equal(getHeroEquipmentAnchor('dragon', 'weapon'), null);
+    assert.equal(getHeroEquipmentAnchor('warrior', 'cape'), null);
 });

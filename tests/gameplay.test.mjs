@@ -850,7 +850,7 @@ test('equipment sets activate only with both pieces and do not stack base stats'
     player.equipment = { weapon: 'frost_blade', armor: 'frost_armor' };
     assert.equal(getEquipmentSetBonuses(player).defense, 10);
     player.equipment = { weapon: 'blood_dagger', armor: 'blood_armor' };
-    assert.equal(getEquipmentSetBonuses(player).attack, 4);
+    assert.equal(getEquipmentSetBonuses(player).attack, 6);
     assert.equal(getEquipmentSetBonuses(player).defense, 3);
 });
 

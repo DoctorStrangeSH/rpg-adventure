@@ -6,11 +6,13 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
+import { ProjectileFx } from '../systems/projectileFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
 const particleSystem = new ParticleSystem();
+const projectileFx = new ProjectileFx();
 const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
 let damageTexts = [];
 let isProcessing = false;
@@ -70,6 +72,7 @@ export function startBattle(location) {
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
     battleState.animationFrame = 0;
+    projectileFx.clear();
     battleState.turn = 'player';
     battleState.isBossBattle = false;
     battleState.isLocationBattle = false;
@@ -140,6 +143,7 @@ function drawBattle() {
         battleState.enemySprite.draw(ctx, battleState.animationFrame);
         drawBattleHPBar(ctx, battleState.enemySprite, battleState.currentEnemy, false);
     }
+    projectileFx.draw(ctx, battleState.animationFrame);
     
     particleSystem.update();
     particleSystem.draw(ctx);
@@ -304,6 +308,15 @@ function disableBattleButtons() {
     });
 }
 
+function launchPlayerProjectile() {
+    const kind = gameState.player?.class;
+    const source = battleState.playerSprite;
+    const target = battleState.enemySprite;
+    if (!source || !target) return;
+    projectileFx.launch(kind, { x: source.x + 20, y: source.y - 25 },
+        { x: target.x - 12, y: target.y - 25 }, battleState.animationFrame);
+}
+
 export function playerAttack() {
     if (isProcessing) return;
     if (!battleState.isActive) return;
@@ -319,6 +332,7 @@ export function playerAttack() {
     SoundSystem.playSound('attack');
     
     battleState.playerSprite.isAttacking = true;
+    launchPlayerProjectile();
     
     const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
     const tacticalBonus = getClassTacticalBonus(player, enemy);
@@ -416,6 +430,7 @@ export function playerSkill(skillId) {
     player.mana -= skill.manaCost;
     
     battleState.playerSprite.isAttacking = true;
+    launchPlayerProjectile();
     
     const result = useSkillEffect(player, enemy, skill);
     if (result.damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);

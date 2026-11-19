@@ -45,6 +45,16 @@ export function getHitFeedback(elapsed, duration = 16) {
     };
 }
 
+// Location bosses must remain visible even before their dedicated atlases ship.
+// Keep these aliases explicit so a newly added boss cannot silently disappear.
+export const BOSS_FALLBACKS = Object.freeze({
+    forest_guardian: 'dragon',
+    mountain_giant: 'death_knight',
+    mountain_dragon: 'ancient_dragon',
+    lich_king: 'death_knight',
+    world_eater: 'ancient_dragon'
+});
+
 export class Sprite {
     constructor(type, x, y) {
         this.type = type;
@@ -125,8 +135,11 @@ export class Sprite {
             ancient_dragon: this.drawAncientDragon
         };
         
-        const drawFunc = drawFunctions[this.type];
+        const drawFunc = drawFunctions[this.type] || drawFunctions[BOSS_FALLBACKS[this.type]];
         if (drawFunc) {
+            // Temporary oversized silhouettes communicate boss presence while
+            // dedicated sprites are being created. Save/restore is in draw().
+            if (BOSS_FALLBACKS[this.type]) ctx.scale(1.18, 1.18);
             drawFunc.call(this, ctx, frame);
         }
     }

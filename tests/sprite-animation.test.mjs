@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, Sprite } from '../js/entities/Sprite.js';
+
+test('death knight attack has distinct windup, slash, and recovery poses', () => {
+    assert.equal(getDeathKnightPose(0, true), 'windup');
+    assert.equal(getDeathKnightPose(6, true), 'slash');
+    assert.equal(getDeathKnightPose(13, true), 'recovery');
+    assert.equal(getDeathKnightPose(20, true), 'idle');
+    assert.equal(getDeathKnightPose(7, false), 'idle');
+    assert.equal(getDeathKnightPose(Number.NaN, true), 'idle');
+});
 
 test('hero attacks advance through four bounded animation frames', () => {
     assert.equal(getAttackFrame(0), 0);

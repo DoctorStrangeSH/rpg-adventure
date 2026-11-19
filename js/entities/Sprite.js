@@ -55,6 +55,16 @@ export const BOSS_FALLBACKS = Object.freeze({
     world_eater: 'ancient_dragon'
 });
 
+// A readable four-pose windup/slash/recovery loop for the Death Knight.
+// The pose follows the attack state and never modifies combat timing.
+export function getDeathKnightPose(elapsed, attacking) {
+    if (!attacking || !Number.isFinite(elapsed) || elapsed < 0) return 'idle';
+    if (elapsed < 6) return 'windup';
+    if (elapsed < 13) return 'slash';
+    if (elapsed < 20) return 'recovery';
+    return 'idle';
+}
+
 export class Sprite {
     constructor(type, x, y) {
         this.type = type;
@@ -321,24 +331,84 @@ export class Sprite {
     }
     
     drawDeathKnight(ctx, frame) {
-        const bounce = Math.sin(frame * 0.08) * 3;
-        ctx.fillStyle = '#424242';
-        ctx.fillRect(-20, -30 + bounce, 40, 50);
-        ctx.fillStyle = '#f5f5f5';
+        const bounce = Math.sin(frame * 0.055) * 2;
+        const pose = getDeathKnightPose(frame - (this.attackStartFrame ?? frame), this.isAttacking);
+        ctx.save();
+        ctx.translate(0, bounce);
+        // Torn cape and heavy boots establish the knight's silhouette.
+        ctx.fillStyle = '#411e34';
         ctx.beginPath();
-        ctx.arc(0, -35 + bounce, 22, 0, Math.PI * 2);
+        ctx.moveTo(-18, -33);
+        ctx.lineTo(-39, 23);
+        ctx.lineTo(-22, 13);
+        ctx.lineTo(-10, 25);
+        ctx.lineTo(25, 21);
+        ctx.lineTo(18, -33);
         ctx.fill();
-        ctx.fillStyle = '#616161';
+        ctx.fillStyle = '#181d2a';
+        ctx.fillRect(-21, 9, 17, 20);
+        ctx.fillRect(5, 9, 17, 20);
+        ctx.fillStyle = '#586071';
+        ctx.fillRect(-24, 24, 21, 7);
+        ctx.fillRect(4, 24, 21, 7);
+        ctx.fillStyle = '#292e40';
+        ctx.fillRect(-25, -32, 50, 43);
+        ctx.fillStyle = '#87909b';
+        ctx.fillRect(-19, -27, 38, 5);
+        ctx.fillRect(-5, -20, 10, 29);
+        ctx.fillStyle = '#6a4256';
+        ctx.fillRect(-23, -8, 46, 7);
+        // Spiked pauldrons and narrow faceplate.
+        ctx.fillStyle = '#505b6e';
         ctx.beginPath();
-        ctx.arc(0, -40 + bounce, 24, Math.PI, 0);
+        ctx.moveTo(-36, -23);
+        ctx.lineTo(-28, -47);
+        ctx.lineTo(-14, -33);
+        ctx.lineTo(14, -33);
+        ctx.lineTo(28, -47);
+        ctx.lineTo(36, -23);
+        ctx.lineTo(20, -17);
+        ctx.lineTo(-20, -17);
         ctx.fill();
-        ctx.fillStyle = '#ff0000';
-        ctx.fillRect(-8, -40 + bounce, 6, 6);
-        ctx.fillRect(2, -40 + bounce, 6, 6);
-        ctx.fillStyle = '#757575';
-        ctx.fillRect(20, -50 + bounce, 8, 45);
-        ctx.fillStyle = '#424242';
-        ctx.fillRect(15, -10 + bounce, 18, 6);
+        ctx.fillStyle = '#1c2131';
+        ctx.fillRect(-17, -59, 34, 30);
+        ctx.fillStyle = '#a1a7ae';
+        ctx.fillRect(-19, -61, 38, 8);
+        ctx.fillRect(-19, -50, 4, 20);
+        ctx.fillRect(15, -50, 4, 20);
+        ctx.fillStyle = '#b24d70';
+        ctx.fillRect(-11, -45, 8, 4);
+        ctx.fillRect(3, -45, 8, 4);
+        ctx.fillStyle = '#d882a0';
+        ctx.fillRect(-9, -45, 4, 2);
+        ctx.fillRect(5, -45, 4, 2);
+        // Greatsword changes pose during the telegraphed attack.
+        ctx.save();
+        ctx.translate(26, -14);
+        ctx.rotate(pose === 'windup' ? -1.15 : pose === 'slash' ? 1.1 : pose === 'recovery' ? 0.3 : -0.25);
+        ctx.fillStyle = '#322537';
+        ctx.fillRect(-3, -2, 6, 22);
+        ctx.fillStyle = '#d2af7c';
+        ctx.fillRect(-13, -7, 26, 5);
+        ctx.fillStyle = '#a1b2c5';
+        ctx.beginPath();
+        ctx.moveTo(-7, -8);
+        ctx.lineTo(-10, -63);
+        ctx.lineTo(0, -79);
+        ctx.lineTo(10, -63);
+        ctx.lineTo(7, -8);
+        ctx.fill();
+        ctx.fillStyle = '#4c617e';
+        ctx.fillRect(-2, -61, 4, 45);
+        ctx.restore();
+        if (pose === 'slash') {
+            ctx.strokeStyle = '#b65e86';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(-4, -22, 73, -0.7, 0.55);
+            ctx.stroke();
+        }
+        ctx.restore();
     }
     
     drawAncientDragon(ctx, frame) {

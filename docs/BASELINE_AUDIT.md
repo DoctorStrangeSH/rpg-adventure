@@ -129,7 +129,7 @@ Workflow `.github/workflows/tests.yml` выполняет `npm test` на Node.j
 5. В `js/ui/inventory.js` исправлена ссылка на несуществующую переменную `upgradeLevel` в отображении слота экипировки.
 6. Глобальные UI-привязки в `inventory.js` теперь регистрируются только при наличии browser `window`, чтобы импорт чистых модулей в Node.js тестах не падал.
 
-**Текущий результат:** workflow Gameplay tests run #251 на commit `8e9b6e7caf9cc1f13f2720dcf01594ad818d275b` завершился успешно: **242/242 passed, 0 failed**. CI по тестам зелёный. Это не заменяет ручные игровые прохождения и viewport-проверку.
+**Текущий результат:** workflow Gameplay tests run #252 на commit `3456f6a2734c6d7624b5ab7c0f5b6858efaf07b7` завершился успешно: **242/242 passed, 0 failed**. CI по тестам зелёный. Это не заменяет ручные игровые прохождения и viewport-проверку.
 
 ## 8. Репозиторий и открытая работа
 

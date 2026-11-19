@@ -57,7 +57,7 @@ export function getWeaponRuneBonuses(player,weaponId=player?.equipment?.weapon){
  return total;
 }
 export function getWeaponRuneDamageType(player){
- const runes=getWeaponRunes(player);return runes.length?RUNE_CATALOG[runes[runes.length-1]].damageType:null;
+ const runes=getWeaponRunes(player);\n const elemental=[...runes].reverse().map(id=>RUNE_CATALOG[id].damageType).find(type=>type!=='physical');\n return elemental || null;
 }
 export function triggerRuneEffect(player,enemy,roll=Math.random()){
  if(!enemy||enemy.health<=0||!Number.isFinite(roll)||roll<0||roll>=1)return null;

@@ -1492,3 +1492,6 @@ body {
 .craft-button{margin-top:auto;border:1px solid var(--gold);border-radius:8px;padding:9px;background:rgba(214,169,79,.12);color:var(--text-primary);font-weight:600}
 .craft-button:disabled{opacity:.45;border-color:var(--border);cursor:not-allowed}
 @media(max-width:480px){.crafting-grid{grid-template-columns:1fr}}
+
+.salvage-button{width:100%;margin-top:8px;padding:7px 6px;border:1px solid var(--border);border-radius:7px;background:rgba(255,255,255,.035);color:var(--text-secondary);font-size:10px;cursor:pointer}
+.salvage-button:hover{border-color:var(--gold);color:var(--text)}

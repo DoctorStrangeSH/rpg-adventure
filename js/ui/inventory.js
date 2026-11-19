@@ -5,6 +5,7 @@ import { getEquipmentSetBonuses } from '../systems/combat.js';
 import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.js';
 import { getBossTrophyCatalog, getCollectionProgress } from '../systems/loot.js';
 import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems/crafting.js';
+import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -104,7 +105,7 @@ function createInventoryItem(item, index, player) {
             ${comparison ? `<div class="item-comparison"><span>${comparison.statLabel}: ${comparison.currentValue} → <b>${comparison.nextValue}</b></span><strong class="comparison-delta ${comparison.delta > 0 ? 'delta-up' : comparison.delta < 0 ? 'delta-down' : 'delta-equal'}">${comparison.delta > 0 ? '+' : ''}${comparison.delta}</strong></div>` : ''}
             ${itemData.requiredLevel ? `<div class="item-stats">${levelLocked ? '🔒 ' : ''}Уровень ${itemData.requiredLevel}</div>` : ''}
             <div class="item-quantity">x${item.quantity}</div>
-            ${isEquipped ? '<div class="equipped-badge">✓</div>' : ''}
+            ${isEquipped ? '<div class="equipped-badge">✓</div>' : ['weapon', 'armor'].includes(itemData.type) ? `<button class="salvage-button" onclick="window.salvageInventoryItem(${index}, event)">Разобрать · ${getSalvagePreview(item.id).map(r => `${r.item?.icon || '◆'} ×${r.quantity}`).join(' ')}</button>` : ''}
         </div>
     `;
 }
@@ -201,3 +202,11 @@ export function craftInventoryItem(recipeId) {
     updateInventoryScreen();
 }
 window.craftInventoryItem = craftInventoryItem;
+
+export function salvageInventoryItem(index,event){
+ event?.stopPropagation?.();const player=gameState.player;if(!player)return;
+ const result=salvageEquipment(player,index);
+ if(!result.ok){window.showNotification(result.reason==='equipped'?'Сначала снимите предмет':result.reason==='inventory_limit'?'Недостаточно места для материалов':'Не удалось разобрать предмет','error');return;}
+ gameState.save();window.showNotification(`Разобрано: ${result.item.name}`,'success');updateInventoryScreen();
+}
+window.salvageInventoryItem=salvageInventoryItem;

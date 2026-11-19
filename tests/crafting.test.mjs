@@ -29,3 +29,25 @@ test('legendary recipe requires rare scale discovery and level',()=>{
 test('crafted output cannot consume ingredients if output is invalid',()=>{
  const p=player();const snapshot=structuredClone(p);assert.equal(craftItem(p,'unknown_recipe').ok,false);assert.deepEqual(p,snapshot);
 });
+
+test('salvage refuses equipped items without mutation',async()=>{
+ const {salvageEquipment}=await import('../js/systems/salvage.js');
+ const p={equipment:{weapon:'iron_sword',armor:null},inventory:[{id:'iron_sword',quantity:1}]};
+ const snapshot=structuredClone(p),r=salvageEquipment(p,0);
+ assert.equal(r.reason,'equipped');assert.deepEqual(p,snapshot);
+});
+test('salvage converts one unequipped item into rarity-based materials',async()=>{
+ const {salvageEquipment}=await import('../js/systems/salvage.js');
+ const p={equipment:{weapon:null,armor:null},inventory:[{id:'moonblade',quantity:2}]};
+ const r=salvageEquipment(p,0);assert.equal(r.ok,true);
+ assert.equal(p.inventory.find(x=>x.id==='moonblade').quantity,1);
+ assert.equal(p.inventory.find(x=>x.id==='iron_ore').quantity,3);
+ assert.equal(p.inventory.find(x=>x.id==='ember_core').quantity,1);
+ assert.equal(p.inventory.find(x=>x.id==='frost_crystal').quantity,1);
+});
+test('salvage overflow is rejected atomically',async()=>{
+ const {salvageEquipment}=await import('../js/systems/salvage.js');
+ const p={equipment:{},inventory:[{id:'moonblade',quantity:1},{id:'iron_ore',quantity:Number.MAX_SAFE_INTEGER}]};
+ const snapshot=structuredClone(p),r=salvageEquipment(p,0);
+ assert.equal(r.reason,'inventory_limit');assert.deepEqual(p,snapshot);
+});

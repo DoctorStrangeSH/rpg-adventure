@@ -1,6 +1,6 @@
 // Экран инвентаря
 import { gameState } from '../core/state.js';
-import { getItem, getItemAbilityDescription, RARITIES } from '../data/items.js';
+import { getItem, getItemAbilityDescription, getItemLore, getEquipmentComparison, RARITIES } from '../data/items.js';
 import { getEquipmentSetBonuses } from '../systems/combat.js';
 import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.js';
 
@@ -68,6 +68,7 @@ function createInventoryItem(item, index, player) {
     const newBonus = itemData.type === 'weapon' ? (itemData.attackBonus || 0) : (itemData.defenseBonus || 0);
     const statLabel = itemData.type === 'weapon' ? '⚔️ Атака' : '🛡️ Защита';
     const difference = newBonus - currentBonus;
+    const comparison = getEquipmentComparison(itemData, currentItem);
     const levelLocked = (itemData.requiredLevel || 1) > player.level;
     
     const rarity = RARITIES[itemData.rarity] || RARITIES.common;
@@ -80,7 +81,8 @@ function createInventoryItem(item, index, player) {
             <div class="item-name">${itemData.name}</div>
             <div class="item-rarity" style="color:${rarity.color}">${rarity.name}</div>
             ${getItemAbilityDescription(itemData) ? `<div class="item-stats">${getItemAbilityDescription(itemData)}</div>` : ''}
-            ${['weapon', 'armor'].includes(itemData.type) ? `<div class="item-stats">${statLabel}: +${newBonus} <span style="color:${difference >= 0 ? '#6ee7b7' : '#fca5a5'}">(${difference >= 0 ? '+' : ''}${difference})</span></div>` : ''}
+            ${getItemLore(itemData) ? `<div class="item-lore"><span>${getItemLore(itemData).origin}</span><p>${getItemLore(itemData).lore}</p></div>` : ''}
+            ${comparison ? `<div class="item-comparison"><span>${comparison.statLabel}: ${comparison.currentValue} → <b>${comparison.nextValue}</b></span><strong class="comparison-delta ${comparison.delta > 0 ? 'delta-up' : comparison.delta < 0 ? 'delta-down' : 'delta-equal'}">${comparison.delta > 0 ? '+' : ''}${comparison.delta}</strong></div>` : ''}
             ${itemData.requiredLevel ? `<div class="item-stats">${levelLocked ? '🔒 ' : ''}Уровень ${itemData.requiredLevel}</div>` : ''}
             <div class="item-quantity">x${item.quantity}</div>
             ${isEquipped ? '<div class="equipped-badge">✓</div>' : ''}

@@ -45,6 +45,8 @@ export const ITEMS = {
         rarity: 'legendary',
         attackBonus: 40,
         onCrit: { type: 'echo', fraction: 0.25, maxTargetHealthFraction: 0.08 },
+        lore: 'Выкован из чешуи последнего дракона, павшего над Чёрным шпилем. Клинок долго хранили без ножен: говорили, что в темноте он помнит огонь своего создателя.',
+        origin: 'Чёрный шпиль · Эпоха Пепельных королей',
         requiredLevel: 8,
         price: 1000
     },
@@ -68,7 +70,9 @@ export const ITEMS = {
         id: 'moonblade', name: 'Лунный клинок', icon: '🌙',
         type: 'weapon', rarity: 'epic', attackBonus: 28,
         requiredLevel: 6, price: 750,
-        onCrit: { type: 'mana_restore', amount: 8 }
+        onCrit: { type: 'mana_restore', amount: 8 },
+        lore: 'Лунная сталь была закалена в чаше ночного источника. Клинок не любит грубую силу — он возвращает магу часть энергии за точный, решающий удар.',
+        origin: 'Святилище Безмолвной Луны'
     },
     ember_sword: {
         id: 'ember_sword', name: 'Клинок тлеющих углей', icon: '🔥',
@@ -128,4 +132,20 @@ export function getItemAbilityDescription(item) {
         return `${STATUS_NAMES[item.onHit.type] || 'Эффект оружия'}: ${Math.round(item.onHit.chance * 100)}% за попадание`;
     }
     return '';
+}
+
+export function getItemLore(item) {
+    if (!item || typeof item !== 'object') return null;
+    if (!item.lore && !item.origin) return null;
+    return { lore: item.lore || '', origin: item.origin || '' };
+}
+
+export function getEquipmentComparison(item, equippedItem) {
+    if (!item || !['weapon', 'armor'].includes(item.type)) return null;
+    const statKey = item.type === 'weapon' ? 'attackBonus' : 'defenseBonus';
+    const statLabel = item.type === 'weapon' ? 'Атака' : 'Защита';
+    const nextValue = Number.isFinite(item[statKey]) ? item[statKey] : 0;
+    const currentValue = Number.isFinite(equippedItem?.[statKey]) ? equippedItem[statKey] : 0;
+    const delta = nextValue - currentValue;
+    return { statKey, statLabel, currentValue, nextValue, delta, isUpgrade: delta > 0, isDowngrade: delta < 0 };
 }

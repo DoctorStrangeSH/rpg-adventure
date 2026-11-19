@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { equipInventoryItem, unequipEquipmentItem, getEquipmentSlotForItem } from '../js/systems/equipment.js';
+import { getItem, getItemLore, getEquipmentComparison } from '../js/data/items.js';
 
 function makePlayer() {
     return {
@@ -50,4 +51,25 @@ test('level restrictions and empty slots are handled without changing stats', ()
     assert.equal(equipInventoryItem(player, 1).reason, 'level_required');
     assert.equal(player.attack, before);
     assert.equal(unequipEquipmentItem(player, 'armor').reason, 'empty_slot');
+});
+
+test('legendary and epic signature items expose authored lore and origin', () => {
+    const dragon = getItemLore(getItem('dragon_sword'));
+    const moon = getItemLore(getItem('moonblade'));
+    assert.ok(dragon.lore.length > 40);
+    assert.match(dragon.origin, /Чёрный шпиль/);
+    assert.ok(moon.lore.length > 40);
+    assert.ok(moon.origin.length > 0);
+    assert.equal(getItemLore(getItem('iron_sword')), null);
+});
+
+test('equipment comparison reports exact upgrade and downgrade values', () => {
+    const sword = getItem('dragon_sword');
+    const weaker = getEquipmentComparison(sword, getItem('iron_sword'));
+    assert.equal(weaker.delta, 25);
+    assert.equal(weaker.isUpgrade, true);
+    const stronger = getEquipmentComparison(getItem('iron_sword'), sword);
+    assert.equal(stronger.delta, -25);
+    assert.equal(stronger.isDowngrade, true);
+    assert.equal(getEquipmentComparison(getItem('health_potion'), null), null);
 });

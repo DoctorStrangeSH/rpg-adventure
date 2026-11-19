@@ -1503,3 +1503,15 @@ body {
 .upgrade-row b{font-size:12px}.upgrade-row small{color:var(--text-muted);font-size:10px;line-height:1.4}
 .upgrade-button{flex-shrink:0;border:1px solid var(--gold-dark);border-radius:7px;padding:8px 10px;background:rgba(224,188,121,.12);color:var(--text);font-size:11px}
 .upgrade-button:disabled{opacity:.4}
+
+/* Equipment upgrade visual tiers */
+.inventory-item[class*="upgrade-"],.equipment-slot[class*="upgrade-"]{position:relative;isolation:isolate;overflow:hidden}
+.upgrade-etched{border-color:color-mix(in srgb,var(--upgrade-glow) 42%,var(--border))}.upgrade-etched .item-icon,.upgrade-etched .slot-icon{text-shadow:0 0 7px var(--upgrade-glow)}
+.upgrade-glowing{border-color:var(--upgrade-glow);box-shadow:inset 0 0 16px color-mix(in srgb,var(--upgrade-glow) 13%,transparent),0 0 8px color-mix(in srgb,var(--upgrade-glow) 20%,transparent)}
+.upgrade-glowing .item-icon,.upgrade-glowing .slot-icon{filter:drop-shadow(0 0 5px var(--upgrade-glow))}
+.upgrade-awakened{border-color:var(--upgrade-glow);box-shadow:inset 0 0 22px color-mix(in srgb,var(--upgrade-glow) 19%,transparent),0 0 12px color-mix(in srgb,var(--upgrade-glow) 30%,transparent);animation:upgradeAura 3s ease-in-out infinite}
+.upgrade-ascended{border-color:var(--upgrade-glow);box-shadow:inset 0 0 26px color-mix(in srgb,var(--upgrade-glow) 25%,transparent),0 0 16px color-mix(in srgb,var(--upgrade-glow) 45%,transparent);animation:upgradeAscended 2.4s ease-in-out infinite}
+.upgrade-awakened .item-icon,.upgrade-awakened .slot-icon,.upgrade-ascended .item-icon,.upgrade-ascended .slot-icon{filter:drop-shadow(0 0 8px var(--upgrade-glow))}
+.theme-steel{--upgrade-glow:#b9c6d8}.theme-ember{--upgrade-glow:#ff8a42}.theme-dragon{--upgrade-glow:#f04c39}.theme-frost{--upgrade-glow:#75dfff}.theme-blood{--upgrade-glow:#d94c68}.theme-moon{--upgrade-glow:#c1a5ff}.theme-arcane{--upgrade-glow:#d0a5ff}
+@keyframes upgradeAura{0%,100%{filter:brightness(1)}50%{filter:brightness(1.08)}}@keyframes upgradeAscended{0%,100%{filter:brightness(1)}50%{filter:brightness(1.13)}}
+@media(prefers-reduced-motion:reduce){.upgrade-awakened,.upgrade-ascended{animation:none}}

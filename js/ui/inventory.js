@@ -7,6 +7,7 @@ import { getBossTrophyCatalog, getCollectionProgress } from '../systems/loot.js'
 import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems/crafting.js';
 import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
+import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -76,17 +77,18 @@ function createEquipmentSlot(slot, icon, name, itemId) {
     const itemData = itemId ? getItem(itemId) : null;
     
     const rarity = itemData ? RARITIES[itemData.rarity] || RARITIES.common : null;
+    const upgradeProfile = itemId ? getUpgradeVisualProfile(itemId, getItemUpgradeLevel(gameState.player, itemId)) : null;
     const stat = itemData?.attackBonus ? `⚔️ +${itemData.attackBonus} атаки`
         : itemData?.defenseBonus ? `🛡️ +${itemData.defenseBonus} защиты` : '';
     return `
-        <div class="equipment-slot ${itemData ? 'slot-filled' : 'slot-empty'}" style="${rarity ? `--item-rarity:${rarity.color}` : ''}" onclick="window.unequipItem('${slot}')">
+        <div class="equipment-slot ${itemData ? 'slot-filled' : 'slot-empty'} ${upgradeProfile?.className || ''}" style="${rarity ? `--item-rarity:${rarity.color}` : ''}" onclick="window.unequipItem('${slot}')">
             <div class="slot-icon">${icon}</div>
             <div class="slot-name">${name}</div>
             <div class="slot-item">
                 ${itemData ? itemData.icon + ' ' + itemData.name : 'Пусто'}
             </div>
             ${stat ? `<div class="slot-stat">${stat}</div>` : ''}
-            ${rarity ? `<div class="slot-rarity" style="color:${rarity.color}">${rarity.name}</div>` : '<div class="slot-rarity">Можно экипировать</div>'}
+            ${rarity ? `<div class="slot-rarity" style="color:${rarity.color}">${rarity.name}${upgradeLevel ? ' · +' + upgradeLevel : ''}</div>` : '<div class="slot-rarity">Можно экипировать</div>'}
             ${itemData && getItemAbilityDescription(itemData) ? `<div class="item-stats">${getItemAbilityDescription(itemData)}</div>` : ''}
         </div>
     `;
@@ -107,10 +109,12 @@ function createInventoryItem(item, index, player) {
     const levelLocked = (itemData.requiredLevel || 1) > player.level;
     
     const rarity = RARITIES[itemData.rarity] || RARITIES.common;
+    const upgradeLevel = ['weapon', 'armor'].includes(itemData.type) ? getItemUpgradeLevel(player, item.id) : 0;
+    const upgradeProfile = getUpgradeVisualProfile(item.id, upgradeLevel);
     const itemTypeLabel = itemData.type === 'weapon' ? 'ОРУЖИЕ'
         : itemData.type === 'armor' ? 'БРОНЯ' : 'РАСХОДНИК';
     return `
-        <div class="inventory-item ${isEquipped ? 'equipped' : ''} rarity-${itemData.rarity || 'common'}" style="--item-rarity:${rarity.color}" onclick="window.useInventoryItem(${index})">
+        <div class="inventory-item ${isEquipped ? 'equipped' : ''} rarity-${itemData.rarity || 'common'} ${upgradeProfile.className}" style="--item-rarity:${rarity.color}" onclick="window.useInventoryItem(${index})">
             <div class="item-type-label">${itemTypeLabel}</div>
             <div class="item-icon">${itemData.icon}</div>
             <div class="item-name">${itemData.name}</div>

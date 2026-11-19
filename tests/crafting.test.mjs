@@ -67,3 +67,10 @@ test('upgrade refuses unequipped or maxed items without spending resources',asyn
  p.equipment.weapon='iron_sword';p.itemUpgrades={iron_sword:10};const maxed=structuredClone(p);
  assert.equal(upgradeEquipment(p,'iron_sword').reason,'max_level');assert.deepEqual(p,maxed);
 });
+
+test('upgrade visual profile maps level and weapon family to distinct visual tiers',async()=>{
+ const {getUpgradeVisualProfile}=await import('../js/systems/upgradeVisuals.js');
+ assert.equal(getUpgradeVisualProfile('iron_sword',0).tier,'base');assert.equal(getUpgradeVisualProfile('iron_sword',2).tier,'etched');
+ assert.equal(getUpgradeVisualProfile('frost_blade',5).theme,'frost');assert.equal(getUpgradeVisualProfile('blood_dagger',8).tier,'awakened');
+ assert.equal(getUpgradeVisualProfile('dragon_sword',10).className,'upgrade-ascended theme-dragon');assert.equal(getUpgradeVisualProfile('dragon_sword',99).level,10);
+});

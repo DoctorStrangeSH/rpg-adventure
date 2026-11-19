@@ -9,6 +9,14 @@ export function projectilePosition(start, end, elapsed, duration = 18) {
     };
 }
 
+export function getProjectileEffectPhase(kind, elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 0) return 'inactive';
+    if (kind === 'fireball') return elapsed < 18 ? 'flight' : elapsed < 30 ? 'impact' : 'inactive';
+    if (kind === 'frost_nova') return elapsed < 12 ? 'flight' : elapsed < 30 ? 'impact' : 'inactive';
+    if (kind === 'mage' || kind === 'archer') return elapsed < 18 ? 'flight' : elapsed < 27 ? 'impact' : 'inactive';
+    return 'inactive';
+}
+
 export class ProjectileFx {
     constructor() {
         this.effects = [];
@@ -19,17 +27,55 @@ export class ProjectileFx {
     }
 
     launch(kind, source, target, frame) {
-        if (!['mage', 'archer'].includes(kind) || !source || !target) return;
+        if (!['mage', 'archer', 'fireball', 'frost_nova'].includes(kind) || !source || !target ||
+            !Number.isFinite(frame) || !Number.isFinite(source.x) || !Number.isFinite(source.y) ||
+            !Number.isFinite(target.x) || !Number.isFinite(target.y)) return;
         this.effects.push({ kind, source: { ...source }, target: { ...target }, frame });
     }
 
     draw(ctx, frame) {
-        this.effects = this.effects.filter(effect => frame - effect.frame <= 26 && frame >= effect.frame);
+        this.effects = this.effects.filter(effect => getProjectileEffectPhase(effect.kind, frame - effect.frame) !== 'inactive');
         for (const effect of this.effects) {
             const elapsed = frame - effect.frame;
-            const position = projectilePosition(effect.source, effect.target, elapsed);
+            const duration = effect.kind === 'frost_nova' ? 12 : 18;
+            const position = projectilePosition(effect.source, effect.target, elapsed, duration);
             ctx.save();
-            if (elapsed >= 18) {
+            const phase = getProjectileEffectPhase(effect.kind, elapsed);
+            if (phase === 'impact' && effect.kind === 'frost_nova') {
+                const age = elapsed - duration;
+                const radius = 8 + age * 3.2;
+                ctx.globalAlpha = Math.max(0, 1 - age / 18);
+                ctx.strokeStyle = '#a9f3ff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(effect.target.x, effect.target.y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = '#e4fbff';
+                ctx.lineWidth = 1.5;
+                for (let shard = 0; shard < 6; shard++) {
+                    const angle = shard * Math.PI / 3 + age * 0.025;
+                    const inner = radius * 0.35;
+                    const outer = radius * 1.35;
+                    ctx.beginPath();
+                    ctx.moveTo(effect.target.x + Math.cos(angle) * inner,
+                        effect.target.y + Math.sin(angle) * inner);
+                    ctx.lineTo(effect.target.x + Math.cos(angle) * outer,
+                        effect.target.y + Math.sin(angle) * outer);
+                    ctx.stroke();
+                }
+            } else if (phase === 'impact' && effect.kind === 'fireball') {
+                const age = elapsed - duration;
+                const radius = 7 + age * 2.8;
+                ctx.globalAlpha = Math.max(0, 1 - age / 12);
+                ctx.fillStyle = '#ff9b42';
+                ctx.beginPath();
+                ctx.arc(effect.target.x, effect.target.y, radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fff0a6';
+                ctx.beginPath();
+                ctx.arc(effect.target.x, effect.target.y, radius * 0.48, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (phase === 'impact') {
                 const radius = (elapsed - 17) * 4;
                 ctx.globalAlpha = Math.max(0, (27 - elapsed) / 9);
                 ctx.strokeStyle = effect.kind === 'mage' ? '#77f1ef' : '#e4c48e';
@@ -37,6 +83,36 @@ export class ProjectileFx {
                 ctx.beginPath();
                 ctx.arc(effect.target.x, effect.target.y, radius, 0, Math.PI * 2);
                 ctx.stroke();
+            } else if (effect.kind === 'fireball') {
+                ctx.translate(position.x, position.y);
+                const flicker = Math.sin(elapsed * 0.9) * 2;
+                ctx.fillStyle = '#e85b2a';
+                ctx.beginPath();
+                ctx.ellipse(-2, 0, 12 + flicker, 7 + flicker * 0.25, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ffb347';
+                ctx.beginPath();
+                ctx.ellipse(2, 0, 8, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#fff0a6';
+                ctx.beginPath();
+                ctx.arc(4, -1, 3, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (effect.kind === 'frost_nova') {
+                ctx.translate(position.x, position.y);
+                ctx.rotate(elapsed * 0.08);
+                ctx.strokeStyle = '#b8f4ff';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(-10, 0); ctx.lineTo(10, 0);
+                ctx.moveTo(0, -10); ctx.lineTo(0, 10);
+                ctx.moveTo(-7, -7); ctx.lineTo(7, 7);
+                ctx.moveTo(-7, 7); ctx.lineTo(7, -7);
+                ctx.stroke();
+                ctx.fillStyle = '#f0fdff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
             } else if (effect.kind === 'mage') {
                 // Three nested, sharp-edged rune diamonds, no image scaling blur.
                 ctx.translate(position.x, position.y);

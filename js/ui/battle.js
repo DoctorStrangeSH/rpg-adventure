@@ -339,8 +339,10 @@ function disableBattleButtons() {
     });
 }
 
-function launchPlayerProjectile() {
-    const kind = gameState.player?.class;
+function launchPlayerProjectile(skillId = null) {
+    const classId = gameState.player?.class;
+    const kind = classId === 'mage' && ['fireball', 'frost_nova'].includes(skillId)
+        ? skillId : classId;
     const source = battleState.playerSprite;
     const target = battleState.enemySprite;
     if (!source || !target) return;
@@ -461,7 +463,7 @@ export function playerSkill(skillId) {
     player.mana -= skill.manaCost;
     
     battleState.playerSprite.isAttacking = true;
-    launchPlayerProjectile();
+    launchPlayerProjectile(skill.id);
     
     const result = useSkillEffect(player, enemy, skill);
     if (result.damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);

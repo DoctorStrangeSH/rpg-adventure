@@ -38,6 +38,16 @@ export function inscribeRune(player,weaponId,runeId){
  player.weaponRunes ||= {};player.weaponRunes[weaponId] ||= [];player.weaponRunes[weaponId].push(runeId);
  return {ok:true,rune:preview.rune,used:player.weaponRunes[weaponId].length,slots:preview.slots};
 }
+export const RUNE_SYNERGIES = Object.freeze({
+ 'blood+flame': {id:'crimson_flare',name:'Алый пожар',icon:'🔥🩸',description:'Горение и кровотечение накладываются вместе; +2 к атаке.',attack:2,critChance:0,effects:['burn','bleed'],turns:2},
+ 'frost+storm': {id:'frozen_tempest',name:'Гром ледяной бури',icon:'❄️⚡',description:'Заморозка ослабляет противника; +3% к критическому шансу.',attack:0,critChance:0.03,effects:['freeze','weaken'],turns:1}
+});
+export function getRuneSynergy(player,weaponId=player?.equipment?.weapon){
+ const runes=getWeaponRunes(player,weaponId);
+ if(runes.length<2)return null;
+ const key=[...runes].sort().join('+');
+ return RUNE_SYNERGIES[key]||null;
+}
 export function getWeaponRuneBonuses(player,weaponId=player?.equipment?.weapon){
  return getWeaponRunes(player,weaponId).reduce((sum,id)=>{
   const rune=RUNE_CATALOG[id];sum.attack+=rune.attack||0;sum.defense+=rune.defense||0;sum.critChance+=rune.critChance||0;return sum;

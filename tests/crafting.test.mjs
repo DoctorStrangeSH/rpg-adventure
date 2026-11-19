@@ -98,3 +98,27 @@ test('failed rune inscription leaves inventory and weapon runes unchanged',async
  const snapshot=structuredClone(p);const result=inscribeRune(p,'iron_sword','flame');
  assert.equal(result.reason,'materials');assert.deepEqual(p,snapshot);
 });
+
+test('rune pairs unlock deterministic synergies with combined combat effects',async()=>{
+ const {getRuneSynergy,getWeaponRuneBonuses,triggerRuneEffect}=await import('../js/systems/enchanting.js');
+ const p={equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['flame','blood']}};
+ assert.equal(getRuneSynergy(p).id,'crimson_flare');
+ assert.equal(getWeaponRuneBonuses(p).attack,6);
+ const enemy={health:100,effects:{}};
+ assert.equal(triggerRuneEffect(p,enemy,0.1),'crimson_flare');
+ assert.equal(enemy.effects.burnTurns,2);assert.equal(enemy.effects.bleedTurns,2);
+});
+test('frost and storm unlock frozen tempest regardless of rune order',async()=>{
+ const {getRuneSynergy,getWeaponRuneBonuses,triggerRuneEffect}=await import('../js/systems/enchanting.js');
+ const p={equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['storm','frost']}};
+ assert.equal(getRuneSynergy(p).id,'frozen_tempest');
+ assert.equal(getWeaponRuneBonuses(p).critChance,0.07);
+ const enemy={health:100,effects:{}};
+ assert.equal(triggerRuneEffect(p,enemy,0.1),'frozen_tempest');
+ assert.equal(enemy.effects.freezeTurns,1);assert.equal(enemy.effects.weakenTurns,1);
+});
+test('unknown rune combinations do not create a synergy',async()=>{
+ const {getRuneSynergy}=await import('../js/systems/enchanting.js');
+ const p={equipment:{weapon:'iron_sword'},weaponRunes:{iron_sword:['flame','frost']}};
+ assert.equal(getRuneSynergy(p),null);
+});

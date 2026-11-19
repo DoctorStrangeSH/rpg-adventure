@@ -8,7 +8,7 @@ import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems
 import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
 import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
-import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune } from '../systems/enchanting.js';
+import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy } from '../systems/enchanting.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -256,6 +256,7 @@ function createRuneEnchantPanel(player) {
     const slots = getRuneSocketCount(player, weaponId);
     const runes = getWeaponRunes(player, weaponId);
     const labels = runes.map(id => RUNE_CATALOG[id].icon + ' ' + RUNE_CATALOG[id].name).join(' · ');
+    const synergy = getRuneSynergy(player, weaponId);
     const cards = Object.values(RUNE_CATALOG).map(rune => {
         const preview = getEnchantPreview(player, weaponId, rune.id);
         let label = 'Вставить';
@@ -274,7 +275,7 @@ function createRuneEnchantPanel(player) {
             label + '</button></div>';
     }).join('');
     return '<div class="enchant-panel"><strong>ᚱ Руническое зачарование</strong><small>Гнёзда: ' +
-        runes.length + '/' + slots + ' · ' + (labels || 'Пока пусто') + '</small><div class="rune-grid">' + cards + '</div></div>';
+        runes.length + '/' + slots + ' · ' + (labels || 'Пока пусто') + '</small>' + (synergy ? '<div class="rune-synergy"><b>' + synergy.icon + ' Синергия: ' + synergy.name + '</b><small>' + synergy.description + '</small></div>' : '') + '<div class="rune-grid">' + cards + '</div></div>';
 }
 export function inscribeInventoryRune(weaponId, runeId) {
     const player = gameState.player;

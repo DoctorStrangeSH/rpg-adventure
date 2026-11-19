@@ -3,6 +3,7 @@ import { gameState } from '../core/state.js';
 import { getItem, getItemAbilityDescription, getItemLore, getEquipmentComparison, RARITIES } from '../data/items.js';
 import { getEquipmentSetBonuses } from '../systems/combat.js';
 import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.js';
+import { getBossTrophyCatalog, getCollectionProgress } from '../systems/loot.js';
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -11,6 +12,8 @@ export function updateInventoryScreen() {
     const content = document.getElementById('inventory-content');
     
     const setBonuses = getEquipmentSetBonuses(player);
+    const collection = getCollectionProgress(player.discoveredItems);
+    const trophyCatalog = getBossTrophyCatalog(player.discoveredItems);
     const setSummary = setBonuses.progress.map(set => {
         const status = set.complete ? 'Комплект собран' : set.equippedPieces > 0
             ? `Собрано: ${set.equippedPieces}/${set.requiredPieces}` : 'Пока не найдено';
@@ -30,6 +33,9 @@ export function updateInventoryScreen() {
         
         <div class="section-title">✨ Комплекты</div>
         <div class="equipment-set-summary">${setSummary || 'Комплекты пока не обнаружены'}</div>
+        <div class="section-title">🏆 Охота за трофеями</div>
+        <div class="collection-summary"><strong>${collection.discovered}/${collection.total}</strong><span>уникальных трофеев боссов найдено</span></div>
+        <div class="boss-trophy-grid">${trophyCatalog.map(entry => { const item = getItem(entry.itemId); return `<div class="boss-trophy ${entry.discovered ? 'trophy-found' : 'trophy-unknown'}"><div class="boss-trophy-icon">${entry.discovered ? item?.icon || '🏆' : '❔'}</div><div class="boss-trophy-info"><strong>${entry.discovered ? item?.name : 'Неизвестный трофей'}</strong><small>${entry.bossName} · ${entry.region}</small></div><span>${entry.discovered ? 'Найдено' : 'Не найдено'}</span></div>`; }).join('')}</div>
         <div class="section-title">🎒 Предметы</div>
         <div class="inventory-grid">
             ${player.inventory.length > 0 ? player.inventory.map((item, index) => 

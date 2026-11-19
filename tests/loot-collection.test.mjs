@@ -1,0 +1,7 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { grantItem, getBossTrophyCatalog, getCollectionProgress, rollLoot } from '../js/systems/loot.js';
+test('first successful award records discovery once',()=>{const p={inventory:[]};assert.equal(grantItem(p,'guardian_armor'),1);assert.deepEqual(p.discoveredItems,['guardian_armor']);assert.equal(grantItem(p,'guardian_armor',2),2);assert.deepEqual(p.discoveredItems,['guardian_armor']);assert.equal(p.inventory[0].quantity,3);});
+test('invalid award does not create discovery',()=>{const p={inventory:[]};assert.equal(grantItem(p,'missing_item'),0);assert.deepEqual(p.discoveredItems,[]);});
+test('collection exposes boss sources and progress',()=>{const p=getCollectionProgress(['guardian_armor','dragon_sword']);assert.equal(p.discovered,2);assert.equal(p.total,4);const e=getBossTrophyCatalog(['dragon_sword']).find(x=>x.bossId==='world_eater');assert.equal(e.discovered,true);assert.equal(e.bossName,'Пожиратель миров');});
+test('existing boss trophy table remains deterministic',()=>{assert.equal(rollLoot(true,()=>0.1,'forest_guardian'),'guardian_armor');assert.equal(rollLoot(true,()=>0.1,'mountain_dragon'),'frost_blade');assert.equal(rollLoot(true,()=>0.1,'lich_king'),'blood_armor');assert.equal(rollLoot(true,()=>0.1,'world_eater'),'dragon_sword');});

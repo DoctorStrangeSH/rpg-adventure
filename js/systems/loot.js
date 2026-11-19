@@ -5,6 +5,8 @@ export function grantItem(player, itemId, quantity = 1) {
     if (!player || !Array.isArray(player.inventory) || !getItem(itemId) ||
         !Number.isSafeInteger(quantity) || quantity <= 0) return 0;
     const existing = player.inventory.find(item => item.id === itemId);
+    if (!Array.isArray(player.discoveredItems)) player.discoveredItems = [];
+    if (!player.discoveredItems.includes(itemId)) player.discoveredItems.push(itemId);
     if (existing) {
         if (!Number.isSafeInteger(existing.quantity) || existing.quantity < 0 ||
             existing.quantity > Number.MAX_SAFE_INTEGER - quantity) return 0;
@@ -54,4 +56,19 @@ export function rollDeepChest(stageNumber, roll = Math.random()) {
     if (stageNumber >= 40) return tierRoll < 0.25 ? 'moonblade' : tierRoll < 0.75 ? 'frost_blade' : 'dragon_sword';
     if (stageNumber >= 30) return tierRoll < 0.4 ? 'moonblade' : tierRoll < 0.9 ? 'frost_blade' : 'dragon_sword';
     return tierRoll < 0.7 ? 'moonblade' : 'frost_blade';
+}
+
+export const BOSS_TROPHY_CATALOG = Object.freeze([
+ { bossId: 'forest_guardian', bossName: 'Лесной хранитель', itemId: 'guardian_armor', region: 'Зелёные пределы' },
+ { bossId: 'mountain_dragon', bossName: 'Горный дракон', itemId: 'frost_blade', region: 'Ледяные высоты' },
+ { bossId: 'lich_king', bossName: 'Король-лич', itemId: 'blood_armor', region: 'Забытый некрополь' },
+ { bossId: 'world_eater', bossName: 'Пожиратель миров', itemId: 'dragon_sword', region: 'Край мира' }
+]);
+export function getBossTrophyCatalog(discoveredItems = []) {
+ const discovered = new Set(Array.isArray(discoveredItems) ? discoveredItems : []);
+ return BOSS_TROPHY_CATALOG.map(entry => ({ ...entry, discovered: discovered.has(entry.itemId) }));
+}
+export function getCollectionProgress(discoveredItems = []) {
+ const entries = getBossTrophyCatalog(discoveredItems);
+ return { discovered: entries.filter(entry => entry.discovered).length, total: entries.length, entries };
 }

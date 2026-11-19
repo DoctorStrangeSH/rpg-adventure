@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDamageTextStyle } from '../js/systems/particles.js';
 import { ParticleSystem } from '../js/systems/particles.js';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, getWarriorVisualPose, getWarriorComboPose, getWarriorGuardMotion, getWarriorParryPulse, getWarriorDeathPose, getHeroDeathPose, getMageDeathMotes, getMageCastEffect, getHeroHitPose, Sprite } from '../js/entities/Sprite.js';
 
 test('warrior guards while protected but attacks take visual priority', () => {
     assert.equal(getWarriorVisualPose(false, false), 'idle');
@@ -231,4 +231,19 @@ test('normal and critical impact bursts have distinct intensity', () => {
     system.createImpactBurst(0, 0, 'physical', true);
     assert.equal(system.particles.length, 22);
     assert.ok(system.particles[0].size >= 3);
+});
+
+test('warrior attack presentation has three distinct beats in one unchanged window', () => {
+    const first = getWarriorComboPose(4);
+    const second = getWarriorComboPose(13);
+    const finisher = getWarriorComboPose(23);
+    assert.equal(first.phase, 0);
+    assert.equal(second.phase, 1);
+    assert.equal(finisher.phase, 2);
+    assert.equal(getWarriorComboPose(28), null);
+    assert.equal(getWarriorComboPose(-1), null);
+    assert.equal(getWarriorComboPose(Number.NaN), null);
+    assert.equal(getWarriorComboPose(0).scaleX, 1);
+    assert.equal(getWarriorComboPose(13).scaleX, -1);
+    assert.ok(getWarriorComboPose(23).scaleX > 1);
 });

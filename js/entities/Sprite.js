@@ -35,6 +35,22 @@ export function getAttackFrame(elapsed, frames = 4, ticksPerFrame = 7) {
     return Math.max(0, Math.min(frames - 1, Math.floor(elapsed / ticksPerFrame)));
 }
 
+// Three visual beats fit inside the existing 28-tick attack window. This is
+// presentation only: it does not schedule extra hits or alter combat turns.
+export function getWarriorComboPose(elapsed) {
+    if (!Number.isFinite(elapsed) || elapsed < 0 || elapsed >= 28) return null;
+    if (elapsed < 9) {
+        const p = elapsed / 9;
+        return { phase: 0, rotation: -0.12 * Math.sin(p * Math.PI), offsetX: -3 * p, scaleX: 1 };
+    }
+    if (elapsed < 18) {
+        const p = (elapsed - 9) / 9;
+        return { phase: 1, rotation: 0.18 * Math.sin(p * Math.PI), offsetX: 4 * p, scaleX: -1 };
+    }
+    const p = (elapsed - 18) / 10;
+    return { phase: 2, rotation: 0.28 * Math.sin(p * Math.PI), offsetX: 5 * (1 - p), scaleX: 1 + 0.04 * Math.sin(p * Math.PI) };
+}
+
 export function getWarriorVisualPose(attacking, guarding) {
     return attacking ? 'attack' : guarding ? 'guard' : 'idle';
 }
@@ -279,7 +295,23 @@ export class Sprite {
         
         if (this.isGuarding && this.guardStartFrame === null) this.guardStartFrame = frame;
         if (!this.isGuarding) this.guardStartFrame = null;
-        this.drawSprite(ctx, frame);
+        if (this.type === 'warrior' && this.isAttacking) {
+            const combo = getWarriorComboPose(frame - (this.attackStartFrame ?? frame));
+            if (combo) {
+                ctx.save();
+                ctx.translate(combo.offsetX, 0);
+                ctx.translate(0, 30);
+                ctx.rotate(combo.rotation);
+                ctx.scale(combo.scaleX, 1);
+                ctx.translate(0, -30);
+                this.drawSprite(ctx, frame);
+                ctx.restore();
+            } else {
+                this.drawSprite(ctx, frame);
+            }
+        } else {
+            this.drawSprite(ctx, frame);
+        }
         if (this.type === 'mage' && this.isAttacking) {
             const cast = getMageCastEffect(frame - (this.attackStartFrame ?? frame));
             if (cast) {

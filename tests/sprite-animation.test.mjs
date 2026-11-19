@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getAttackFrame, getHitFeedback, getDeathKnightPose, Sprite } from '../js/entities/Sprite.js';
+import { getAttackFrame, getHitFeedback, getDeathKnightPose, getDragonWingLift, Sprite } from '../js/entities/Sprite.js';
+
+test('dragon wing motion is smooth, bounded and slower for ancient dragons', () => {
+    assert.equal(getDragonWingLift(0), 0);
+    assert.equal(getDragonWingLift(Number.NaN), 0);
+    for (let frame = 0; frame < 180; frame++) {
+        assert.ok(Math.abs(getDragonWingLift(frame)) <= 13);
+        assert.ok(Math.abs(getDragonWingLift(frame, true)) <= 19);
+    }
+    assert.notEqual(getDragonWingLift(20), getDragonWingLift(20, true));
+    assert.ok(Math.abs(getDragonWingLift(21) - getDragonWingLift(20)) < 2);
+});
 
 test('death knight attack has distinct windup, slash, and recovery poses', () => {
     assert.equal(getDeathKnightPose(0, true), 'windup');

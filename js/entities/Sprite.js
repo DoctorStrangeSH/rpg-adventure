@@ -71,6 +71,13 @@ export function getLichSpellPhase(elapsed, attacking) {
     return 'idle';
 }
 
+export function getDragonWingLift(frame, ancient = false) {
+    if (!Number.isFinite(frame)) return 0;
+    const speed = ancient ? 0.045 : 0.085;
+    const amplitude = ancient ? 19 : 13;
+    return Math.sin(frame * speed) * amplitude;
+}
+
 export class Sprite {
     constructor(type, x, y) {
         this.type = type;
@@ -285,6 +292,7 @@ export class Sprite {
     
     drawDragon(ctx, frame) {
         const bounce = Math.sin(frame * 0.05) * 8;
+        const lift = getDragonWingLift(frame);
         ctx.fillStyle = '#2ecc71';
         ctx.beginPath();
         ctx.ellipse(0, 10 + bounce, 50, 30, 0, 0, Math.PI * 2);
@@ -292,12 +300,14 @@ export class Sprite {
         ctx.fillStyle = '#27ae60';
         ctx.beginPath();
         ctx.moveTo(-10, -10 + bounce);
-        ctx.lineTo(-50, -40 + bounce);
+        ctx.lineTo(-53, -43 + bounce - lift);
+        ctx.lineTo(-37, -23 + bounce - lift * 0.5);
         ctx.lineTo(-20, -5 + bounce);
         ctx.fill();
         ctx.beginPath();
         ctx.moveTo(10, -10 + bounce);
-        ctx.lineTo(50, -40 + bounce);
+        ctx.lineTo(53, -43 + bounce - lift);
+        ctx.lineTo(37, -23 + bounce - lift * 0.5);
         ctx.lineTo(20, -5 + bounce);
         ctx.fill();
         ctx.fillStyle = '#27ae60';
@@ -509,6 +519,7 @@ export class Sprite {
     
     drawAncientDragon(ctx, frame) {
         const bounce = Math.sin(frame * 0.05) * 8;
+        const lift = getDragonWingLift(frame, true);
         ctx.fillStyle = '#1b5e20';
         ctx.beginPath();
         ctx.ellipse(0, 10 + bounce, 60, 35, 0, 0, Math.PI * 2);
@@ -516,12 +527,14 @@ export class Sprite {
         ctx.fillStyle = '#2e7d32';
         ctx.beginPath();
         ctx.moveTo(-15, -15 + bounce);
-        ctx.lineTo(-60, -50 + bounce);
+        ctx.lineTo(-74, -61 + bounce - lift);
+        ctx.lineTo(-52, -32 + bounce - lift * 0.5);
         ctx.lineTo(-25, -10 + bounce);
         ctx.fill();
         ctx.beginPath();
         ctx.moveTo(15, -15 + bounce);
-        ctx.lineTo(60, -50 + bounce);
+        ctx.lineTo(74, -61 + bounce - lift);
+        ctx.lineTo(52, -32 + bounce - lift * 0.5);
         ctx.lineTo(25, -10 + bounce);
         ctx.fill();
         ctx.fillStyle = '#2e7d32';

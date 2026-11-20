@@ -1,12 +1,16 @@
-import { createPlayerSnapshot, commitPlayerMutation } from './playerTransactions.js';
+import { createPlayerSnapshot, restorePlayerSnapshot, commitPlayerMutation } from './playerTransactions.js';
 
 function persistChange(player, mutate, save) {
     if (!player || typeof save !== 'function') return false;
     const snapshot = createPlayerSnapshot(player);
     if (!snapshot) return false;
     try {
-        if (mutate(player) === false) return false;
+        if (mutate(player) === false) {
+            restorePlayerSnapshot(player, snapshot);
+            return false;
+        }
     } catch {
+        restorePlayerSnapshot(player, snapshot);
         return false;
     }
     return commitPlayerMutation(player, snapshot, save);

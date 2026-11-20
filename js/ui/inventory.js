@@ -9,6 +9,22 @@ import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
 import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
 import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD, getRuneLoadoutPreview } from '../systems/enchanting.js';
+import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
+
+function beginInventoryMutation(player) {
+    const snapshot = createPlayerSnapshot(player);
+    if (!snapshot) window.showNotification('Не удалось подготовить безопасное сохранение. Изменение отменено.', 'error');
+    return snapshot;
+}
+
+function commitInventoryMutation(player, snapshot) {
+    if (commitPlayerMutation(player, snapshot, () => gameState.save())) return true;
+    window.showNotification('Не удалось сохранить игру. Изменение отменено, проверьте свободное место хранилища.', 'error');
+    updateInventoryScreen();
+    window.updateCharacterScreen?.();
+    window.updateMainMenu?.();
+    return false;
+}
 
 export function updateInventoryScreen() {
     const player = gameState.player;
@@ -136,12 +152,12 @@ export function useInventoryItem(index) {
     const player = gameState.player;
     if (!player || !Number.isInteger(index) || index < 0) return;
     const item = player.inventory[index];
-    
     if (!item || !Number.isSafeInteger(item.quantity) || item.quantity < 1) return;
-    
     const itemData = getItem(item.id);
     if (!itemData) return;
-    
+    const snapshot = beginInventoryMutation(player);
+    if (!snapshot) return;
+
     switch (itemData.type) {
         case 'consumable':
             if (!useConsumable(player, item, itemData, index)) return;
@@ -150,19 +166,21 @@ export function useInventoryItem(index) {
         case 'armor': {
             const result = equipInventoryItem(player, index);
             if (!result.ok) {
-                if (result.reason === 'level_required') window.showNotification(`Требуется ${result.requiredLevel} уровень!`, 'error');
+                if (result.reason === 'level_required') window.showNotification('Требуется ' + result.requiredLevel + ' уровень!', 'error');
                 else if (result.reason === 'already_equipped') window.showNotification('Предмет уже экипирован', 'info');
                 else window.showNotification('Не удалось экипировать предмет', 'error');
                 return;
             }
-            window.showNotification(`${itemData.name} экипирован!`, 'success');
             break;
         }
         default:
             return;
     }
-    
-    gameState.save();
+
+    if (!commitInventoryMutation(player, snapshot)) return;
+    window.showNotification(itemData.type === 'consumable'
+        ? 'Вы использовали ' + itemData.name + '!'
+        : itemData.name + ' экипирован!', 'success');
     updateInventoryScreen();
     window.updateCharacterScreen?.();
     window.updateMainMenu?.();
@@ -177,12 +195,10 @@ function useConsumable(player, item, itemData, index) {
     }
     if (itemData.heal) {
         player.health = Math.min(player.maxHealth, player.health + itemData.heal);
-        window.showNotification(`Вы использовали ${itemData.name}! +${itemData.heal} HP`, 'success');
     }
     
     if (itemData.manaHeal) {
         player.mana = Math.min(player.maxMana, player.mana + itemData.manaHeal);
-        window.showNotification(`Вы использовали ${itemData.name}! +${itemData.manaHeal} MP`, 'success');
     }
     
     item.quantity--;
@@ -195,14 +211,16 @@ function useConsumable(player, item, itemData, index) {
 export function unequipItem(slot) {
     const player = gameState.player;
     if (!player) return;
+    const snapshot = beginInventoryMutation(player);
+    if (!snapshot) return;
     const result = unequipEquipmentItem(player, slot);
     if (!result.ok) {
         window.showNotification(result.reason === 'empty_slot' ? 'Слот пуст' : 'Недопустимый слот', 'info');
         return;
     }
+    if (!commitInventoryMutation(player, snapshot)) return;
     const itemData = getItem(result.itemId);
-    window.showNotification(`${itemData?.name || 'Предмет'} снят`, 'info');
-    gameState.save();
+    window.showNotification((itemData?.name || 'Предмет') + ' снят', 'info');
     updateInventoryScreen();
     window.updateCharacterScreen?.();
     window.updateMainMenu?.();
@@ -211,29 +229,43 @@ export function unequipItem(slot) {
 export function craftInventoryItem(recipeId) {
     const player = gameState.player;
     if (!player) return;
+    const snapshot = beginInventoryMutation(player);
+    if (!snapshot) return;
     const result = craftItem(player, recipeId);
     if (!result.ok) {
         window.showNotification(result.reason === 'materials' ? 'Не хватает материалов' :
             result.reason === 'gold' ? 'Недостаточно золота' :
-            result.reason === 'level' ? `Требуется ${result.requiredLevel} уровень` :
+            result.reason === 'level' ? 'Требуется ' + result.requiredLevel + ' уровень' :
             result.reason === 'discovery' ? 'Сначала найдите редкий материал' : 'Не удалось создать предмет', 'error');
         return;
     }
-    gameState.save();
-    window.showNotification(`Создано: ${result.item.name}`, 'success');
+    if (!commitInventoryMutation(player, snapshot)) return;
+    window.showNotification('Создано: ' + result.item.name, 'success');
     updateInventoryScreen();
 }
 
-export function salvageInventoryItem(index,event){
- event?.stopPropagation?.();const player=gameState.player;if(!player)return;
- const result=salvageEquipment(player,index);
- if(!result.ok){window.showNotification(result.reason==='equipped'?'Сначала снимите предмет':result.reason==='inventory_limit'?'Недостаточно места для материалов':'Не удалось разобрать предмет','error');return;}
- gameState.save();window.showNotification(`Разобрано: ${result.item.name}`,'success');updateInventoryScreen();
+export function salvageInventoryItem(index, event) {
+    event?.stopPropagation?.();
+    const player = gameState.player;
+    if (!player) return;
+    const snapshot = beginInventoryMutation(player);
+    if (!snapshot) return;
+    const result = salvageEquipment(player, index);
+    if (!result.ok) {
+        window.showNotification(result.reason === 'equipped' ? 'Сначала снимите предмет' :
+            result.reason === 'inventory_limit' ? 'Недостаточно места для материалов' : 'Не удалось разобрать предмет', 'error');
+        return;
+    }
+    if (!commitInventoryMutation(player, snapshot)) return;
+    window.showNotification('Разобрано: ' + result.item.name, 'success');
+    updateInventoryScreen();
 }
 
 export function upgradeInventoryItem(itemId) {
     const player = gameState.player;
     if (!player) return;
+    const snapshot = beginInventoryMutation(player);
+    if (!snapshot) return;
     const result = upgradeEquipment(player, itemId);
     if (!result.ok) {
         window.showNotification(result.reason === 'materials' ? 'Не хватает материалов' :
@@ -241,8 +273,8 @@ export function upgradeInventoryItem(itemId) {
             result.reason === 'max_level' ? 'Достигнут максимум +10' : 'Можно улучшать только надетую экипировку', 'error');
         return;
     }
-    gameState.save();
-    window.showNotification(`${result.item.name} улучшен до +${result.level}!`, 'success');
+    if (!commitInventoryMutation(player, snapshot)) return;
+    window.showNotification(result.item.name + ' улучшен до +' + result.level + '!', 'success');
     updateInventoryScreen();
     window.updateCharacterScreen?.();
     window.updateMainMenu?.();
@@ -304,6 +336,8 @@ function createRuneEnchantPanel(player) {
 export function inscribeInventoryRune(weaponId, runeId) {
     const player = gameState.player;
     if (!player) return;
+    const snapshot = beginInventoryMutation(player);
+    if (!snapshot) return;
     const result = inscribeRune(player, weaponId, runeId);
     if (!result.ok) {
         const message = result.reason === 'upgrade_required' ? 'Сначала улучшите оружие до +1' :
@@ -312,7 +346,7 @@ export function inscribeInventoryRune(weaponId, runeId) {
         window.showNotification(message, 'error');
         return;
     }
-    gameState.save();
+    if (!commitInventoryMutation(player, snapshot)) return;
     window.showNotification('Установлена руна: ' + result.rune.name, 'success');
     updateInventoryScreen();
 }
@@ -320,12 +354,14 @@ export function inscribeInventoryRune(weaponId, runeId) {
 export function extractInventoryRune(weaponId, index) {
     const player = gameState.player;
     if (!player) return;
+    const snapshot = beginInventoryMutation(player);
+    if (!snapshot) return;
     const result = extractRune(player, weaponId, index);
     if (!result.ok) {
         window.showNotification(result.reason === 'gold' ? 'Для извлечения нужно 50 золота' : 'Невозможно извлечь эту руну', 'error');
         return;
     }
-    gameState.save();
+    if (!commitInventoryMutation(player, snapshot)) return;
     window.showNotification('Извлечена руна: ' + result.rune.name, 'success');
     updateInventoryScreen();
 }

@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
 import { getBattleState } from '../js/ui/battle.js';
-import { handleVictory, getLocationState, resetLocationState, startLocation, startStageBattle, chooseDungeonRoute, chooseAdventureEvent, chooseSecretRoom } from '../js/systems/dungeon.js';
+import { handleVictory, handleDefeat, fleeLocation, getLocationState, resetLocationState, startLocation, startStageBattle, chooseDungeonRoute, chooseAdventureEvent, chooseSecretRoom } from '../js/systems/dungeon.js';
 
 function setup(t) {
     const previousStorage = globalThis.localStorage;
@@ -515,4 +515,58 @@ test('final boss and region completion roll back together when the final save fa
     assert.equal(run.currentStage, location.stages.length - 1);
     assert.equal(run.finalBossDefeated, false);
     assert.equal(player.campaignCompleted, beforeBattle.campaignCompleted);
+});
+
+test('flee keeps the active expedition and saved progress when its save fails', (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 3;
+    run.enemiesDefeated = 1;
+    const before = structuredClone(player);
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    t.after(() => { gameState.save = previousSave; });
+
+    assert.equal(fleeLocation(), false);
+    assert.deepEqual(player, before);
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentLocation.id, 'forest');
+    assert.equal(run.currentStage, 3);
+    assert.equal(Storage.load().player.dungeonProgress.forest.stage, 0);
+});
+
+test('successful flee clears the expedition only after its save succeeds', (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 3;
+    run.enemiesDefeated = 1;
+
+    assert.equal(fleeLocation(), true);
+    assert.equal(run.inLocation, false);
+    assert.equal(run.currentLocation, null);
+    assert.equal(player.dungeonProgress.forest, undefined);
+    assert.equal(Storage.load().player.dungeonProgress.forest, undefined);
+});
+
+test('defeat preserves the expedition snapshot when clearing progress cannot be saved', (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 3;
+    run.enemiesDefeated = 1;
+    player.dungeonProgress ||= {};
+    player.dungeonProgress.forest = { campaignCycle: 1, stage: 3, enemiesDefeated: 1 };
+    assert.equal(gameState.save(), true);
+    const before = structuredClone(player);
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    t.after(() => { gameState.save = previousSave; });
+
+    assert.equal(handleDefeat(), false);
+    assert.deepEqual(player, before);
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentLocation.id, 'forest');
+    assert.equal(Storage.load().player.dungeonProgress.forest.stage, 3);
 });

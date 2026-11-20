@@ -453,3 +453,66 @@ test('resuming an already-cleared stage does not advance when the transition sav
     assert.equal(player.dungeonProgress.forest.enemiesDefeated, 0);
     assert.equal(battle.isActive, false);
 });
+
+test('boss victory restores all rewards and keeps the boss stage when its atomic save fails', async (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    const location = getLocation('forest');
+    run.currentStage = 4;
+    run.enemiesDefeated = location.stages[4].enemiesCount;
+    run.claimedDeepChestStages = new Set();
+    run.claimedUnbrokenBonusStages = new Set();
+    const beforeBattle = structuredClone(player);
+    player.experience += 125;
+    player.gold += 90;
+    player.stats.kills += 1;
+    player.stats.bossesKilled = (player.stats.bossesKilled || 0) + 1;
+
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    const { handleBossVictory } = await import('../js/systems/dungeon.js');
+    t.after(() => { gameState.save = previousSave; });
+
+    assert.equal(handleBossVictory(beforeBattle), false);
+    assert.deepEqual(player, beforeBattle);
+    assert.equal(run.currentStage, 4);
+    assert.equal(run.enemiesDefeated, location.stages[4].enemiesCount);
+    assert.equal(run.claimedDeepChestStages.has(5), false);
+    assert.equal(run.claimedUnbrokenBonusStages.has(5), false);
+    assert.equal(Storage.load().player.gold, beforeBattle.gold);
+});
+
+test('final boss and region completion roll back together when the final save fails', async (t) => {
+    const { player } = setup(t);
+    const location = getLocation('dragon_lair');
+    const previousUnlocked = location.unlocked;
+    location.unlocked = true;
+    player.level = 100;
+    startLocation('dragon_lair');
+    const run = getLocationState();
+    run.currentStage = location.stages.length - 1;
+    run.enemiesDefeated = location.stages.at(-1).enemiesCount;
+    run.claimedDeepChestStages = new Set();
+    run.claimedUnbrokenBonusStages = new Set();
+    const beforeBattle = structuredClone(player);
+    player.experience += 500;
+    player.gold += 300;
+    player.stats.bossesKilled = (player.stats.bossesKilled || 0) + 1;
+
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    const { handleBossVictory } = await import('../js/systems/dungeon.js');
+    t.after(() => {
+        gameState.save = previousSave;
+        location.unlocked = previousUnlocked;
+    });
+
+    assert.equal(handleBossVictory(beforeBattle), false);
+    assert.deepEqual(player, beforeBattle);
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentLocation.id, 'dragon_lair');
+    assert.equal(run.currentStage, location.stages.length - 1);
+    assert.equal(run.finalBossDefeated, false);
+    assert.equal(player.campaignCompleted, beforeBattle.campaignCompleted);
+});

@@ -19,6 +19,8 @@ function makeCompletedPlayer() {
         discoveredItems: ['dragon_sword'], unlockedLocations: ['forest', 'mountains', 'ruins', 'dragon_lair'],
         dungeonCheckpoints: { forest: 9 }, locationRewardCycles: { forest: 1, mountains: 1 },
         deepChestRewardCycles: { 'forest:20': 1, 'mountains:30': 1 },
+        itemUpgrades: { dragon_sword: 8, guardian_armor: 4 },
+        weaponRunes: { dragon_sword: ['flame', 'blood'], guardian_armor: [] },
         stats: { kills: 300, battles: 400, wins: 350, losses: 5, dungeonsCompleted: 4, bossesKilled: 18 },
         quests: [
             { id: 'first_blood', progress: 1, completed: true, rewardClaimed: true },
@@ -62,6 +64,8 @@ test('NG+ carries character progression and resets only campaign-run state', () 
     assert.deepEqual(next.talents, player.talents);
     assert.deepEqual(next.relics, player.relics);
     assert.deepEqual(next.activeRelics, player.activeRelics);
+    assert.deepEqual(next.itemUpgrades, player.itemUpgrades);
+    assert.deepEqual(next.weaponRunes, player.weaponRunes);
     assert.deepEqual(next.achievements, player.achievements);
     assert.deepEqual(next.stats, player.stats);
     assert.deepEqual(next.unlockedLocations, ['forest']);

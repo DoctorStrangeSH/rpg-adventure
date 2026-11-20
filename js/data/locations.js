@@ -174,6 +174,7 @@ export const LOCATIONS = [
             gold: 30000,
             items: [
                 { id: 'dragon_sword', quantity: 2 },
+                { id: 'dragon_scale', quantity: 3 },
                 { id: 'big_health_potion', quantity: 30 }
             ]
         }

@@ -133,6 +133,10 @@ test('boss rewards and the next stage resume marker are committed in the same sa
 test('checkpoint and event fallbacks are persisted when the battle UI is not mounted', (t) => {
     const { player } = setup(t);
     const previousDocument = globalThis.document;
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
     globalThis.document = { getElementById() { return null; } };
     window.updateBattleUI = () => {};
     window.animateBattle = () => {};
@@ -148,8 +152,6 @@ test('checkpoint and event fallbacks are persisted when the battle UI is not mou
     assert.ok(saved.visitedEventStages.includes(4));
     assert.equal(saved.stage, 4);
 
-    if (previousDocument === undefined) delete globalThis.document;
-    else globalThis.document = previousDocument;
 });
 
 test('safe-route fallback is persisted when the battle UI is not mounted', (t) => {

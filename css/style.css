@@ -1762,3 +1762,158 @@ button,
         padding: 6px;
     }
 }
+
+/* Inventory, equipment and forge: narrow-screen content safety */
+.inventory-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.inventory-item,
+.equipment-slot,
+.crafting-recipe,
+.forge-panel,
+.forge-rune-card {
+    min-width: 0;
+}
+
+.item-name,
+.item-stats,
+.item-lore,
+.item-lore p,
+.item-comparison,
+.slot-item,
+.slot-rarity,
+.crafting-recipe-head,
+.crafting-recipe small,
+.forge-heading small,
+.forge-rune-title b,
+.forge-rune-card small {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.item-comparison {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+}
+
+.salvage-button,
+.craft-button,
+.upgrade-button,
+.rune-button,
+.rune-extract-button {
+    min-height: 44px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+}
+
+.upgrade-row {
+    flex-wrap: wrap;
+}
+
+.upgrade-row > div {
+    flex: 1 1 140px;
+}
+
+.forge-installed {
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.forge-installed > span {
+    min-width: 0;
+    flex: 1 1 130px;
+    overflow-wrap: anywhere;
+}
+
+.collection-summary {
+    flex-wrap: wrap;
+}
+
+.set-progress-heading {
+    flex-wrap: wrap;
+}
+
+.set-progress-heading span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 420px) {
+    .inventory-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .inventory-item {
+        padding: 11px 8px;
+    }
+
+    .inventory-item .item-lore p {
+        font-size: 10px;
+        line-height: 1.4;
+    }
+
+    .forge-heading {
+        flex-wrap: wrap;
+    }
+
+    .forge-heading > div {
+        flex: 1 1 120px;
+    }
+
+    .forge-heading > b {
+        margin-left: auto;
+    }
+
+    .forge-installed > span {
+        flex-basis: 100%;
+    }
+
+    .forge-installed .rune-extract-button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 375px) {
+    .inventory-grid {
+        gap: 7px;
+    }
+
+    .inventory-item {
+        padding: 10px 7px;
+    }
+
+    .item-name {
+        line-height: 1.35;
+    }
+
+    .item-comparison {
+        font-size: 10px;
+    }
+
+    .upgrade-panel,
+    .forge-panel {
+        padding: 10px;
+    }
+
+    .upgrade-row {
+        align-items: stretch;
+    }
+
+    .upgrade-row .upgrade-button {
+        width: 100%;
+    }
+
+    .forge-sockets {
+        gap: 6px;
+    }
+
+    .forge-socket {
+        padding-left: 3px;
+        padding-right: 3px;
+    }
+}

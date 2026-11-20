@@ -377,3 +377,54 @@ test('secret-stage discovery marker is restored when its save fails', (t) => {
     assert.equal(run.checkedSecretStages.has(6), false);
     assert.equal(run.pendingSecretRoom, null);
 });
+
+test('ordinary dungeon victory rolls back its reward and defeated counter when the save fails', (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 0;
+    run.enemiesDefeated = 1;
+    const playerBeforeBattle = structuredClone(player);
+    player.gold += 75;
+    player.experience += 40;
+    player.stats.kills += 1;
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    t.after(() => { gameState.save = previousSave; });
+
+    assert.equal(handleVictory(playerBeforeBattle), false);
+    assert.deepEqual(player, playerBeforeBattle);
+    assert.equal(run.currentStage, 0);
+    assert.equal(run.enemiesDefeated, 1);
+    assert.equal(Storage.load(), null);
+});
+
+test('ordinary dungeon victory advances to the next stage only after its transition save succeeds', (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    const stage = run.currentLocation.stages[0];
+    run.currentStage = 0;
+    run.enemiesDefeated = stage.enemiesCount - 1;
+    const previousSave = gameState.save;
+    const previousTimeout = globalThis.setTimeout;
+    let scheduled = null;
+    let saves = 0;
+    gameState.save = () => ++saves === 1;
+    globalThis.setTimeout = (callback) => { scheduled = callback; return 0; };
+    t.after(() => {
+        gameState.save = previousSave;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    assert.equal(handleVictory(), true);
+    assert.equal(run.enemiesDefeated, stage.enemiesCount);
+    assert.equal(run.currentStage, 0);
+    assert.equal(typeof scheduled, 'function');
+
+    scheduled();
+
+    assert.equal(run.currentStage, 0);
+    assert.equal(run.enemiesDefeated, stage.enemiesCount);
+    assert.equal(player.dungeonProgress.forest.stage, 0);
+});

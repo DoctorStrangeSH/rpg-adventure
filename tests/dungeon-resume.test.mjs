@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
 import { getBattleState } from '../js/ui/battle.js';
-import { handleVictory, getLocationState, resetLocationState, startLocation } from '../js/systems/dungeon.js';
+import { handleVictory, getLocationState, resetLocationState, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 
 function setup(t) {
     const previousStorage = globalThis.localStorage;
@@ -127,4 +127,48 @@ test('boss rewards and the next stage resume marker are committed in the same sa
     resetLocationState();
     assert.equal(gameState.load(), true);
     assert.equal(gameState.player.dungeonProgress.forest.stage, 5);
+});
+
+
+test('checkpoint and event fallbacks are persisted when the battle UI is not mounted', (t) => {
+    const { player } = setup(t);
+    const previousDocument = globalThis.document;
+    globalThis.document = { getElementById() { return null; } };
+    window.updateBattleUI = () => {};
+    window.animateBattle = () => {};
+
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 4;
+    run.enemiesDefeated = 0;
+    startStageBattle();
+
+    const saved = Storage.load().player.dungeonProgress.forest;
+    assert.ok(saved.visitedCheckpointStages.includes(4));
+    assert.ok(saved.visitedEventStages.includes(4));
+    assert.equal(saved.stage, 4);
+
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+});
+
+test('safe-route fallback is persisted when the battle UI is not mounted', (t) => {
+    const { player } = setup(t);
+    const previousDocument = globalThis.document;
+    globalThis.document = { getElementById() { return null; } };
+    window.updateBattleUI = () => {};
+    window.animateBattle = () => {};
+
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 2;
+    run.enemiesDefeated = 0;
+    startStageBattle();
+
+    const saved = Storage.load().player.dungeonProgress.forest;
+    assert.equal(saved.routeChoices['2'], 'safe');
+    assert.ok(saved.visitedRouteStages.includes(2));
+
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
 });

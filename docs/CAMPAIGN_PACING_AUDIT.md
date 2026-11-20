@@ -123,4 +123,4 @@
 - `tests/save-migrations.test.mjs`: миграция schema v1 → v2;
 - `tests/new-game-plus.test.mjs`: очистка снимков при старте NG+.
 
-Gameplay CI: 347/347 passed, 0 failed. Автоматические тесты подтверждают логику сериализации и восстановления; реальное закрытие/повторное открытие Telegram WebView и ручные бои в четырёх регионах остаются release-проверками.
+`updateQuestProgress`, `updateAchievements` и `levelUp` получили режим `save:false`, чтобы промежуточные сохранения не фиксировали награды до снимка следующего этапа. Регрессия `tests/battle-save-atomicity.test.mjs` подтверждает один commit сохранения на победу в экспедиции. Gameplay CI: 348/348 passed, 0 failed. Автоматические тесты подтверждают логику сериализации и восстановления; реальное закрытие/повторное открытие Telegram WebView и ручные бои в четырёх регионах остаются release-проверками.

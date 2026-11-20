@@ -148,6 +148,42 @@ function normalizePlayerSave(player) {
         player.deepChestRewardCycles = {};
     }
 
+    // Per-location resumable expedition snapshots. Treat localStorage as untrusted input.
+    const savedDungeonProgress = isPlainRecord(player.dungeonProgress) ? player.dungeonProgress : {};
+    player.dungeonProgress = {};
+    for (const [locationId, progress] of Object.entries(savedDungeonProgress)) {
+        const location = LOCATIONS.find(entry => entry.id === locationId && entry.type !== 'safe');
+        if (!location || !isPlainRecord(progress) || progress.campaignCycle !== player.campaignCycle ||
+            !Number.isSafeInteger(progress.stage) || progress.stage < 0 || progress.stage >= location.stages.length ||
+            !Number.isSafeInteger(progress.enemiesDefeated) || progress.enemiesDefeated < 0 ||
+            progress.enemiesDefeated > location.stages[progress.stage].enemiesCount) continue;
+        const validStageList = value => Array.isArray(value)
+            ? [...new Set(value.filter(stage => Number.isSafeInteger(stage) && stage >= 0 && stage < location.stages.length))]
+            : [];
+        const routeChoices = isPlainRecord(progress.routeChoices) ? Object.fromEntries(
+            Object.entries(progress.routeChoices).filter(([stage, route]) =>
+                Number.isSafeInteger(Number(stage)) && Number(stage) >= 0 &&
+                Number(stage) < location.stages.length && typeof route === 'string' && route.length <= 40)
+        ) : {};
+        player.dungeonProgress[locationId] = {
+            campaignCycle: player.campaignCycle,
+            stage: progress.stage,
+            enemiesDefeated: progress.enemiesDefeated,
+            visitedEventStages: validStageList(progress.visitedEventStages),
+            visitedRouteStages: validStageList(progress.visitedRouteStages),
+            routeChoices,
+            checkedSecretStages: validStageList(progress.checkedSecretStages),
+            visitedCheckpointStages: validStageList(progress.visitedCheckpointStages),
+            claimedDeepChestStages: validStageList(progress.claimedDeepChestStages),
+            claimedUnbrokenBonusStages: validStageList(progress.claimedUnbrokenBonusStages),
+            resumedFromCheckpoint: progress.resumedFromCheckpoint === true,
+            travelerFavorFights: safeNonNegativeInteger(progress.travelerFavorFights, 0),
+            travelerReturnPending: progress.travelerReturnPending === true,
+            bloodPursuerPending: progress.bloodPursuerPending === true,
+            finalBossDefeated: progress.finalBossDefeated === true
+        };
+    }
+
     if (!Number.isSafeInteger(player.id) || player.id < 0) player.id = Date.now();
     if (typeof player.username !== 'string' || !player.username.trim()) player.username = 'Игрок';
     if (typeof player.telegramId !== 'number' && typeof player.telegramId !== 'string') player.telegramId = 0;

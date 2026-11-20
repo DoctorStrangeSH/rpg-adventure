@@ -82,3 +82,18 @@ test('expected campaign experience ends at level 26, just short of level 27', ()
     assert.ok(player.experience < player.maxExperience);
     assert.equal(player.maxExperience, 2_514_505);
 });
+
+test('each completed region guarantees its matching boss rune material once through the existing reward claim', () => {
+    const expected = new Map([
+        ['forest', 'rune_verdant_heart'],
+        ['mountains', 'rune_dragon_heart'],
+        ['ruins', 'rune_lich_soul'],
+        ['dragon_lair', 'rune_world_fragment']
+    ]);
+    for (const location of LOCATIONS.filter(entry => expected.has(entry.id))) {
+        const itemId = expected.get(location.id);
+        assert.equal(location.rewards.items.filter(item => item.id === itemId)
+            .reduce((sum, item) => sum + item.quantity, 0), 1,
+        `${location.id} must grant exactly one regional boss rune`);
+    }
+});

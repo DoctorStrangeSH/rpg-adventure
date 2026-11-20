@@ -581,6 +581,8 @@ export function playerFlee() {
 function enemyTurn() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
+    const locationState = window.getLocationState?.();
+    const isDungeonBattle = Boolean(locationState?.inLocation);
     
     if (!battleState.isActive || !enemy) return;
     const effects = tickEnemyEffects(enemy);
@@ -720,12 +722,12 @@ export function battleVictory() {
         player.stats.bossesKilled = (player.stats.bossesKilled || 0) + 1;
     }
     
-    window.updateQuestProgress?.('kill', 1);
-    window.updateQuestProgress?.('win', 1);
-    window.updateQuestProgress?.('gold', goldGain);
-    window.updateQuestProgress?.('level', player.level);
+    window.updateQuestProgress?.('kill', 1, { save: !isDungeonBattle });
+    window.updateQuestProgress?.('win', 1, { save: !isDungeonBattle });
+    window.updateQuestProgress?.('gold', goldGain, { save: !isDungeonBattle });
+    window.updateQuestProgress?.('level', player.level, { save: !isDungeonBattle });
     
-    window.updateAchievements?.();
+    window.updateAchievements?.({ save: !isDungeonBattle });
     
     const storyBossId = battleState.isBossBattle && !enemy.miniBoss ? enemy.id : null;
     const lootId = rollLoot(battleState.isBossBattle, Math.random, storyBossId,
@@ -737,12 +739,10 @@ export function battleVictory() {
     showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}${relicText}`);
     
     if (player.experience >= player.maxExperience) {
-        window.levelUp?.();
+        window.levelUp?.({ save: !isDungeonBattle });
     }
     
-    const locationState = window.getLocationState?.();
-
-    if (locationState && locationState.inLocation) {
+    if (isDungeonBattle) {
         // Dungeon handlers persist the player reward and the advanced resume
         // marker together. Saving before them would let a reload replay a paid fight.
         if (battleState.isBossBattle) {

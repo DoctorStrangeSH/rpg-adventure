@@ -5,7 +5,6 @@ import { SoundSystem } from '../systems/sound.js';
 import { applyExperience } from '../systems/progression.js';
 import { escapeHtml } from '../core/html.js';
 import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
-import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
 import { getEffectiveCombatStats } from '../systems/combat.js';
 import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, getActiveRelicSynergies, toggleRelic } from '../systems/relics.js';

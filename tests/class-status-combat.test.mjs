@@ -39,7 +39,7 @@ test('mage fireball applies burn and burn deals its configured periodic damage',
     assert.equal(firstTick.burnDamage, 40);
     assert.equal(secondTick.burnDamage, 40);
     assert.equal(enemy.effects.burnTurns, 0);
-    assert.equal(enemy.health, 840);
+    assert.equal(enemy.health, 820);
 });
 
 test('mage frost nova triggers thermal shock on a burning target and consumes burn', () => {

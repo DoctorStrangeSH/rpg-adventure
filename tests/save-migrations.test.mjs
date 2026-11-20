@@ -7,7 +7,7 @@ test('legacy unversioned saves migrate to the current schema without changing pl
     const result = migrateSaveData(legacy);
     assert.equal(result.ok, true);
     assert.equal(result.data.schemaVersion, CURRENT_SAVE_VERSION);
-    assert.deepEqual(result.data.player, legacy.player);
+    assert.deepEqual(result.data.player, { ...legacy.player, dungeonProgress: {} });
     assert.equal(result.data.screen, 'battle');
 });
 
@@ -20,4 +20,19 @@ test('future or malformed saves are rejected instead of silently downgraded', ()
     assert.deepEqual(migrateSaveData({ schemaVersion: CURRENT_SAVE_VERSION + 1, player: {} }),
         { ok: false, error: 'unsupported_save_version' });
     assert.deepEqual(migrateSaveData({ player: null }), { ok: false, error: 'invalid_save' });
+});
+
+
+test('version one saves migrate to version two with an empty resumable expedition registry', () => {
+    const versionOne = {
+        schemaVersion: 1,
+        player: { id: 8, level: 12, dungeonCheckpoints: { forest: 4 } },
+        screen: 'main-menu'
+    };
+    const result = migrateSaveData(versionOne);
+    assert.equal(result.ok, true);
+    assert.equal(result.data.schemaVersion, 2);
+    assert.deepEqual(result.data.player.dungeonProgress, {});
+    assert.deepEqual(result.data.player.dungeonCheckpoints, { forest: 4 });
+    assert.equal(result.data.player.level, 12);
 });

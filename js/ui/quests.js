@@ -2,6 +2,7 @@
 import { gameState } from '../core/state.js';
 import { QUESTS, getQuest } from '../data/quests.js';
 import { getItem } from '../data/items.js';
+import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 
 export function updateQuestsScreen() {
     const player = gameState.player;
@@ -84,80 +85,75 @@ function createQuestCard(quest, playerQuest, isCompleted) {
 
 export function updateQuestProgress(type, amount = 1, { save = true } = {}) {
     const player = gameState.player;
-    if (!player) return;
-    
+    if (!player) return false;
+    const snapshot = save ? createPlayerSnapshot(player) : null;
+    if (save && !snapshot) return false;
+    const newlyCompleted = [];
+
     player.quests.forEach(playerQuest => {
         const questData = getQuest(playerQuest.id);
-        
         if (!questData || playerQuest.completed) return;
-        
+
         switch (questData.type) {
             case 'kill':
-                if (type === 'kill') {
-                    playerQuest.progress = Math.min(questData.target, playerQuest.progress + amount);
-                }
+                if (type === 'kill') playerQuest.progress = Math.min(questData.target, playerQuest.progress + amount);
                 break;
             case 'win':
-                if (type === 'win') {
-                    playerQuest.progress = Math.min(questData.target, playerQuest.progress + amount);
-                }
+                if (type === 'win') playerQuest.progress = Math.min(questData.target, playerQuest.progress + amount);
                 break;
             case 'gold':
-                if (type === 'gold') {
-                    playerQuest.progress = Math.min(questData.target, player.gold);
-                }
+                if (type === 'gold') playerQuest.progress = Math.min(questData.target, player.gold);
                 break;
             case 'level':
-                if (type === 'level') {
-                    playerQuest.progress = Math.min(questData.target, player.level);
-                }
+                if (type === 'level') playerQuest.progress = Math.min(questData.target, player.level);
                 break;
         }
-        
+
         if (playerQuest.progress >= questData.target) {
             playerQuest.completed = true;
-            window.showNotification(`🎉 Квест выполнен: ${questData.name}!`, 'success');
+            newlyCompleted.push(questData.name);
         }
     });
-    
-    if (save) gameState.save();
+
+    if (save && !commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить прогресс квестов. Изменения отменены.', 'error');
+        return false;
+    }
+    newlyCompleted.forEach(name => window.showNotification?.(`🎉 Квест выполнен: ${name}!`, 'success'));
+    return true;
 }
 
 export function claimQuestReward(questId) {
     const player = gameState.player;
-    
+    if (!player) return false;
+
     const playerQuest = player.quests.find(pq => pq.id === questId);
-    if (!playerQuest || !playerQuest.completed || playerQuest.rewardClaimed) return;
-    
+    if (!playerQuest || !playerQuest.completed || playerQuest.rewardClaimed) return false;
     const questData = getQuest(questId);
-    if (!questData) return;
-    
+    if (!questData) return false;
+
+    const snapshot = createPlayerSnapshot(player);
+    if (!snapshot) return false;
     player.experience += questData.rewardExp;
     player.gold += questData.rewardGold;
-    
+
     questData.rewardItems.forEach(rewardItem => {
         const existingItem = player.inventory.find(item => item.id === rewardItem.id);
-        
-        if (existingItem) {
-            existingItem.quantity += rewardItem.quantity;
-        } else {
-            player.inventory.push({
-                id: rewardItem.id,
-                quantity: rewardItem.quantity
-            });
-        }
+        if (existingItem) existingItem.quantity += rewardItem.quantity;
+        else player.inventory.push({ id: rewardItem.id, quantity: rewardItem.quantity });
     });
-    
+
     playerQuest.rewardClaimed = true;
-    
-    if (player.experience >= player.maxExperience) {
-        window.levelUp?.();
+    if (player.experience >= player.maxExperience) window.levelUp?.({ save: false });
+
+    if (!commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить награду квеста. Награда не выдана — попробуйте ещё раз.', 'error');
+        return false;
     }
-    
-    window.showNotification(`🎁 Награда получена за квест: ${questData.name}!`, 'success');
-    
-    gameState.save();
+
+    window.showNotification?.(`🎁 Награда получена за квест: ${questData.name}!`, 'success');
     updateQuestsScreen();
     window.updateMainMenu?.();
     window.updateCharacterScreen?.();
+    return true;
 }

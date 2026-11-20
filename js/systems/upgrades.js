@@ -9,7 +9,8 @@ const COSTS = Object.freeze([
  {gold:2160,materials:{iron_ore:7,frost_crystal:2}},
  {gold:3500,materials:{iron_ore:8,ember_core:2,frost_crystal:2}},
  {gold:5600,materials:{iron_ore:10,blood_essence:2}},
- {gold:8550,materials:{iron_ore:12,ember_core:3,frost_crystal:3,blood_essence:2}}
+ {gold:8550,materials:{iron_ore:12,ember_core:3,frost_crystal:3,blood_essence:2}},
+ {gold:12000,materials:{iron_ore:15,ember_core:4,frost_crystal:4,blood_essence:3}}
 ]);
 export function getItemUpgradeLevel(player,id){return Math.max(0,Math.min(10,Math.floor(Number(player?.itemUpgrades?.[id])||0)));}
 export function getUpgradePreview(player,id){

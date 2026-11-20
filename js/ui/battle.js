@@ -7,7 +7,7 @@ import { getItem } from '../data/items.js';
 import { SoundSystem } from '../systems/sound.js';
 import { ParticleSystem, DamageText } from '../systems/particles.js';
 import { Sprite } from '../entities/Sprite.js';
-import { getBattlePositions } from './battleLayout.js';
+import { getBattlePositions, getBattleCanvasSize } from './battleLayout.js';
 import { getArenaTheme, drawArenaAtmosphere } from './arenaTheme.js';
 import { createArenaBackdropCache } from './arenaBackdrop.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
@@ -23,6 +23,7 @@ const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотече
 let damageTexts = [];
 let isProcessing = false;
 let animationRunning = false;
+let battleResizeObserver = null;
 // Region illustrations are lazy-loaded and cached. The courtyard and the
 // gradient remain available when a new background has not loaded yet.
 const arenaBackdrops = createArenaBackdropCache();
@@ -49,17 +50,28 @@ export function initBattle() {
     if (!battleState.canvas) return;
     battleState.ctx = battleState.canvas.getContext('2d');
     
+    const container = battleState.canvas.parentElement;
     resizeBattleCanvas();
     addEventListenerOnce(window, 'resize', resizeBattleCanvas);
+    addEventListenerOnce(window, 'orientationchange', resizeBattleCanvas);
+    if (window.visualViewport) {
+        addEventListenerOnce(window.visualViewport, 'resize', resizeBattleCanvas);
+    }
+    if (typeof ResizeObserver !== 'undefined' && !battleResizeObserver) {
+        battleResizeObserver = new ResizeObserver(resizeBattleCanvas);
+        battleResizeObserver.observe(container);
+    }
 }
 
 function resizeBattleCanvas() {
     if (!battleState.canvas) return;
-    
+
     const container = battleState.canvas.parentElement;
-    battleState.canvas.width = container.offsetWidth;
-    battleState.canvas.height = container.offsetHeight - 150;
-    const positions = getBattlePositions(battleState.canvas.width, battleState.canvas.height,
+    if (!container) return;
+    const size = getBattleCanvasSize(container.clientWidth, container.clientHeight);
+    battleState.canvas.width = size.width;
+    battleState.canvas.height = size.height;
+    const positions = getBattlePositions(size.width, size.height,
         battleState.isBossBattle);
     if (battleState.playerSprite) Object.assign(battleState.playerSprite, positions.player);
     if (battleState.enemySprite) Object.assign(battleState.enemySprite, positions.enemy);

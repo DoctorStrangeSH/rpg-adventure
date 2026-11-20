@@ -1609,3 +1609,156 @@ body {
     .ending-content { padding: 20px 16px; }
     .ending-copy { font-size: 14px; }
 }
+
+/* Mobile viewport, safe areas and accessible touch targets */
+html {
+    width: 100%;
+    min-height: 100%;
+    min-height: 100dvh;
+}
+
+body {
+    width: 100%;
+    min-width: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100vh;
+    height: 100dvh;
+}
+
+#app,
+.screen {
+    min-width: 0;
+    min-height: 0;
+}
+
+.screen-header {
+    flex: 0 0 auto;
+    padding-top: calc(15px + env(safe-area-inset-top, 0px));
+    padding-left: max(15px, env(safe-area-inset-left, 0px));
+    padding-right: max(15px, env(safe-area-inset-right, 0px));
+}
+
+.screen-header h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.screen-content {
+    min-width: 0;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+}
+
+.menu-container {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.back-btn {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+}
+
+.header-spacer {
+    flex: 0 0 44px;
+    width: 44px;
+}
+
+.battle-ui {
+    bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    max-width: 100%;
+}
+
+.notification {
+    top: calc(20px + env(safe-area-inset-top, 0px));
+    width: min(calc(100% - 24px), 440px);
+    max-width: calc(100% - 24px);
+    overflow-wrap: anywhere;
+}
+
+button,
+[role="button"] {
+    touch-action: manipulation;
+}
+
+@media (max-width: 480px) {
+    .screen-header {
+        gap: 8px;
+        padding-left: max(8px, env(safe-area-inset-left, 0px));
+        padding-right: max(8px, env(safe-area-inset-right, 0px));
+    }
+
+    .screen-header h2 {
+        flex: 1 1 auto;
+        font-size: 18px;
+        line-height: 1.25;
+    }
+
+    .screen-content {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .battle-ui {
+        left: 0;
+        right: 0;
+        border-radius: 14px 14px 0 0;
+    }
+
+    .battle-btn,
+    .menu-btn,
+    .shop-btn,
+    .upgrade-button,
+    .rune-button,
+    .rune-extract-button {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 375px) {
+    .screen-header {
+        padding-left: max(6px, env(safe-area-inset-left, 0px));
+        padding-right: max(6px, env(safe-area-inset-right, 0px));
+    }
+
+    .screen-header h2 {
+        font-size: 16px;
+    }
+
+    .screen-content {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .battle-ui {
+        padding-left: 8px;
+        padding-right: 8px;
+        gap: 6px;
+    }
+
+    .battle-buttons {
+        gap: 6px;
+    }
+
+    .battle-btn {
+        padding: 9px 5px;
+        font-size: 12px;
+        overflow-wrap: anywhere;
+    }
+
+    .combat-overview {
+        gap: 6px;
+    }
+
+    .combat-entity {
+        padding: 6px;
+    }
+}

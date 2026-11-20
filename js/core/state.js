@@ -179,8 +179,8 @@ class GameState {
         
         this.player = {
             id: Date.now(),
-            telegramId: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0,
-            username: window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'Игрок',
+            telegramId: globalThis.window?.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0,
+            username: globalThis.window?.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'Игрок',
             class: classId,
             level: 1,
             talents: [],

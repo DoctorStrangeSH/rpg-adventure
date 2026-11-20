@@ -2,6 +2,7 @@
 import { gameState } from '../core/state.js';
 import { ACHIEVEMENTS, getAchievement, getAchievementsByCategory } from '../data/achievements.js';
 import { ACHIEVEMENT_CATEGORIES } from '../config/constants.js';
+import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 
 export function updateAchievementsScreen() {
     const player = gameState.player;
@@ -66,79 +67,66 @@ function createAchievementCard(achievement, playerAchievements) {
 
 export function updateAchievements({ save = true } = {}) {
     const player = gameState.player;
-    if (!player) return;
-    
-    if (!player.achievements) {
-        player.achievements = [];
-    }
-    
+    if (!player) return false;
+    const snapshot = save ? createPlayerSnapshot(player) : null;
+    if (save && !snapshot) return false;
+    const newlyCompleted = [];
+
+    if (!player.achievements) player.achievements = [];
     ACHIEVEMENTS.forEach(achievement => {
-        let playerAchievement = player.achievements.find(a => a.id === achievement.id);
-        
+        let playerAchievement = player.achievements.find(entry => entry.id === achievement.id);
         if (!playerAchievement) {
-            playerAchievement = {
-                id: achievement.id,
-                progress: 0,
-                completed: false,
-                claimed: false
-            };
+            playerAchievement = { id: achievement.id, progress: 0, completed: false, claimed: false };
             player.achievements.push(playerAchievement);
         }
-        
-        // Обновляем прогресс
+
         switch (achievement.stat) {
-            case 'kills':
-                playerAchievement.progress = player.stats.kills;
-                break;
-            case 'wins':
-                playerAchievement.progress = player.stats.wins;
-                break;
-            case 'level':
-                playerAchievement.progress = player.level;
-                break;
-            case 'gold':
-                playerAchievement.progress = player.gold;
-                break;
-            case 'dungeons_completed':
-                playerAchievement.progress = player.stats.dungeonsCompleted || 0;
-                break;
-            case 'bosses_killed':
-                playerAchievement.progress = player.stats.bossesKilled || 0;
-                break;
+            case 'kills': playerAchievement.progress = player.stats.kills; break;
+            case 'wins': playerAchievement.progress = player.stats.wins; break;
+            case 'level': playerAchievement.progress = player.level; break;
+            case 'gold': playerAchievement.progress = player.gold; break;
+            case 'dungeons_completed': playerAchievement.progress = player.stats.dungeonsCompleted || 0; break;
+            case 'bosses_killed': playerAchievement.progress = player.stats.bossesKilled || 0; break;
         }
-        
-        // Проверяем выполнение
+
         if (playerAchievement.progress >= achievement.target && !playerAchievement.completed) {
             playerAchievement.completed = true;
-            window.showNotification(`🏆 Достижение получено: ${achievement.name}!`, 'success');
+            newlyCompleted.push(achievement.name);
         }
     });
-    
-    if (save) gameState.save();
+
+    if (save && !commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить прогресс достижений. Изменения отменены.', 'error');
+        return false;
+    }
+    newlyCompleted.forEach(name => window.showNotification?.(`🏆 Достижение получено: ${name}!`, 'success'));
+    return true;
 }
 
 export function claimAchievement(achievementId) {
     const player = gameState.player;
-    
-    const playerAchievement = player.achievements.find(a => a.id === achievementId);
-    if (!playerAchievement || !playerAchievement.completed || playerAchievement.claimed) return;
-    
+    if (!player) return false;
+
+    const playerAchievement = player.achievements.find(entry => entry.id === achievementId);
+    if (!playerAchievement || !playerAchievement.completed || playerAchievement.claimed) return false;
     const achievementData = getAchievement(achievementId);
-    if (!achievementData) return;
-    
+    if (!achievementData) return false;
+
+    const snapshot = createPlayerSnapshot(player);
+    if (!snapshot) return false;
     player.experience += achievementData.rewardExp;
     player.gold += achievementData.rewardGold;
-    
     playerAchievement.claimed = true;
-    
-    if (player.experience >= player.maxExperience) {
-        window.levelUp?.();
+
+    if (player.experience >= player.maxExperience) window.levelUp?.({ save: false });
+    if (!commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить награду достижения. Награда не выдана — попробуйте ещё раз.', 'error');
+        return false;
     }
-    
-    window.showNotification(`🎁 Награда получена: ${achievementData.name}!`, 'success');
-    
-    gameState.save();
+
+    window.showNotification?.(`🎁 Награда получена: ${achievementData.name}!`, 'success');
     updateAchievementsScreen();
     window.updateMainMenu?.();
     window.updateCharacterScreen?.();
+    return true;
 }

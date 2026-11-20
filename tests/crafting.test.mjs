@@ -289,3 +289,20 @@ test('salvage rejects aggregate material overflow across duplicate stacks atomic
  assert.equal(result.reason,'inventory_limit');
  assert.deepEqual(p,snapshot);
 });
+
+test('salvage conversion stays consistent across all equipment rarities',async()=>{
+ const {getSalvagePreview}=await import('../js/systems/salvage.js');
+ const cases=[
+  ['iron_sword',{iron_ore:2}],
+  ['blood_dagger',{iron_ore:2,ember_core:1}],
+  ['moonblade',{iron_ore:3,ember_core:1,frost_crystal:1}],
+  ['dragon_sword',{iron_ore:4,ember_core:2,frost_crystal:2,blood_essence:1}],
+  ['leather_armor',{iron_ore:1}]
+ ];
+ for(const [itemId,expected] of cases){
+  const preview=getSalvagePreview(itemId);
+  assert.deepEqual(Object.fromEntries(preview.map(x=>[x.id,x.quantity])),expected,itemId);
+ }
+ assert.equal(getSalvagePreview('health_potion'),null);
+ assert.equal(getSalvagePreview('iron_ore'),null);
+});

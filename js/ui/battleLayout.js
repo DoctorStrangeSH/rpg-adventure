@@ -1,4 +1,10 @@
 // One responsive coordinate system for overworld, dungeon and boss encounters.
+export function getBattleCanvasSize(width, height) {
+    const safeWidth = Number.isFinite(width) && width > 0 ? Math.round(width) : 1;
+    const safeHeight = Number.isFinite(height) && height > 0 ? Math.round(height) : 1;
+    return { width: safeWidth, height: safeHeight };
+}
+
 export function getBattlePositions(width, height, isBoss = false) {
     const w = Number.isFinite(width) && width > 0 ? width : 400;
     const h = Number.isFinite(height) && height > 0 ? height : 300;

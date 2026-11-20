@@ -4,6 +4,7 @@ import { LOCATIONS } from '../js/data/locations.js';
 import { getEnemy } from '../js/data/enemies.js';
 import { getItem } from '../js/data/items.js';
 import { applyExperience } from '../js/systems/progression.js';
+import { upgradeEquipment } from '../js/systems/upgrades.js';
 
 const LOCATION_INDEX = { forest: 1, mountains: 2, ruins: 3, dragon_lair: 4 };
 
@@ -152,4 +153,35 @@ test('each region has valid enemy pools, monotonic boss rewards, and resolvable 
                 `${location.id} reward ${reward.id} must have a positive integer quantity`);
         }
     }
+});
+
+test('full +0 to +10 upgrade budget is reproducible and exposes the campaign gold-to-upgrade gap', () => {
+    const player = {
+        level: 20,
+        gold: 1_000_000,
+        equipment: { weapon: 'dragon_sword', armor: null },
+        itemUpgrades: { dragon_sword: 0 },
+        inventory: [
+            { id: 'iron_ore', quantity: 72 },
+            { id: 'ember_core', quantity: 11 },
+            { id: 'frost_crystal', quantity: 12 },
+            { id: 'blood_essence', quantity: 7 }
+        ]
+    };
+    const startingGold = player.gold;
+
+    for (let level = 1; level <= 10; level++) {
+        const result = upgradeEquipment(player, 'dragon_sword');
+        assert.equal(result.ok, true, `upgrade to +${level}`);
+        assert.equal(result.level, level);
+    }
+
+    const upgradeGold = startingGold - player.gold;
+    assert.equal(upgradeGold, 34_400);
+    assert.deepEqual(player.inventory, []);
+    assert.equal(player.itemUpgrades.dragon_sword, 10);
+
+    const campaignGold = calculateCampaignRewards().gold;
+    assert.ok(campaignGold > upgradeGold * 100,
+        'current campaign gold expectation should continue to flag the unresolved economy gap');
 });

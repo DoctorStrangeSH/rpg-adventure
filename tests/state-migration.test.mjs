@@ -50,6 +50,11 @@ test('legacy saves migrate missing systems without losing existing progression',
     assert.equal(player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
     assert.equal(player.achievements.find(entry => entry.id === 'first_kill').claimed, true);
     assert.deepEqual(player.dungeonCheckpoints, {});
+    assert.equal(player.campaignCycle, 1);
+    assert.equal(player.completedCampaignCycles, 0);
+    assert.equal(player.campaignCompleted, false);
+    assert.equal(player.newGamePlusUnlocked, false);
+    assert.deepEqual(player.locationRewardCycles, {});
     assert.equal(gameState.save(), true);
     assert.equal(Storage.load().player.level, 7);
 });

@@ -497,7 +497,10 @@ export function completeLocation() {
         nextLocationText = '\nВсе доступные локации пройдены.';
     }
     
-    window.showNotification(`🎉 Локация пройдена! +${location.rewards.exp} EXP, +${location.rewards.gold} золота!${nextLocationText}`, 'success');
+    const rewardSummary = rewardGranted
+        ? `+${location.rewards.exp} EXP, +${location.rewards.gold} золота!`
+        : 'Награда за эту локацию в текущем цикле уже получена.';
+    window.showNotification(`🎉 Локация пройдена! ${rewardSummary}${nextLocationText}`, 'success');
     
     const saveSucceeded = gameState.save();
     if (!saveSucceeded) {

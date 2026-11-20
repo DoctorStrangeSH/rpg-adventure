@@ -431,3 +431,25 @@ test('ordinary dungeon victory advances to the next stage only after its transit
     assert.equal(run.enemiesDefeated, stage.enemiesCount);
     assert.equal(player.dungeonProgress.forest.stage, 0);
 });
+
+test('resuming an already-cleared stage does not advance when the transition save fails', (t) => {
+    const { player, battle } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    const stage = run.currentLocation.stages[0];
+    run.currentStage = 0;
+    run.enemiesDefeated = stage.enemiesCount;
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => { gameState.save = previousSave; });
+
+    startStageBattle();
+
+    assert.equal(run.currentStage, 0);
+    assert.equal(run.enemiesDefeated, stage.enemiesCount);
+    assert.equal(player.dungeonProgress.forest.stage, 0);
+    assert.equal(player.dungeonProgress.forest.enemiesDefeated, 0);
+    assert.equal(battle.isActive, false);
+});

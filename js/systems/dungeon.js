@@ -89,6 +89,27 @@ function clearDungeonProgress(player, locationId) {
     if (player?.dungeonProgress && locationId) delete player.dungeonProgress[locationId];
 }
 
+function commitDungeonProgress(rollback) {
+    const player = gameState.player;
+    const hadContainer = Boolean(player?.dungeonProgress);
+    const previousProgress = hadContainer ? structuredClone(player.dungeonProgress) : null;
+    persistDungeonProgress();
+    let saved = false;
+    try {
+        saved = gameState.save() === true;
+    } catch {
+        saved = false;
+    }
+    if (saved) return true;
+    if (player) {
+        if (hadContainer) player.dungeonProgress = previousProgress;
+        else delete player.dungeonProgress;
+    }
+    rollback?.();
+    window.showNotification?.('Не удалось сохранить состояние экспедиции. Переход отменён — попробуйте ещё раз.', 'error');
+    return false;
+}
+
 function restoreStageSet(value) {
     return new Set(Array.isArray(value) ? value : []);
 }
@@ -229,9 +250,9 @@ export function startStageBattle() {
     // consumed roll before showing the room, so reloads cannot reroll it.
     if ((locationState.currentStage + 1) % 7 === 0 &&
         !locationState.checkedSecretStages.has(locationState.currentStage)) {
-        locationState.checkedSecretStages.add(locationState.currentStage);
-        persistDungeonProgress();
-        gameState.save();
+        const checkedStage = locationState.currentStage;
+        locationState.checkedSecretStages.add(checkedStage);
+        if (!commitDungeonProgress(() => locationState.checkedSecretStages.delete(checkedStage))) return;
         if (Math.random() < 0.45) {
             presentSecretRoom();
             return;
@@ -317,10 +338,13 @@ function presentDungeonCheckpoint() {
     locationState.pendingCheckpoint = { stage, runId: locationState.runId };
     const ui = document.getElementById('battle-ui');
     if (!ui) {
+        const pending = locationState.pendingCheckpoint;
         locationState.pendingCheckpoint = null;
         locationState.visitedCheckpointStages.add(stage);
-        persistDungeonProgress();
-        gameState.save();
+        if (!commitDungeonProgress(() => {
+            locationState.pendingCheckpoint = pending;
+            locationState.visitedCheckpointStages.delete(stage);
+        })) return;
         startStageBattle();
         return;
     }
@@ -395,11 +419,18 @@ function presentRouteChoice() {
     locationState.pendingRoute = { stage, runId: locationState.runId };
     const ui = document.getElementById('battle-ui');
     if (!ui) {
+        const pending = locationState.pendingRoute;
         locationState.pendingRoute = null;
         locationState.visitedRouteStages.add(stage);
+        const hadChoice = Object.hasOwn(locationState.routeChoices, stage);
+        const previousChoice = locationState.routeChoices[stage];
         locationState.routeChoices[stage] = 'safe';
-        persistDungeonProgress();
-        gameState.save();
+        if (!commitDungeonProgress(() => {
+            locationState.pendingRoute = pending;
+            locationState.visitedRouteStages.delete(stage);
+            if (hadChoice) locationState.routeChoices[stage] = previousChoice;
+            else delete locationState.routeChoices[stage];
+        })) return;
         startStageBattle();
         return;
     }
@@ -447,10 +478,15 @@ function presentAdventureEvent() {
     locationState.pendingEvent = { id: event.id, stage, runId: locationState.runId };
     const ui = document.getElementById('battle-ui');
     if (!ui) { // If no UI is mounted, consume the event and persist the fallback.
+        const pending = locationState.pendingEvent;
+        const previousTravelerReturnPending = locationState.travelerReturnPending;
         locationState.visitedEventStages.add(stage);
         locationState.pendingEvent = null;
-        persistDungeonProgress();
-        gameState.save();
+        if (!commitDungeonProgress(() => {
+            locationState.visitedEventStages.delete(stage);
+            locationState.pendingEvent = pending;
+            locationState.travelerReturnPending = previousTravelerReturnPending;
+        })) return;
         startStageBattle();
         return;
     }

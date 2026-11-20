@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
-import { Storage } from '../js/core/storage.js';
+import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { QUESTS } from '../js/data/quests.js';
 import { ACHIEVEMENTS } from '../js/data/achievements.js';
 

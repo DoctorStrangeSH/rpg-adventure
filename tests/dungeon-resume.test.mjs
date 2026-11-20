@@ -399,7 +399,7 @@ test('ordinary dungeon victory rolls back its reward and defeated counter when t
     const persisted = Storage.load().player;
     assert.equal(persisted.gold, playerBeforeBattle.gold);
     assert.equal(persisted.experience, playerBeforeBattle.experience);
-    assert.equal(persisted.dungeonProgress.forest.enemiesDefeated, 1);
+    assert.equal(persisted.dungeonProgress.forest.enemiesDefeated, 0);
 });
 
 test('ordinary dungeon victory advances to the next stage only after its transition save succeeds', (t) => {

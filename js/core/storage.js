@@ -63,6 +63,18 @@ export const Storage = {
         }
     },
 
+    restoreRecovery() {
+        try {
+            const saved = localStorage.getItem(RECOVERY_SAVE_KEY);
+            if (saved === null) return false;
+            localStorage.setItem(GAME_CONFIG.saveKey, saved);
+            return true;
+        } catch (error) {
+            console.error('Error restoring recovery save:', error);
+            return false;
+        }
+    },
+
     clear() {
         try {
             localStorage.removeItem(GAME_CONFIG.saveKey);

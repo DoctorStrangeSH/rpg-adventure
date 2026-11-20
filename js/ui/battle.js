@@ -704,6 +704,8 @@ function addDamageText(x, y, damage, isCrit = false, damageType = 'physical') {
 export function battleVictory() {
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
+    const locationState = window.getLocationState?.();
+    const isDungeonBattle = Boolean(locationState?.inLocation);
     
     if (!battleState.isActive || !enemy || enemy.health > 0) return;
     

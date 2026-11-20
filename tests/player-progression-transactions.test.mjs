@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
-import { toggleCharacterRelic, chooseTalent } from '../js/ui/character.js';
+import { toggleCharacterRelic, chooseTalent, levelUp } from '../js/ui/character.js';
 import { claimQuestReward, updateQuestProgress } from '../js/ui/quests.js';
 import { claimAchievement, updateAchievements } from '../js/ui/achievements.js';
+import { updateQuestProgress } from '../js/ui/quests.js';
+import { SoundSystem } from '../js/systems/sound.js';
 
 function setup(t, classId = 'warrior') {
     const previousPlayer = gameState.player;
@@ -98,4 +100,37 @@ test('quest and achievement rewards commit once and only then show success', (t)
     assert.equal(player.gold, 300);
     assert.equal(saves, 2);
     assert.equal(notifications.filter(entry => entry.type === 'success').length, 2);
+});
+
+test('level-up and its quest/achievement progression roll back together on save failure', (t) => {
+    const { player, notifications } = setup(t);
+    player.experience = player.maxExperience;
+    const before = structuredClone(player);
+    globalThis.window.updateQuestProgress = updateQuestProgress;
+    globalThis.window.updateAchievements = updateAchievements;
+    gameState.save = () => false;
+
+    assert.equal(levelUp(), false);
+    assert.deepEqual(player, before);
+    assert.equal(notifications.filter(entry => entry.type === 'success').length, 0);
+});
+
+test('level-up commits once after updating quest and achievement progress', (t) => {
+    const { player } = setup(t);
+    player.experience = player.maxExperience;
+    globalThis.window.updateQuestProgress = updateQuestProgress;
+    globalThis.window.updateAchievements = updateAchievements;
+    const previousSound = SoundSystem.playSound;
+    SoundSystem.playSound = () => {};
+    let saves = 0;
+    gameState.save = () => { saves++; return true; };
+
+    try {
+        assert.equal(levelUp(), true);
+        assert.equal(player.level, 2);
+        assert.equal(player.experience, 0);
+        assert.equal(saves, 1);
+    } finally {
+        SoundSystem.playSound = previousSound;
+    }
 });

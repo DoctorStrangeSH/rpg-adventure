@@ -15,6 +15,7 @@ import { BossSpellFx } from '../systems/bossSpellFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, consumeManaPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, hasBossTrophy, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
+import { createPlayerSnapshot, restorePlayerSnapshot } from '../systems/playerTransactions.js';
 
 const particleSystem = new ParticleSystem();
 const projectileFx = new ProjectileFx();
@@ -720,6 +721,7 @@ export function battleVictory() {
     const enemy = battleState.currentEnemy;
     const locationState = window.getLocationState?.();
     const isDungeonBattle = Boolean(locationState?.inLocation);
+    const playerBeforeBattle = isDungeonBattle ? createPlayerSnapshot(player) : null;
     
     if (!battleState.isActive || !enemy || enemy.health > 0) return;
     
@@ -764,7 +766,13 @@ export function battleVictory() {
         if (battleState.isBossBattle) {
             window.handleBossVictory?.();
         } else {
-            window.handleVictory?.();
+            const committed = window.handleVictory?.(playerBeforeBattle);
+            if (committed === false) {
+                restorePlayerSnapshot(player, playerBeforeBattle);
+                setTimeout(() => {
+                    if (locationState?.inLocation && !battleState.isActive) window.startStageBattle?.();
+                }, 500);
+            }
         }
     } else {
         gameState.save();

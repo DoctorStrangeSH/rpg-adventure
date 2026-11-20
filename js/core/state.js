@@ -256,6 +256,7 @@ class GameState {
             newGamePlusUnlocked: false,
             campaignCompletedAt: null,
             locationRewardCycles: {},
+            dungeonProgress: {},
             unlockedLocations: ['forest'],
             discoveredItems: [],
             inventory: [                { id: 'health_potion', quantity: 3 },

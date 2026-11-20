@@ -4,7 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
 import { getBattleState } from '../js/ui/battle.js';
-import { handleVictory, getLocationState, resetLocationState, startLocation, startStageBattle } from '../js/systems/dungeon.js';
+import { handleVictory, getLocationState, resetLocationState, startLocation, startStageBattle, chooseDungeonRoute, chooseAdventureEvent, chooseSecretRoom } from '../js/systems/dungeon.js';
 
 function setup(t) {
     const previousStorage = globalThis.localStorage;
@@ -215,4 +215,66 @@ test('failed initial save does not leave a new empty expedition snapshot behind'
 
     assert.equal(getLocationState().inLocation, false);
     assert.equal(player.dungeonProgress, undefined);
+});
+
+test('failed route save restores the pending choice and does not start the next encounter', (t) => {
+    const { player, battle } = setup(t);
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    const run = getLocationState();
+    run.currentStage = 2;
+    run.pendingRoute = { stage: 2, runId: run.runId };
+    run.routeChoices = {};
+    run.visitedRouteStages = new Set();
+    const before = structuredClone(player);
+    t.after(() => { gameState.save = previousSave; });
+
+    assert.equal(chooseDungeonRoute('danger'), false);
+    assert.deepEqual(player, before);
+    assert.deepEqual(run.pendingRoute, { stage: 2, runId: run.runId });
+    assert.equal(run.routeChoices[2], undefined);
+    assert.equal(run.visitedRouteStages.has(2), false);
+    assert.equal(battle.isActive, false);
+});
+
+test('failed adventure-event save rolls back player rewards and keeps the event available', (t) => {
+    const { player, battle } = setup(t);
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    player.gold = 100;
+    const before = structuredClone(player);
+    const run = getLocationState();
+    run.currentStage = 4;
+    run.pendingEvent = { id: 'campfire', stage: 4, runId: run.runId };
+    run.visitedEventStages = new Set();
+    const pending = structuredClone(run.pendingEvent);
+    t.after(() => { gameState.save = previousSave; });
+
+    assert.equal(chooseAdventureEvent('risk'), false);
+    assert.deepEqual(player, before);
+    assert.deepEqual(run.pendingEvent, pending);
+    assert.equal(run.visitedEventStages.has(4), false);
+    assert.equal(battle.isActive, false);
+});
+
+test('failed secret-room save rolls back inventory and leaves the room choice pending', (t) => {
+    const { player, battle } = setup(t);
+    const previousSave = gameState.save;
+    const previousRandom = Math.random;
+    gameState.save = () => false;
+    Math.random = () => 0.1;
+    const before = structuredClone(player);
+    const run = getLocationState();
+    run.currentStage = 6;
+    run.pendingSecretRoom = { id: 'armory', stage: 6, runId: run.runId };
+    const pending = structuredClone(run.pendingSecretRoom);
+    t.after(() => {
+        gameState.save = previousSave;
+        Math.random = previousRandom;
+    });
+
+    assert.equal(chooseSecretRoom('explore'), false);
+    assert.deepEqual(player, before);
+    assert.deepEqual(run.pendingSecretRoom, pending);
+    assert.equal(battle.isActive, false);
 });

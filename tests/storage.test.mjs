@@ -88,7 +88,7 @@ test('a future-version save is backed up before a current build replaces it', (t
 });
 
 test('malformed existing save is preserved byte-for-byte before a new game is written', (t) => {
-    const values = new Map([[GAME_CONFIG.saveKey, '{not-json']);
+    const values = new Map([[GAME_CONFIG.saveKey, '{not-json']]);
     installStorage(t, {
         setItem(key, value) { values.set(key, value); },
         getItem(key) { return values.get(key) ?? null; },

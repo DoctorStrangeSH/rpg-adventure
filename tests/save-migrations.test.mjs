@@ -20,6 +20,10 @@ test('future or malformed saves are rejected instead of silently downgraded', ()
     assert.deepEqual(migrateSaveData({ schemaVersion: CURRENT_SAVE_VERSION + 1, player: {} }),
         { ok: false, error: 'unsupported_save_version' });
     assert.deepEqual(migrateSaveData({ player: null }), { ok: false, error: 'invalid_save' });
+    for (const schemaVersion of [-1, 1.5, '2', null, NaN]) {
+        assert.deepEqual(migrateSaveData({ schemaVersion, player: {} }),
+            { ok: false, error: 'unsupported_save_version' });
+    }
 });
 
 

@@ -108,6 +108,28 @@ function normalizePlayerSave(player) {
 
     player.quests = migrateProgressEntries(player.quests, QUESTS, 'rewardClaimed');
     player.achievements = migrateProgressEntries(player.achievements, ACHIEVEMENTS, 'claimed');
+
+    player.campaignCycle = Number.isSafeInteger(player.campaignCycle) && player.campaignCycle >= 1
+        ? player.campaignCycle : 1;
+    player.completedCampaignCycles = safeNonNegativeInteger(player.completedCampaignCycles);
+    player.lastCompletedCampaignCycle = safeNonNegativeInteger(player.lastCompletedCampaignCycle);
+    player.campaignCompleted = player.campaignCompleted === true;
+    player.newGamePlusUnlocked = player.newGamePlusUnlocked === true || player.completedCampaignCycles > 0;
+    if (player.campaignCompleted) {
+        player.newGamePlusUnlocked = true;
+        player.completedCampaignCycles = Math.max(1, player.completedCampaignCycles);
+        player.lastCompletedCampaignCycle = player.campaignCycle;
+    }
+    if (isPlainRecord(player.locationRewardCycles)) {
+        player.locationRewardCycles = Object.fromEntries(
+            Object.entries(player.locationRewardCycles).filter(([id, cycle]) =>
+                validLocationIds.has(id) && Number.isSafeInteger(cycle) && cycle >= 1 && cycle <= player.campaignCycle
+            )
+        );
+    } else {
+        player.locationRewardCycles = {};
+    }
+
     if (!Number.isSafeInteger(player.id) || player.id < 0) player.id = Date.now();
     if (typeof player.username !== 'string' || !player.username.trim()) player.username = 'Игрок';
     if (typeof player.telegramId !== 'number' && typeof player.telegramId !== 'string') player.telegramId = 0;

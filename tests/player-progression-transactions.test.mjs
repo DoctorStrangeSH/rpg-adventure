@@ -4,7 +4,6 @@ import { gameState } from '../js/core/state.js';
 import { toggleCharacterRelic, chooseTalent, levelUp } from '../js/ui/character.js';
 import { claimQuestReward, updateQuestProgress } from '../js/ui/quests.js';
 import { claimAchievement, updateAchievements } from '../js/ui/achievements.js';
-import { updateQuestProgress } from '../js/ui/quests.js';
 import { SoundSystem } from '../js/systems/sound.js';
 
 function setup(t, classId = 'warrior') {

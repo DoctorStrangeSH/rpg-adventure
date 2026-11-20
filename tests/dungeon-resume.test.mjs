@@ -80,7 +80,7 @@ test('per-location expedition snapshots do not overwrite another region resume p
     };
     assert.equal(gameState.save(), true);
     assert.equal(gameState.load(), true);
-    assert.equal(player.dungeonProgress.forest.stage, 3);
+    assert.equal(gameState.player.dungeonProgress.forest.stage, 3);
     assert.equal(gameState.player.dungeonProgress.mountains.stage, 7);
 });
 

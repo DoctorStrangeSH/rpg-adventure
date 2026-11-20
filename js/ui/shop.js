@@ -32,8 +32,9 @@ function createShopSection(title, type, player) {
 }
 
 function createShopItem(item, player) {
-    const canAfford = player.gold >= item.price;
+    const canAfford = Number.isSafeInteger(player.gold) && player.gold >= item.price;
     const requiredLevel = item.requiredLevel || 1;
+    const levelLocked = player.level < requiredLevel;
     
     return `
         <div class="shop-item">
@@ -51,8 +52,8 @@ function createShopItem(item, player) {
             ${requiredLevel > 1 ? `<div class="item-stats">${player.level < requiredLevel ? '🔒 ' : ''}Экипировка с ${requiredLevel} уровня</div>` : ''}
             <button class="shop-btn" 
                     onclick="window.buyItem('${item.id}')"
-                    ${!canAfford ? 'disabled' : ''}>
-                ${canAfford ? 'Купить' : 'Недостаточно золота'}
+                    ${!canAfford || levelLocked ? 'disabled' : ''}>
+                ${levelLocked ? `Доступно с ${requiredLevel} уровня` : canAfford ? 'Купить' : 'Недостаточно золота'}
             </button>
         </div>
     `;
@@ -62,8 +63,15 @@ export function buyItem(itemId) {
     const player = gameState.player;
     const itemData = getItem(itemId);
     
-    if (!player || !itemData || !Number.isSafeInteger(itemData.price) || itemData.price < 0) return;
-    
+    if (!player || !itemData || !Number.isSafeInteger(itemData.price) || itemData.price < 0 ||
+        !Number.isSafeInteger(player.gold) || player.gold < 0) return;
+
+    const requiredLevel = itemData.requiredLevel || 1;
+    if (!Number.isSafeInteger(player.level) || player.level < requiredLevel) {
+        window.showNotification?.(`Предмет доступен с ${requiredLevel} уровня!`, 'error');
+        return;
+    }
+
     if (player.gold < itemData.price) {
         window.showNotification('Недостаточно золота!', 'error');
         return;

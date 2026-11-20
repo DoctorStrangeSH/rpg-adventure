@@ -135,7 +135,7 @@ test('legacy unversioned saves are upgraded without unnecessary recovery copies'
 
 test('a preserved recovery save can be restored without parsing or modifying its bytes', (t) => {
     const recovery = '{"schemaVersion":77,"player":{"class":"warrior"},"futureField":true}';
-    const values = new Map([[RECOVERY_SAVE_KEY, recovery], [GAME_CONFIG.saveKey, '{broken']);
+    const values = new Map([[RECOVERY_SAVE_KEY, recovery], [GAME_CONFIG.saveKey, '{broken']]);
     installStorage(t, {
         setItem(key, value) { values.set(key, value); },
         getItem(key) { return values.get(key) ?? null; },

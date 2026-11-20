@@ -38,12 +38,24 @@ const BOSS_RUNE_ITEMS = Object.freeze({
 
 // Story bosses favor loot tied to their region; the remaining rolls retain
 // the normal boss pool, so repeat encounters can still yield varied equipment.
-export function rollLoot(isBoss = false, random = Math.random, bossId = null) {
+export function hasBossTrophy(player, bossId) {
+    const trophyId = BOSS_TROPHIES[bossId];
+    if (!trophyId || !player) return false;
+    return (Array.isArray(player.discoveredItems) && player.discoveredItems.includes(trophyId)) ||
+        (Array.isArray(player.inventory) && player.inventory.some(entry => entry?.id === trophyId && entry.quantity > 0));
+}
+
+export function rollLoot(isBoss = false, random = Math.random, bossId = null, trophyAlreadyOwned = false) {
     const roll = random();
     if (!Number.isFinite(roll) || roll < 0 || roll >= 1) return null;
     if (isBoss && Object.hasOwn(BOSS_TROPHIES, bossId)) {
         if (roll < 0.18) return BOSS_RUNE_ITEMS[bossId];
-        if (roll < 0.65) return BOSS_TROPHIES[bossId];
+        if (roll < 0.65) {
+            if (!trophyAlreadyOwned) return BOSS_TROPHIES[bossId];
+            // Once the regional trophy is collected, repeated boss fights
+            // convert that slot into useful consumables instead of duplicates.
+            return roll < 0.415 ? 'big_health_potion' : 'mana_potion';
+        }
     }
     if (!isBoss && roll >= 0.18) return null;
     const tier = isBoss ? roll : roll / 0.18;

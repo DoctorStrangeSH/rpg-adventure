@@ -14,12 +14,18 @@ test('regional boss scaling stays bounded and preserves increasing regional base
         assert.ok(mainBosses.length > 0, `${region.id} must retain its main bosses`);
         assert.ok(miniBosses.length > 0, `${region.id} must retain its mini-bosses`);
 
-        for (const stage of mainBosses) {
-            const boss = stage.boss;
-            const base = region.stages.find(entry => entry.boss && !entry.boss.miniBoss).boss;
-            assert.ok(boss.health <= base.health * 1.35);
-            assert.ok(boss.attack <= base.attack * 1.20);
-            assert.ok(boss.defense <= base.defense * 1.15);
+        const mainBase = mainBosses[0].boss;
+        for (let index = 0; index < mainBosses.length; index++) {
+            const boss = mainBosses[index].boss;
+            assert.ok(boss.health <= mainBase.health * 1.35);
+            assert.ok(boss.attack <= mainBase.attack * 1.20);
+            assert.ok(boss.defense <= mainBase.defense * 1.15);
+            if (index > 0) {
+                const previous = mainBosses[index - 1].boss;
+                assert.ok(boss.health >= previous.health);
+                assert.ok(boss.attack >= previous.attack);
+                assert.ok(boss.defense >= previous.defense);
+            }
         }
 
         const firstMini = miniBosses[0].boss;
@@ -29,6 +35,8 @@ test('regional boss scaling stays bounded and preserves increasing regional base
         assert.ok(lastMini.attack <= miniBase.attack * 1.15);
         assert.ok(lastMini.defense <= miniBase.defense * 1.10);
         assert.ok(lastMini.health >= firstMini.health);
+        assert.ok(lastMini.attack >= firstMini.attack);
+        assert.ok(lastMini.defense >= firstMini.defense);
     }
 });
 

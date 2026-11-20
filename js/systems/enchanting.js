@@ -16,6 +16,28 @@ export function getRuneSocketCount(player,weaponId){
 export function getWeaponRunes(player,weaponId=player?.equipment?.weapon){
  const list=player?.weaponRunes?.[weaponId];return Array.isArray(list)?list.filter(id=>RUNE_CATALOG[id]):[];
 }
+
+function countMaterial(player,id){
+ if(!Array.isArray(player?.inventory))return null;
+ let total=0;
+ for(const stack of player.inventory){
+  if(stack?.id!==id)continue;
+  if(!Number.isSafeInteger(stack.quantity)||stack.quantity<0||total>Number.MAX_SAFE_INTEGER-stack.quantity)return null;
+  total+=stack.quantity;
+ }
+ return total;
+}
+function consumeMaterials(player,materials){
+ for(const [id,quantity] of Object.entries(materials)){
+  let remaining=quantity;
+  for(let i=player.inventory.length-1;i>=0&&remaining>0;i--){
+   const stack=player.inventory[i];if(stack?.id!==id)continue;
+   const used=Math.min(stack.quantity,remaining);stack.quantity-=used;remaining-=used;
+   if(stack.quantity===0)player.inventory.splice(i,1);
+  }
+ }
+}
+
 export function getEnchantPreview(player,weaponId,runeId){
  const weapon=getItem(weaponId),rune=RUNE_CATALOG[runeId];
  if(!player||!weapon||weapon.type!=='weapon'||!rune)return {available:false,reason:'invalid'};
@@ -23,22 +45,19 @@ export function getEnchantPreview(player,weaponId,runeId){
  const runes=getWeaponRunes(player,weaponId),slots=getRuneSocketCount(player,weaponId);
  if(runes.length>=slots)return {available:false,reason:slots===0?'upgrade_required':'sockets_full',slots,used:runes.length};
  if(runes.includes(runeId))return {available:false,reason:'duplicate'};
- const missing=Object.entries(rune.cost).map(([id,quantity])=>{
-  const owned=(player.inventory||[]).filter(x=>x.id===id).reduce((sum,x)=>sum+(Number.isSafeInteger(x.quantity)&&x.quantity>0?x.quantity:0),0);
-  return {id,quantity,missing:Math.max(0,quantity-owned)};
- }).filter(x=>x.missing>0);
+ if(!Array.isArray(player.inventory))return {available:false,reason:'invalid_inventory'};
+ const missing=[];
+ for(const [id,quantity] of Object.entries(rune.cost)){
+  const owned=countMaterial(player,id);
+  if(owned===null)return {available:false,reason:'invalid_inventory',itemId:id};
+  if(owned<quantity)missing.push({id,quantity,missing:quantity-owned});
+ }
  return {available:missing.length===0,reason:missing.length?'materials':null,missing,slots,used:runes.length,rune};
 }
 export function inscribeRune(player,weaponId,runeId){
  const preview=getEnchantPreview(player,weaponId,runeId);if(!preview.available)return {ok:false,...preview};
- for(const [id,quantity] of Object.entries(preview.rune.cost)){
-  let left=quantity;
-  for(let i=player.inventory.length-1;i>=0&&left>0;i--){
-   const stack=player.inventory[i];if(stack.id!==id)continue;
-   const used=Math.min(stack.quantity,left);stack.quantity-=used;left-=used;
-   if(stack.quantity===0)player.inventory.splice(i,1);
-  }
- }
+ // All material stacks are validated before any stack or rune slot is changed.
+ consumeMaterials(player,preview.rune.cost);
  player.weaponRunes ||= {};player.weaponRunes[weaponId] ||= [];player.weaponRunes[weaponId].push(runeId);
  return {ok:true,rune:preview.rune,used:player.weaponRunes[weaponId].length,slots:preview.slots};
 }
@@ -48,13 +67,14 @@ export function getRuneExtractionPreview(player,weaponId,index){
  if(!player||player.equipment?.weapon!==weaponId)return {available:false,reason:'not_equipped'};
  if(!Number.isInteger(index)||index<0||index>=runes.length)return {available:false,reason:'invalid_socket'};
  const rune=RUNE_CATALOG[runes[index]];
- const inventory=Array.isArray(player.inventory)?player.inventory:[];
+ if(!Number.isSafeInteger(player.gold)||player.gold<0)return {available:false,reason:'invalid_currency',rune,index};
+ if(!Array.isArray(player.inventory))return {available:false,reason:'invalid_inventory',rune,index};
  for(const [itemId,quantity] of Object.entries(rune.cost)){
-  const stack=inventory.find(item=>item.id===itemId);
-  if(stack&&(!Number.isSafeInteger(stack.quantity)||stack.quantity<0||stack.quantity>Number.MAX_SAFE_INTEGER-quantity))
-   return {available:false,reason:'inventory_capacity',rune,index};
+  const owned=countMaterial(player,itemId);
+  if(owned===null)return {available:false,reason:'invalid_inventory',rune,index};
+  if(owned>Number.MAX_SAFE_INTEGER-quantity)return {available:false,reason:'inventory_capacity',rune,index};
  }
- const gold=Math.max(0,Number(player.gold)||0);
+ const gold=player.gold;
  return {available:gold>=RUNE_EXTRACTION_GOLD,reason:gold>=RUNE_EXTRACTION_GOLD?null:'gold',cost:RUNE_EXTRACTION_GOLD,rune,index};
 }
 export function extractRune(player,weaponId,index){

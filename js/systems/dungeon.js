@@ -60,6 +60,39 @@ export function getExpeditionDepthModifiers(stageNumber) {
     };
 }
 
+function persistDungeonProgress() {
+    const player = gameState.player;
+    const location = locationState.currentLocation;
+    if (!player || !location) return false;
+    player.dungeonProgress ||= {};
+    player.dungeonProgress[location.id] = {
+        campaignCycle: player.campaignCycle || 1,
+        stage: locationState.currentStage,
+        enemiesDefeated: locationState.enemiesDefeated,
+        visitedEventStages: [...locationState.visitedEventStages],
+        visitedRouteStages: [...locationState.visitedRouteStages],
+        routeChoices: { ...locationState.routeChoices },
+        checkedSecretStages: [...locationState.checkedSecretStages],
+        visitedCheckpointStages: [...locationState.visitedCheckpointStages],
+        claimedDeepChestStages: [...locationState.claimedDeepChestStages],
+        claimedUnbrokenBonusStages: [...locationState.claimedUnbrokenBonusStages],
+        resumedFromCheckpoint: locationState.resumedFromCheckpoint,
+        travelerFavorFights: locationState.travelerFavorFights,
+        travelerReturnPending: locationState.travelerReturnPending,
+        bloodPursuerPending: locationState.bloodPursuerPending,
+        finalBossDefeated: locationState.finalBossDefeated
+    };
+    return true;
+}
+
+function clearDungeonProgress(player, locationId) {
+    if (player?.dungeonProgress && locationId) delete player.dungeonProgress[locationId];
+}
+
+function restoreStageSet(value) {
+    return new Set(Array.isArray(value) ? value : []);
+}
+
 export function getDungeonCheckpoint(player, locationId, location = getLocation(locationId)) {
     const stage = player?.dungeonCheckpoints?.[locationId];
     return Number.isInteger(stage) && stage > 0 && stage < (location?.stages?.length || 0) ? stage : 0;
@@ -91,27 +124,36 @@ export function startLocation(locationId) {
     if (locationState.inLocation || getBattleState().isActive) return;
     
     locationState.currentLocation = location;
-    const resumeStage = getDungeonCheckpoint(player, locationId, location);
+    const savedProgress = player.dungeonProgress?.[locationId];
+    const resumeStage = savedProgress?.campaignCycle === player.campaignCycle
+        ? savedProgress.stage : getDungeonCheckpoint(player, locationId, location);
     locationState.currentStage = resumeStage;
-    locationState.enemiesDefeated = 0;
+    locationState.enemiesDefeated = savedProgress?.campaignCycle === player.campaignCycle
+        ? savedProgress.enemiesDefeated : 0;
     locationState.inLocation = true;
     locationState.pendingEvent = null;
-    locationState.visitedEventStages = new Set();
+    locationState.visitedEventStages = restoreStageSet(savedProgress?.visitedEventStages);
     locationState.pendingRoute = null;
-    locationState.visitedRouteStages = new Set();
-    locationState.routeChoices = {};
-    locationState.checkedSecretStages = new Set();
+    locationState.visitedRouteStages = restoreStageSet(savedProgress?.visitedRouteStages);
+    locationState.routeChoices = savedProgress?.routeChoices && typeof savedProgress.routeChoices === 'object'
+        ? { ...savedProgress.routeChoices } : {};
+    locationState.checkedSecretStages = restoreStageSet(savedProgress?.checkedSecretStages);
     locationState.pendingSecretRoom = null;
     locationState.pendingCheckpoint = null;
-    locationState.visitedCheckpointStages = new Set(resumeStage ? [resumeStage] : []);
-    locationState.claimedDeepChestStages = new Set();
-    locationState.claimedUnbrokenBonusStages = new Set();
-    locationState.resumedFromCheckpoint = resumeStage > 0;
-    locationState.travelerFavorFights = 0;
-    locationState.travelerReturnPending = false;
-    locationState.bloodPursuerPending = false;
-    locationState.finalBossDefeated = false;
+    locationState.visitedCheckpointStages = restoreStageSet(savedProgress?.visitedCheckpointStages);
+    if (resumeStage > 0 && !savedProgress) locationState.visitedCheckpointStages.add(resumeStage);
+    locationState.claimedDeepChestStages = restoreStageSet(savedProgress?.claimedDeepChestStages);
+    locationState.claimedUnbrokenBonusStages = restoreStageSet(savedProgress?.claimedUnbrokenBonusStages);
+    locationState.resumedFromCheckpoint = savedProgress?.resumedFromCheckpoint === true || (!savedProgress && resumeStage > 0);
+    locationState.travelerFavorFights = savedProgress?.travelerFavorFights || 0;
+    locationState.travelerReturnPending = savedProgress?.travelerReturnPending === true;
+    locationState.bloodPursuerPending = savedProgress?.bloodPursuerPending === true;
+    locationState.finalBossDefeated = savedProgress?.finalBossDefeated === true;
     const runId = ++locationState.runId;
+    persistDungeonProgress();
+    if (gameState.save() !== true) {
+        window.showNotification?.('Не удалось сохранить состояние экспедиции. Проверьте свободное место хранилища.', 'error');
+    }
     
     // Показываем экран боя
     window.showScreen('battle-screen');
@@ -162,17 +204,34 @@ export function startStageBattle() {
         presentRouteChoice();
         return;
     }
-    // A passage can appear once per run on every seventh stage. The result is
-    // remembered before presenting it, preventing re-rolls or duplicate loot.
+    // A passage can appear once per run on every seventh stage. Persist the
+    // consumed roll before showing the room, so reloads cannot reroll it.
     if ((locationState.currentStage + 1) % 7 === 0 &&
         !locationState.checkedSecretStages.has(locationState.currentStage)) {
         locationState.checkedSecretStages.add(locationState.currentStage);
+        persistDungeonProgress();
+        gameState.save();
         if (Math.random() < 0.45) {
             presentSecretRoom();
             return;
         }
     }
-    
+
+    // A restored stage may already have cleared all regular enemies and be
+    // waiting for its boss (or for the stage transition after the final mob).
+    if (locationState.enemiesDefeated >= stage.enemiesCount) {
+        if (stage.boss) {
+            startBossFight(stage.boss);
+            return;
+        }
+        locationState.currentStage++;
+        locationState.enemiesDefeated = 0;
+        persistDungeonProgress();
+        gameState.save();
+        startStageBattle();
+        return;
+    }
+
     const enemyData = getRandomEnemy(stage.enemies);
     if (!enemyData) {
         console.error('No enemy data for:', stage.enemies);
@@ -269,18 +328,26 @@ export function chooseDungeonCheckpoint(choice) {
     const locationId = locationState.currentLocation.id;
     const hadPreviousCheckpoint = Object.hasOwn(player.dungeonCheckpoints, locationId);
     const previousCheckpoint = player.dungeonCheckpoints[locationId];
+    const previousProgress = player.dungeonProgress?.[locationId]
+        ? structuredClone(player.dungeonProgress[locationId]) : null;
+    locationState.visitedCheckpointStages.add(pending.stage);
     player.dungeonCheckpoints[locationId] = pending.stage;
+    locationState.enemiesDefeated = 0;
+    locationState.resumedFromCheckpoint = true;
+    persistDungeonProgress();
 
     // Do not leave the expedition until its resume point is durably saved.
     if (gameState.save() !== true) {
         if (hadPreviousCheckpoint) player.dungeonCheckpoints[locationId] = previousCheckpoint;
         else delete player.dungeonCheckpoints[locationId];
+        if (previousProgress) player.dungeonProgress[locationId] = previousProgress;
+        else clearDungeonProgress(player, locationId);
+        locationState.visitedCheckpointStages.delete(pending.stage);
         window.showNotification?.('Не удалось сохранить контрольную точку. Экспедиция не прервана — попробуйте ещё раз.', 'error');
         return false;
     }
 
     locationState.pendingCheckpoint = null;
-    locationState.visitedCheckpointStages.add(pending.stage);
     locationState.runId++;
     locationState.inLocation = false;
     locationState.currentLocation = null;
@@ -492,7 +559,7 @@ export function completeLocation() {
         player.unlockedLocations.push(nextLocation.id);
     }
     player.stats.dungeonsCompleted = (player.stats.dungeonsCompleted || 0) + 1;
-    if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];
+    if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];\n    clearDungeonProgress(player, location.id);
     
     locationState.inLocation = false;
     locationState.pendingEvent = null;
@@ -580,7 +647,11 @@ export function getLocationState() {
 export function handleVictory() {
     if (!locationState.inLocation || !locationState.currentLocation) return;
     locationState.enemiesDefeated++;
-    
+    persistDungeonProgress();
+    if (gameState.save() !== true) {
+        window.showNotification?.('Не удалось сохранить награду и прогресс боя. Проверьте свободное место хранилища.', 'error');
+    }
+
     const location = locationState.currentLocation;
     const stage = location.stages[locationState.currentStage];
     if (!stage) return;
@@ -598,6 +669,8 @@ export function handleVictory() {
                 // Переход на следующий этап
                 locationState.currentStage++;
                 locationState.enemiesDefeated = 0;
+                persistDungeonProgress();
+                gameState.save();
                 startStageBattle();
             }
         } else {
@@ -656,6 +729,10 @@ export function handleBossVictory() {
         // Переход на следующий этап
         locationState.currentStage++;
         locationState.enemiesDefeated = 0;
+        persistDungeonProgress();
+        if (gameState.save() !== true) {
+            window.showNotification?.('Не удалось сохранить прогресс после босса. Проверьте свободное место хранилища.', 'error');
+        }
         startStageBattle();
     }
 }

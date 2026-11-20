@@ -70,6 +70,7 @@ test('NG+ carries character progression and resets only campaign-run state', () 
     assert.deepEqual(next.stats, player.stats);
     assert.deepEqual(next.unlockedLocations, ['forest']);
     assert.deepEqual(next.dungeonCheckpoints, {});
+    assert.deepEqual(next.dungeonProgress, {});
     assert.deepEqual(next.locationRewardCycles, player.locationRewardCycles);
     assert.deepEqual(next.deepChestRewardCycles, player.deepChestRewardCycles);
     assert.equal(claimDeepChestAttempt(next, 'forest', 20), true,

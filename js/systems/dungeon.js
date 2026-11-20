@@ -1,6 +1,6 @@
 // Система локаций с этапами
 import { gameState } from '../core/state.js';
-import { getLocation, unlockNextLocation } from '../data/locations.js';
+import { LOCATIONS, getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
 import { getBattleState, resetBattlePresentation } from '../ui/battle.js';
@@ -895,10 +895,12 @@ export function handleBossVictory(playerBeforeBattle = null) {
     const previousBonusStages = new Set(locationState.claimedUnbrokenBonusStages);
     const previousFinalBossDefeated = locationState.finalBossDefeated;
     const stageNumber = previousStage + 1;
+    let deepChestRewardId = null;
 
     // Deep-chest claims, milestone bonuses and stage advancement form one save.
     if (!locationState.claimedDeepChestStages.has(stageNumber)) {
         const itemId = rollDeepChest(stageNumber);
+        deepChestRewardId = itemId;
         if (itemId && !canGrantItems(player, [{ id: itemId, quantity: 1 }])) {
             if (rollbackPlayer) restorePlayer(rollbackPlayer);
             window.showNotification?.('Недостаточно места или повреждён инвентарь для награды босса. Победа не засчитана — освободите место и повторите бой.', 'error');
@@ -945,10 +947,8 @@ export function handleBossVictory(playerBeforeBattle = null) {
             locationState.finalBossDefeated = previousFinalBossDefeated;
             return false;
         }
-        if (locationState.claimedDeepChestStages.has(stageNumber) &&
-            !previousDeepChestStages.has(stageNumber)) {
-            const chestId = player.deepChestRewardCycles?.[`${location.id}:${stageNumber}`];
-            if (chestId) window.showNotification?.('🎁 Награда за глубину получена!', 'success');
+        if (deepChestRewardId) {
+            window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(deepChestRewardId).name}!`, 'success');
         }
         return true;
     }
@@ -973,8 +973,8 @@ export function handleBossVictory(playerBeforeBattle = null) {
         return false;
     }
 
-    if (!previousDeepChestStages.has(stageNumber) && locationState.claimedDeepChestStages.has(stageNumber)) {
-        window.showNotification?.('🎁 Проверка награды за глубину завершена.', 'success');
+    if (deepChestRewardId) {
+        window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(deepChestRewardId).name}!`, 'success');
     }
     if (!previousBonusStages.has(stageNumber)) {
         const bonus = getUnbrokenExpeditionBonus(stageNumber, location.stages[previousStage]?.boss,
@@ -983,7 +983,6 @@ export function handleBossVictory(playerBeforeBattle = null) {
             window.showNotification?.(`🏆 Экспедиция без отступления: +${bonus.exp} опыта, +${bonus.gold} золота!`, 'success');
         }
     }
-    if (player.experience >= player.maxExperience) window.levelUp?.({ save: false });
     startStageBattle();
     return true;
 }

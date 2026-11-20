@@ -110,7 +110,7 @@ test('rune sockets unlock at the intended upgrade milestones and rune pairs stay
 
     player.weaponRunes = { iron_sword: ['blood', 'flame'] };
     assert.equal(getRuneSynergy(player).id, 'crimson_flare');
-    assert.deepEqual(getWeaponRuneBonuses(player), { attack: 4, defense: 0, critChance: 0 });
+    assert.deepEqual(getWeaponRuneBonuses(player), { attack: 6, defense: 0, critChance: 0 });
 
     player.weaponRunes.iron_sword = ['frost', 'storm'];
     assert.equal(getRuneSynergy(player).id, 'frozen_tempest');

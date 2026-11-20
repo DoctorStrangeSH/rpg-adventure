@@ -151,11 +151,13 @@ export function startLocation(locationId) {
     locationState.finalBossDefeated = savedProgress?.finalBossDefeated === true;
     const previousProgress = savedProgress ? JSON.parse(JSON.stringify(savedProgress)) : null;
     const hadPreviousProgress = Boolean(savedProgress);
+    const hadProgressContainer = Boolean(player.dungeonProgress);
     const runId = ++locationState.runId;
     persistDungeonProgress();
     if (gameState.save() !== true) {
         if (hadPreviousProgress) player.dungeonProgress[locationId] = previousProgress;
         else delete player.dungeonProgress[locationId];
+        if (!hadProgressContainer) delete player.dungeonProgress;
         resetLocationState();
         window.showNotification?.('Не удалось сохранить состояние экспедиции. Вход отменён — проверьте свободное место хранилища и попробуйте снова.', 'error');
         return;

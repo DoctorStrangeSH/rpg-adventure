@@ -7,8 +7,12 @@ function isRecord(value) {
 /** Applies sequential, idempotent envelope migrations before player normalization. */
 export function migrateSaveData(saved) {
     if (!isRecord(saved) || !isRecord(saved.player)) return { ok: false, error: 'invalid_save' };
-    let version = Number.isSafeInteger(saved.schemaVersion) ? saved.schemaVersion : 0;
-    if (version < 0 || version > CURRENT_SAVE_VERSION) return { ok: false, error: 'unsupported_save_version' };
+    const hasVersion = Object.hasOwn(saved, 'schemaVersion');
+    if (hasVersion && (!Number.isSafeInteger(saved.schemaVersion) || saved.schemaVersion < 0)) {
+        return { ok: false, error: 'unsupported_save_version' };
+    }
+    let version = hasVersion ? saved.schemaVersion : 0;
+    if (version > CURRENT_SAVE_VERSION) return { ok: false, error: 'unsupported_save_version' };
     let data = { ...saved };
     while (version < CURRENT_SAVE_VERSION) {
         if (version === 0) {

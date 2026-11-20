@@ -13,7 +13,7 @@ function makeCompletedPlayer() {
         class: 'warrior', level: 18, experience: 35, maxExperience: 500,
         health: 12, maxHealth: 240, mana: 3, maxMana: 90, gold: 1250,
         campaignCycle: 1, completedCampaignCycles: 1, lastCompletedCampaignCycle: 1,
-        campaignCompleted: true, newGamePlusUnlocked: true,
+        campaignCompleted: true, campaignCompletedAt: '2026-11-20T12:00:00.000Z', newGamePlusUnlocked: true,
         inventory: [{ id: 'dragon_sword', quantity: 1 }],
         equipment: { weapon: 'dragon_sword', armor: 'guardian_armor' },
         talents: ['warrior_force'], relics: ['ember_crown'], activeRelics: ['ember_crown'],
@@ -56,6 +56,7 @@ test('NG+ carries character progression and resets only campaign-run state', () 
     const next = prepareNewGamePlus(player);
     assert.equal(next.campaignCycle, 2);
     assert.equal(next.campaignCompleted, false);
+    assert.equal(next.campaignCompletedAt, null);
     assert.equal(next.newGamePlusUnlocked, true);
     assert.equal(next.level, player.level);
     assert.equal(next.experience, player.experience);
@@ -136,6 +137,7 @@ test('NG+ cycle survives a real localStorage save and reload', (t) => {
     assert.equal(restored.completedCampaignCycles, 1);
     assert.equal(restored.newGamePlusUnlocked, true);
     assert.equal(restored.campaignCompleted, false);
+    assert.equal(restored.campaignCompletedAt, null);
     assert.equal(restored.level, 18);
     assert.equal(restored.gold, 1250);
     assert.deepEqual(restored.inventory, [{ id: 'dragon_sword', quantity: 1 }]);

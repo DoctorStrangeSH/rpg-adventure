@@ -42,7 +42,8 @@ export const LOCATIONS = [
             gold: 3000,
             items: [
                 { id: 'iron_sword', quantity: 1 },
-                { id: 'health_potion', quantity: 10 }
+                { id: 'health_potion', quantity: 10 },
+                { id: 'rune_verdant_heart', quantity: 1 }
             ]
         }
     },
@@ -86,7 +87,8 @@ export const LOCATIONS = [
             gold: 8000,
             items: [
                 { id: 'dragon_sword', quantity: 1 },
-                { id: 'big_health_potion', quantity: 15 }
+                { id: 'big_health_potion', quantity: 15 },
+                { id: 'rune_dragon_heart', quantity: 1 }
             ]
         }
     },
@@ -130,7 +132,8 @@ export const LOCATIONS = [
             gold: 15000,
             items: [
                 { id: 'dragon_sword', quantity: 1 },
-                { id: 'big_health_potion', quantity: 20 }
+                { id: 'big_health_potion', quantity: 20 },
+                { id: 'rune_lich_soul', quantity: 1 }
             ]
         }
     },
@@ -175,7 +178,8 @@ export const LOCATIONS = [
             items: [
                 { id: 'dragon_sword', quantity: 2 },
                 { id: 'dragon_scale', quantity: 3 },
-                { id: 'big_health_potion', quantity: 30 }
+                { id: 'big_health_potion', quantity: 30 },
+                { id: 'rune_world_fragment', quantity: 1 }
             ]
         }
     },

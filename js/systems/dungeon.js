@@ -93,6 +93,19 @@ function restoreStageSet(value) {
     return new Set(Array.isArray(value) ? value : []);
 }
 
+function snapshotPlayer() {
+    return gameState.player ? structuredClone(gameState.player) : null;
+}
+
+function restorePlayer(snapshot) {
+    const player = gameState.player;
+    if (!player || !snapshot) return;
+    for (const key of Object.keys(player)) {
+        if (!Object.hasOwn(snapshot, key)) delete player[key];
+    }
+    Object.assign(player, snapshot);
+}
+
 export function getDungeonCheckpoint(player, locationId, location = getLocation(locationId)) {
     const stage = player?.dungeonCheckpoints?.[locationId];
     return Number.isInteger(stage) && stage > 0 && stage < (location?.stages?.length || 0) ? stage : 0;
@@ -403,12 +416,22 @@ export function chooseDungeonRoute(routeId) {
     if (!pending || !getRoute(routeId) || !locationState.inLocation ||
         getBattleState().isActive || pending.runId !== locationState.runId ||
         pending.stage !== locationState.currentStage) return false;
+    const playerSnapshot = snapshotPlayer();
+    const hadPreviousChoice = Object.hasOwn(locationState.routeChoices, pending.stage);
+    const previousChoice = locationState.routeChoices[pending.stage];
+    const wasVisited = locationState.visitedRouteStages.has(pending.stage);
     locationState.routeChoices[pending.stage] = routeId;
     locationState.visitedRouteStages.add(pending.stage);
     locationState.pendingRoute = null;
     persistDungeonProgress();
     if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить выбор маршрута. Он может потребоваться повторно после перезагрузки.', 'error');
+        restorePlayer(playerSnapshot);
+        if (hadPreviousChoice) locationState.routeChoices[pending.stage] = previousChoice;
+        else delete locationState.routeChoices[pending.stage];
+        if (!wasVisited) locationState.visitedRouteStages.delete(pending.stage);
+        locationState.pendingRoute = pending;
+        window.showNotification?.('Не удалось сохранить выбор маршрута. Выбор не применён — попробуйте ещё раз.', 'error');
+        return false;
     }
     window.showNotification?.(`Вы выбрали: ${getRoute(routeId).name}`, 'info');
     startStageBattle();
@@ -443,6 +466,12 @@ export function chooseAdventureEvent(choiceId) {
     const pending = locationState.pendingEvent;
     if (!pending || !locationState.inLocation || pending.runId !== locationState.runId ||
         pending.stage !== locationState.currentStage || getBattleState().isActive) return false;
+    const playerSnapshot = snapshotPlayer();
+    const previousFavorFights = locationState.travelerFavorFights;
+    const previousTravelerReturnPending = locationState.travelerReturnPending;
+    const previousBloodPursuerPending = locationState.bloodPursuerPending;
+    const previousPendingRoute = locationState.pendingRoute;
+    const wasVisited = locationState.visitedEventStages.has(pending.stage);
     const outcome = resolveAdventureEvent(gameState.player, pending.id, choiceId);
     if (!outcome) {
         window.showNotification?.('Недостаточно ресурсов для выбранного действия или неверный выбор.', 'error');
@@ -458,7 +487,15 @@ export function chooseAdventureEvent(choiceId) {
     locationState.pendingRoute = null;
     persistDungeonProgress();
     if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить исход события. После перезагрузки выбор может потребоваться повторить.', 'error');
+        restorePlayer(playerSnapshot);
+        locationState.travelerFavorFights = previousFavorFights;
+        locationState.travelerReturnPending = previousTravelerReturnPending;
+        locationState.bloodPursuerPending = previousBloodPursuerPending;
+        locationState.pendingRoute = previousPendingRoute;
+        if (!wasVisited) locationState.visitedEventStages.delete(pending.stage);
+        locationState.pendingEvent = pending;
+        window.showNotification?.('Не удалось сохранить исход события. Ресурсы и выбор восстановлены — попробуйте ещё раз.', 'error');
+        return false;
     }
     window.showNotification?.(outcome.message, 'info');
     startStageBattle();
@@ -489,12 +526,16 @@ export function chooseSecretRoom(choice) {
     const pending = locationState.pendingSecretRoom;
     if (!pending || !locationState.inLocation || pending.runId !== locationState.runId ||
         pending.stage !== locationState.currentStage || getBattleState().isActive) return false;
+    const playerSnapshot = snapshotPlayer();
     const outcome = resolveSecretRoom(gameState.player, pending.id, choice);
     if (!outcome) return false;
     locationState.pendingSecretRoom = null;
     persistDungeonProgress();
     if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить исход тайной комнаты. После перезагрузки награда может не сохраниться.', 'error');
+        restorePlayer(playerSnapshot);
+        locationState.pendingSecretRoom = pending;
+        window.showNotification?.('Не удалось сохранить исход тайной комнаты. Награда и ресурсы восстановлены — попробуйте ещё раз.', 'error');
+        return false;
     }
     window.showNotification?.(outcome.message, 'info');
     startStageBattle();

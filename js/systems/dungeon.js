@@ -5,7 +5,7 @@ import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
 import { getBattleState, resetBattlePresentation } from '../ui/battle.js';
 import { getBattlePositions } from '../ui/battleLayout.js';
-import { canGrantItems, claimDeepChestAttempt, grantItem, grantItemsAtomically, rollDeepChest } from './loot.js';
+import { canGrantItems, claimDeepChestAttempt, grantItemsAtomically, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
@@ -720,16 +720,18 @@ export function handleBossVictory() {
     if (!locationState.inLocation || !locationState.currentLocation) return;
     const location = locationState.currentLocation;
     
-    // A victorious major boss can reveal one rare chest. Mark the stage before
-    // awarding loot, so a duplicate victory callback cannot duplicate items.
+    // A deep-chest attempt is consumed only after its item can be stored.
+    // Empty rolls still consume the milestone, but failed inventory awards do not.
     const stageNumber = locationState.currentStage + 1;
     if (!locationState.claimedDeepChestStages.has(stageNumber)) {
-        locationState.claimedDeepChestStages.add(stageNumber);
-        if (claimDeepChestAttempt(gameState.player, location.id, stageNumber)) {
-            const itemId = rollDeepChest(stageNumber);
-            if (itemId) {
-                grantItem(gameState.player, itemId, 1);
-                window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
+        const itemId = rollDeepChest(stageNumber);
+        const canCommitChest = !itemId || canGrantItems(gameState.player, [{ id: itemId, quantity: 1 }]);
+        if (canCommitChest && claimDeepChestAttempt(gameState.player, location.id, stageNumber)) {
+            if (!itemId || grantItemsAtomically(gameState.player, [{ id: itemId, quantity: 1 }])) {
+                locationState.claimedDeepChestStages.add(stageNumber);
+                if (itemId) {
+                    window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
+                }
             }
         }
     }

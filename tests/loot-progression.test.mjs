@@ -87,7 +87,9 @@ test('relic collection is unique and no more than two relics can be active', () 
         activeRelics: []
     };
 
-    assert.equal(awardRelic(player, true, true, 0.01), null);
+    const newlyAwarded = awardRelic(player, true, true, 0.01);
+    assert.ok(newlyAwarded && !['ash_heart', 'stone_oath', 'eagle_eye'].includes(newlyAwarded));
+    assert.equal(new Set(player.relics).size, player.relics.length);
     assert.equal(toggleRelic(player, 'ash_heart'), true);
     assert.equal(toggleRelic(player, 'stone_oath'), true);
     assert.equal(toggleRelic(player, 'eagle_eye'), false);

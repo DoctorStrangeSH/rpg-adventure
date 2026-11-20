@@ -166,3 +166,24 @@ test('recovery restore safely reports a missing or unavailable backup', (t) => {
     t.after(() => { console.error = originalError; });
     assert.equal(Storage.restoreRecovery(), false);
 });
+
+test('a newer recovery copy is never overwritten by a later damaged primary save', (t) => {
+    const firstRecovery = JSON.stringify({
+        schemaVersion: 99,
+        player: { class: 'warrior', futureProgress: { chapter: 9 } }
+    });
+    const damagedPrimary = '{broken-primary';
+    const values = new Map([
+        [GAME_CONFIG.saveKey, damagedPrimary],
+        [RECOVERY_SAVE_KEY, firstRecovery]
+    ]);
+    installStorage(t, {
+        setItem(key, value) { values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+
+    assert.equal(Storage.save({ schemaVersion: 2, player: { class: 'mage' } }), true);
+    assert.equal(values.get(RECOVERY_SAVE_KEY), firstRecovery);
+    assert.deepEqual(Storage.load(), { schemaVersion: 2, player: { class: 'mage' } });
+});

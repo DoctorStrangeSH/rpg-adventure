@@ -131,3 +131,38 @@ test('legacy unversioned saves are upgraded without unnecessary recovery copies'
     assert.equal(Storage.save({ schemaVersion: 1, player: { class: 'warrior', level: 5 } }), true);
     assert.equal(values.has(RECOVERY_SAVE_KEY), false);
 });
+
+
+test('a preserved recovery save can be restored without parsing or modifying its bytes', (t) => {
+    const recovery = '{"schemaVersion":77,"player":{"class":"warrior"},"futureField":true}';
+    const values = new Map([[RECOVERY_SAVE_KEY, recovery], [GAME_CONFIG.saveKey, '{broken']);
+    installStorage(t, {
+        setItem(key, value) { values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+
+    assert.equal(Storage.restoreRecovery(), true);
+    assert.equal(values.get(GAME_CONFIG.saveKey), recovery);
+    assert.deepEqual(Storage.load(), {
+        schemaVersion: 77,
+        player: { class: 'warrior' },
+        futureField: true
+    });
+});
+
+test('recovery restore safely reports a missing or unavailable backup', (t) => {
+    const values = new Map();
+    installStorage(t, {
+        setItem(key, value) { values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+    assert.equal(Storage.restoreRecovery(), false);
+
+    globalThis.localStorage.getItem = () => { throw new Error('Storage unavailable'); };
+    const originalError = console.error;
+    console.error = () => {};
+    t.after(() => { console.error = originalError; });
+    assert.equal(Storage.restoreRecovery(), false);
+});

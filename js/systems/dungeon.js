@@ -255,16 +255,32 @@ export function chooseDungeonCheckpoint(choice) {
     if (!pending || !['continue', 'retreat'].includes(choice) || !locationState.inLocation ||
         getBattleState().isActive || pending.runId !== locationState.runId ||
         pending.stage !== locationState.currentStage) return false;
-    locationState.pendingCheckpoint = null;
-    locationState.visitedCheckpointStages.add(pending.stage);
+
     if (choice === 'continue') {
+        locationState.pendingCheckpoint = null;
+        locationState.visitedCheckpointStages.add(pending.stage);
         startStageBattle();
         return true;
     }
+
     const player = gameState.player;
+    if (!player) return false;
     player.dungeonCheckpoints ||= {};
-    player.dungeonCheckpoints[locationState.currentLocation.id] = pending.stage;
-    gameState.save();
+    const locationId = locationState.currentLocation.id;
+    const hadPreviousCheckpoint = Object.hasOwn(player.dungeonCheckpoints, locationId);
+    const previousCheckpoint = player.dungeonCheckpoints[locationId];
+    player.dungeonCheckpoints[locationId] = pending.stage;
+
+    // Do not leave the expedition until its resume point is durably saved.
+    if (gameState.save() !== true) {
+        if (hadPreviousCheckpoint) player.dungeonCheckpoints[locationId] = previousCheckpoint;
+        else delete player.dungeonCheckpoints[locationId];
+        window.showNotification?.('Не удалось сохранить контрольную точку. Экспедиция не прервана — попробуйте ещё раз.', 'error');
+        return false;
+    }
+
+    locationState.pendingCheckpoint = null;
+    locationState.visitedCheckpointStages.add(pending.stage);
     locationState.runId++;
     locationState.inLocation = false;
     locationState.currentLocation = null;

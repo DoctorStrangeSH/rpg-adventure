@@ -261,3 +261,31 @@ test('every crafting recipe references valid items and positive material costs',
   }
  }
 });
+
+test('salvage rejects malformed matching material stacks without consuming equipment',async()=>{
+ const {salvageEquipment}=await import('../js/systems/salvage.js');
+ const p={equipment:{},inventory:[
+  {id:'moonblade',quantity:1},
+  {id:'iron_ore',quantity:4},
+  {id:'iron_ore',quantity:Number.NaN}
+ ]};
+ const snapshot=structuredClone(p);
+ const result=salvageEquipment(p,0);
+ assert.equal(result.ok,false);
+ assert.equal(result.reason,'invalid_inventory');
+ assert.deepEqual(p,snapshot);
+});
+
+test('salvage rejects aggregate material overflow across duplicate stacks atomically',async()=>{
+ const {salvageEquipment}=await import('../js/systems/salvage.js');
+ const p={equipment:{},inventory:[
+  {id:'moonblade',quantity:1},
+  {id:'iron_ore',quantity:Number.MAX_SAFE_INTEGER-1},
+  {id:'iron_ore',quantity:1}
+ ]};
+ const snapshot=structuredClone(p);
+ const result=salvageEquipment(p,0);
+ assert.equal(result.ok,false);
+ assert.equal(result.reason,'inventory_limit');
+ assert.deepEqual(p,snapshot);
+});

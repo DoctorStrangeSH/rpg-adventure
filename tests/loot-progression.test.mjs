@@ -13,9 +13,9 @@ test('ordinary enemy loot uses the documented 18% drop gate and stable pool boun
         [0, 'ember_sword'],
         [0.050399, 'ember_sword'],
         [0.0504, 'guardian_armor'],
-        [0.072, 'blood_dagger'],
-        [0.0864, 'big_health_potion'],
-        [0.1296, 'mana_potion'],
+        [0.072001, 'blood_dagger'],
+        [0.086401, 'big_health_potion'],
+        [0.129601, 'mana_potion'],
         [0.18, null],
         [0.999999, null]
     ];

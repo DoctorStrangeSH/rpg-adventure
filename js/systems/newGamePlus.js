@@ -39,6 +39,7 @@ export function prepareNewGamePlus(player) {
 
     next.campaignCycle += 1;
     next.campaignCompleted = false;
+    next.campaignCompletedAt = null;
     next.newGamePlusUnlocked = true;
     next.unlockedLocations = ['forest'];
     next.dungeonCheckpoints = {};

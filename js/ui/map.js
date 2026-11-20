@@ -5,6 +5,18 @@ import { CLASSES } from '../data/classes.js';
 import { getDungeonCheckpoint } from '../systems/dungeon.js';
 import { addEventListenerOnce } from '../core/listeners.js';
 
+export function getMapCanvasSize(width, height) {
+    return {
+        width: Number.isFinite(width) && width > 0 ? Math.max(1, Math.round(width)) : 1,
+        height: Number.isFinite(height) && height > 0 ? Math.max(1, Math.round(height)) : 1
+    };
+}
+
+export function getMapPlayerPosition(width, height) {
+    const size = getMapCanvasSize(width, height);
+    return { x: (100 / 400) * size.width, y: (100 / 450) * size.height };
+}
+
 export function getMapCheckpointLabel(player, location) {
     const stage = location?.type === 'safe' ? 0 : getDungeonCheckpoint(player, location?.id, location);
     return stage ? `🏕️ Продолжить с этапа ${stage + 1}/${location.stages.length}` : '';
@@ -46,8 +58,8 @@ function resizeMap() {
 
     const container = mapState.canvas.parentElement;
     if (!container) return;
-    const width = Math.max(1, Math.round(container.clientWidth));
-    const height = Math.max(1, Math.round(container.clientHeight));
+    const size = getMapCanvasSize(container.clientWidth, container.clientHeight);
+    const { width, height } = size;
 
     if (mapState.canvas.width !== width) mapState.canvas.width = width;
     if (mapState.canvas.height !== height) mapState.canvas.height = height;
@@ -67,8 +79,9 @@ function scaleLocations(width, height) {
     
     // The marker uses canonical map coordinates, so it must be recalculated
     // after every resize/orientation change instead of keeping stale pixels.
-    mapState.playerX = (100 / originalWidth) * width;
-    mapState.playerY = (100 / originalHeight) * height;
+    const playerPosition = getMapPlayerPosition(width, height);
+    mapState.playerX = playerPosition.x;
+    mapState.playerY = playerPosition.y;
 }
 
 function drawMap() {

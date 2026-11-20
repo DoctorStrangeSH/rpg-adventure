@@ -655,11 +655,25 @@ export function startBossFight(bossData) {
     });
 }
 
-export function completeLocation() {
+export function completeLocation(playerBeforeCompletion = null) {
     const location = locationState.currentLocation;
     const player = gameState.player;
-    
-    if (!location || !locationState.inLocation) return;
+
+    if (!location || !locationState.inLocation || !player) return false;
+    const rollbackPlayer = playerBeforeCompletion || snapshotPlayer();
+    const previousRunId = locationState.runId;
+    const previousLocationState = {
+        inLocation: locationState.inLocation,
+        currentLocation: locationState.currentLocation,
+        currentStage: locationState.currentStage,
+        enemiesDefeated: locationState.enemiesDefeated,
+        pendingEvent: locationState.pendingEvent,
+        pendingRoute: locationState.pendingRoute,
+        pendingSecretRoom: locationState.pendingSecretRoom,
+        pendingCheckpoint: locationState.pendingCheckpoint,
+        finalBossDefeated: locationState.finalBossDefeated
+    };
+    const previousUnlocks = LOCATIONS.map(entry => entry.unlocked);
     const runId = ++locationState.runId;
     
     // Preflight the complete fixed reward before consuming its once-per-cycle claim.
@@ -730,12 +744,22 @@ export function completeLocation() {
     const rewardSummary = rewardGranted
         ? `+${location.rewards.exp} EXP, +${location.rewards.gold} золота!${itemRewardSummary ? ` Предметы: ${itemRewardSummary}.` : ''}`
         : 'Награда за эту локацию в текущем цикле уже получена.';
-    window.showNotification(`🎉 Локация пройдена! ${rewardSummary}${nextLocationText}`, 'success');
-    
-    const saveSucceeded = gameState.save();
-    if (!saveSucceeded) {
-        window.showNotification?.('Не удалось сохранить прогресс. Не закрывайте игру и проверьте свободное место хранилища.', 'error');
+    let saveSucceeded = false;
+    try {
+        saveSucceeded = gameState.save() === true;
+    } catch {
+        saveSucceeded = false;
     }
+    if (!saveSucceeded) {
+        if (rollbackPlayer) restorePlayer(rollbackPlayer);
+        LOCATIONS.forEach((entry, index) => { entry.unlocked = previousUnlocks[index]; });
+        Object.assign(locationState, previousLocationState);
+        locationState.runId = previousRunId;
+        window.showNotification?.('Не удалось сохранить завершение локации. Награды и открытие следующей локации отменены — повторите победу над боссом.', 'error');
+        return false;
+    }
+
+    window.showNotification(`🎉 Локация пройдена! ${rewardSummary}${nextLocationText}`, 'success');
     window.updateMainMenu?.();
     window.updateMapScreen?.();
 
@@ -744,6 +768,7 @@ export function completeLocation() {
         window.exitBattle();
         window.showScreen(campaignEnded ? 'ending-screen' : 'map-screen');
     }, 3000);
+    return true;
 }
 
 export function fleeLocation() {
@@ -855,58 +880,112 @@ export function handleVictory(playerBeforeBattle = null) {
 }
 
 // Вызывается после победы над боссом
-export function handleBossVictory() {
-    if (!locationState.inLocation || !locationState.currentLocation) return;
+export function handleBossVictory(playerBeforeBattle = null) {
+    if (!locationState.inLocation || !locationState.currentLocation) return false;
     const location = locationState.currentLocation;
-    
-    // A deep-chest attempt is consumed only after its item can be stored.
-    // Empty rolls still consume the milestone, but failed inventory awards do not.
-    const stageNumber = locationState.currentStage + 1;
+    const player = gameState.player;
+    if (!player) return false;
+
+    // The snapshot comes from battleVictory before EXP, gold, loot, relics,
+    // quests and statistics were changed. A failed commit must replay the boss.
+    const rollbackPlayer = playerBeforeBattle || snapshotPlayer();
+    const previousStage = locationState.currentStage;
+    const previousDefeated = locationState.enemiesDefeated;
+    const previousDeepChestStages = new Set(locationState.claimedDeepChestStages);
+    const previousBonusStages = new Set(locationState.claimedUnbrokenBonusStages);
+    const previousFinalBossDefeated = locationState.finalBossDefeated;
+    const stageNumber = previousStage + 1;
+
+    // Deep-chest claims, milestone bonuses and stage advancement form one save.
     if (!locationState.claimedDeepChestStages.has(stageNumber)) {
         const itemId = rollDeepChest(stageNumber);
-        const canCommitChest = !itemId || canGrantItems(gameState.player, [{ id: itemId, quantity: 1 }]);
-        if (canCommitChest && claimDeepChestAttempt(gameState.player, location.id, stageNumber)) {
-            if (!itemId || grantItemsAtomically(gameState.player, [{ id: itemId, quantity: 1 }])) {
-                locationState.claimedDeepChestStages.add(stageNumber);
-                if (itemId) {
-                    window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
-                }
+        if (itemId && !canGrantItems(player, [{ id: itemId, quantity: 1 }])) {
+            if (rollbackPlayer) restorePlayer(rollbackPlayer);
+            window.showNotification?.('Недостаточно места или повреждён инвентарь для награды босса. Победа не засчитана — освободите место и повторите бой.', 'error');
+            return false;
+        }
+        if (claimDeepChestAttempt(player, location.id, stageNumber)) {
+            if (itemId && !grantItemsAtomically(player, [{ id: itemId, quantity: 1 }])) {
+                if (rollbackPlayer) restorePlayer(rollbackPlayer);
+                return false;
             }
+            locationState.claimedDeepChestStages.add(stageNumber);
         }
     }
 
-    // A full expedition earns an extra milestone payout; resuming at a camp
-    // forfeits only this optional bonus, not the normal boss loot.
     if (!locationState.claimedUnbrokenBonusStages.has(stageNumber)) {
+        const bonus = getUnbrokenExpeditionBonus(stageNumber,
+            location.stages[previousStage]?.boss, locationState.resumedFromCheckpoint);
+        if (bonus.exp || bonus.gold) {
+            if (!Number.isSafeInteger(player.experience) || !Number.isSafeInteger(player.gold) ||
+                player.experience > Number.MAX_SAFE_INTEGER - bonus.exp ||
+                player.gold > Number.MAX_SAFE_INTEGER - bonus.gold) {
+                if (rollbackPlayer) restorePlayer(rollbackPlayer);
+                locationState.claimedDeepChestStages = previousDeepChestStages;
+                return false;
+            }
+            player.experience += bonus.exp;
+            player.gold += bonus.gold;
+        }
         locationState.claimedUnbrokenBonusStages.add(stageNumber);
-        const bonus = getUnbrokenExpeditionBonus(stageNumber, location.stages[locationState.currentStage]?.boss,
+    }
+
+    const isFinalBoss = location.id === 'dragon_lair' && stageNumber === location.stages.length &&
+        location.stages[previousStage]?.boss?.id === 'world_eater';
+    if (isFinalBoss) locationState.finalBossDefeated = true;
+
+    const isFinalStage = previousStage >= location.stages.length - 1;
+    if (isFinalStage) {
+        const completed = completeLocation(rollbackPlayer);
+        if (!completed) {
+            locationState.currentStage = previousStage;
+            locationState.enemiesDefeated = previousDefeated;
+            locationState.claimedDeepChestStages = previousDeepChestStages;
+            locationState.claimedUnbrokenBonusStages = previousBonusStages;
+            locationState.finalBossDefeated = previousFinalBossDefeated;
+            return false;
+        }
+        if (locationState.claimedDeepChestStages.has(stageNumber) &&
+            !previousDeepChestStages.has(stageNumber)) {
+            const chestId = player.deepChestRewardCycles?.[`${location.id}:${stageNumber}`];
+            if (chestId) window.showNotification?.('🎁 Награда за глубину получена!', 'success');
+        }
+        return true;
+    }
+
+    locationState.currentStage = previousStage + 1;
+    locationState.enemiesDefeated = 0;
+    persistDungeonProgress();
+    let saved = false;
+    try {
+        saved = gameState.save() === true;
+    } catch {
+        saved = false;
+    }
+    if (!saved) {
+        locationState.currentStage = previousStage;
+        locationState.enemiesDefeated = previousDefeated;
+        locationState.claimedDeepChestStages = previousDeepChestStages;
+        locationState.claimedUnbrokenBonusStages = previousBonusStages;
+        locationState.finalBossDefeated = previousFinalBossDefeated;
+        if (rollbackPlayer) restorePlayer(rollbackPlayer);
+        window.showNotification?.('Не удалось сохранить победу над боссом. Награды отменены, бой можно повторить.', 'error');
+        return false;
+    }
+
+    if (!previousDeepChestStages.has(stageNumber) && locationState.claimedDeepChestStages.has(stageNumber)) {
+        window.showNotification?.('🎁 Проверка награды за глубину завершена.', 'success');
+    }
+    if (!previousBonusStages.has(stageNumber)) {
+        const bonus = getUnbrokenExpeditionBonus(stageNumber, location.stages[previousStage]?.boss,
             locationState.resumedFromCheckpoint);
         if (bonus.exp || bonus.gold) {
-            gameState.player.experience += bonus.exp;
-            gameState.player.gold += bonus.gold;
-            if (gameState.player.experience >= gameState.player.maxExperience) window.levelUp?.();
             window.showNotification?.(`🏆 Экспедиция без отступления: +${bonus.exp} опыта, +${bonus.gold} золота!`, 'success');
         }
     }
-
-    if (location.id === 'dragon_lair' && stageNumber === location.stages.length &&
-        location.stages[locationState.currentStage]?.boss?.id === 'world_eater') {
-        locationState.finalBossDefeated = true;
-    }
-
-    // Проверяем, был ли это последний этап
-    if (locationState.currentStage >= location.stages.length - 1) {
-        completeLocation();
-    } else {
-        // Переход на следующий этап
-        locationState.currentStage++;
-        locationState.enemiesDefeated = 0;
-        persistDungeonProgress();
-        if (gameState.save() !== true) {
-            window.showNotification?.('Не удалось сохранить прогресс после босса. Проверьте свободное место хранилища.', 'error');
-        }
-        startStageBattle();
-    }
+    if (player.experience >= player.maxExperience) window.levelUp?.({ save: false });
+    startStageBattle();
+    return true;
 }
 
 // Вызывается при поражении

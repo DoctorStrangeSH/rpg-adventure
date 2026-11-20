@@ -29,3 +29,20 @@ test('short or uninitialized canvases still yield finite positions', () => {
         player: { x: 100, y: 200 }, enemy: { x: 300, y: 200 }
     });
 });
+
+test('battle canvas uses the full available container size without a fixed-height subtraction', async () => {
+    const { getBattleCanvasSize } = await import('../js/ui/battleLayout.js');
+    assert.deepEqual(getBattleCanvasSize(375, 520), { width: 375, height: 520 });
+    assert.deepEqual(getBattleCanvasSize(320, 260), { width: 320, height: 260 });
+    assert.deepEqual(getBattleCanvasSize(0, 0), { width: 1, height: 1 });
+    assert.deepEqual(getBattleCanvasSize(Number.NaN, Number.POSITIVE_INFINITY), { width: 1, height: 1 });
+});
+
+test('battle canvas dimensions are based on the responsive container, not a hard-coded mobile offset', async () => {
+    const { readFileSync } = await import('node:fs');
+    const source = readFileSync(new URL('../js/ui/battle.js', import.meta.url), 'utf8');
+    assert.match(source, /getBattleCanvasSize\(container\.clientWidth, container\.clientHeight\)/);
+    assert.doesNotMatch(source, /container\.offsetHeight\s*-\s*150/);
+    assert.match(source, /new ResizeObserver\(resizeBattleCanvas\)/);
+    assert.match(source, /visualViewport, 'resize', resizeBattleCanvas/);
+});

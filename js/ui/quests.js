@@ -22,19 +22,8 @@ export function updateQuestsScreen() {
             } else {
                 activeQuests.push({ quest, playerQuest });
             }
-        } else {
-            const newQuest = {
-                id: quest.id,
-                progress: 0,
-                completed: false,
-                rewardClaimed: false
-            };
-            player.quests.push(newQuest);
-            activeQuests.push({ quest, playerQuest: newQuest });
         }
     });
-    
-    gameState.save();
     
     content.innerHTML = `
         <div class="section-title">📜 Активные квесты</div>

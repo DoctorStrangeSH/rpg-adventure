@@ -223,8 +223,8 @@ function generateStages(totalStages, locationLevel, enemies, bosses) {
                 health: Math.floor(bosses.miniBoss.health * (1 + progress * 0.25)),
                 attack: Math.floor(bosses.miniBoss.attack * (1 + progress * 0.15)),
                 defense: Math.floor(bosses.miniBoss.defense * (1 + progress * 0.10)),
-                expReward: Math.floor(bosses.miniBoss.expReward * (1 + progress * 0.4)),
-                goldReward: Math.floor(bosses.miniBoss.goldReward * (1 + progress * 0.4))
+                expReward: Math.floor(bosses.miniBoss.expReward * (1 + i * 0.5)),
+                goldReward: Math.floor(bosses.miniBoss.goldReward * (1 + i * 0.5))
             };
         }
         
@@ -238,8 +238,8 @@ function generateStages(totalStages, locationLevel, enemies, bosses) {
                 health: Math.floor(bosses.boss.health * (1 + progress * 0.35)),
                 attack: Math.floor(bosses.boss.attack * (1 + progress * 0.20)),
                 defense: Math.floor(bosses.boss.defense * (1 + progress * 0.15)),
-                expReward: Math.floor(bosses.boss.expReward * (1 + progress * 0.5)),
-                goldReward: Math.floor(bosses.boss.goldReward * (1 + progress * 0.5))
+                expReward: Math.floor(bosses.boss.expReward * (1 + i * 0.7)),
+                goldReward: Math.floor(bosses.boss.goldReward * (1 + i * 0.7))
             };
         }
         

@@ -5,6 +5,7 @@ import {
     prepareNewGamePlus, startNewGamePlus
 } from '../js/systems/newGamePlus.js';
 import { LOCATIONS } from '../js/data/locations.js';
+import { claimDeepChestAttempt } from '../js/systems/loot.js';
 
 function makeCompletedPlayer() {
     return {
@@ -67,6 +68,8 @@ test('NG+ carries character progression and resets only campaign-run state', () 
     assert.deepEqual(next.dungeonCheckpoints, {});
     assert.deepEqual(next.locationRewardCycles, player.locationRewardCycles);
     assert.deepEqual(next.deepChestRewardCycles, player.deepChestRewardCycles);
+    assert.equal(claimDeepChestAttempt(next, 'forest', 20), true,
+        'a new campaign cycle can roll the same deep chest milestone again');
     assert.equal(next.health, next.maxHealth);
     assert.equal(next.mana, next.maxMana);
     assert.equal(next.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);

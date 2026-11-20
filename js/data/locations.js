@@ -192,6 +192,14 @@ export const LOCATIONS = [
     }
 ];
 
+// Boss scaling is normalized to each region's own length. Regional base stats
+// already express the campaign's difficulty curve; stage scaling must remain
+// bounded so late bosses do not become mathematically unkillable.
+function getBossProgress(stageNumber, firstBossStage, totalStages) {
+    const span = Math.max(1, totalStages - firstBossStage);
+    return Math.max(0, Math.min(1, (stageNumber - firstBossStage) / span));
+}
+
 // Функция генерации этапов
 function generateStages(totalStages, locationLevel, enemies, bosses) {
     const stages = [];
@@ -204,30 +212,34 @@ function generateStages(totalStages, locationLevel, enemies, bosses) {
             boss: null
         };
         
-        // Каждый 5 этап - мини босс
+        // Каждый 5 этап - мини босс. Regional base stats carry the broad
+        // campaign progression; local scaling adds at most 25% HP, 15% attack,
+        // 10% defense and 40% reward by the last mini-boss.
         if (i % 5 === 0 && i % 10 !== 0) {
+            const progress = getBossProgress(i, 5, totalStages);
             stage.boss = {
                 ...bosses.miniBoss,
                 miniBoss: true,
-                // Усиливаем босса в зависимости от этапа
-                health: Math.floor(bosses.miniBoss.health * (1 + i * 0.3)),
-                attack: Math.floor(bosses.miniBoss.attack * (1 + i * 0.2)),
-                defense: Math.floor(bosses.miniBoss.defense * (1 + i * 0.2)),
-                expReward: Math.floor(bosses.miniBoss.expReward * (1 + i * 0.5)),
-                goldReward: Math.floor(bosses.miniBoss.goldReward * (1 + i * 0.5))
+                health: Math.floor(bosses.miniBoss.health * (1 + progress * 0.25)),
+                attack: Math.floor(bosses.miniBoss.attack * (1 + progress * 0.15)),
+                defense: Math.floor(bosses.miniBoss.defense * (1 + progress * 0.10)),
+                expReward: Math.floor(bosses.miniBoss.expReward * (1 + progress * 0.4)),
+                goldReward: Math.floor(bosses.miniBoss.goldReward * (1 + progress * 0.4))
             };
         }
         
-        // Каждый 10 этап - главный босс
+        // Каждый 10 этап - главный босс. The regional base values increase
+        // between biomes; local scaling adds at most 35% HP, 20% attack,
+        // 15% defense and 50% reward across the region.
         if (i % 10 === 0) {
+            const progress = getBossProgress(i, 10, totalStages);
             stage.boss = {
                 ...bosses.boss,
-                // Усиливаем босса в зависимости от этапа
-                health: Math.floor(bosses.boss.health * (1 + i * 0.5)),
-                attack: Math.floor(bosses.boss.attack * (1 + i * 0.3)),
-                defense: Math.floor(bosses.boss.defense * (1 + i * 0.3)),
-                expReward: Math.floor(bosses.boss.expReward * (1 + i * 0.7)),
-                goldReward: Math.floor(bosses.boss.goldReward * (1 + i * 0.7))
+                health: Math.floor(bosses.boss.health * (1 + progress * 0.35)),
+                attack: Math.floor(bosses.boss.attack * (1 + progress * 0.20)),
+                defense: Math.floor(bosses.boss.defense * (1 + progress * 0.15)),
+                expReward: Math.floor(bosses.boss.expReward * (1 + progress * 0.5)),
+                goldReward: Math.floor(bosses.boss.goldReward * (1 + progress * 0.5))
             };
         }
         

@@ -149,10 +149,16 @@ export function startLocation(locationId) {
     locationState.travelerReturnPending = savedProgress?.travelerReturnPending === true;
     locationState.bloodPursuerPending = savedProgress?.bloodPursuerPending === true;
     locationState.finalBossDefeated = savedProgress?.finalBossDefeated === true;
+    const previousProgress = savedProgress ? JSON.parse(JSON.stringify(savedProgress)) : null;
+    const hadPreviousProgress = Boolean(savedProgress);
     const runId = ++locationState.runId;
     persistDungeonProgress();
     if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить состояние экспедиции. Проверьте свободное место хранилища.', 'error');
+        if (hadPreviousProgress) player.dungeonProgress[locationId] = previousProgress;
+        else delete player.dungeonProgress[locationId];
+        resetLocationState();
+        window.showNotification?.('Не удалось сохранить состояние экспедиции. Вход отменён — проверьте свободное место хранилища и попробуйте снова.', 'error');
+        return;
     }
     
     // Показываем экран боя

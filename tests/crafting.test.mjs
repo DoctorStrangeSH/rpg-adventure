@@ -237,3 +237,27 @@ test('crafting reports missing inventory instead of throwing on damaged saves',(
  assert.equal(craftItem(p,'iron_sword').reason,'invalid_inventory');
  assert.deepEqual(p,{level:10,gold:2000});
 });
+
+test('crafting rejects invalid currency without mutating the save',()=>{
+ const p=player();p.gold=Number.NaN;
+ const snapshot=structuredClone(p);
+ assert.equal(craftItem(p,'iron_sword').reason,'invalid_currency');
+ assert.deepEqual(p,snapshot);
+});
+
+test('every crafting recipe references valid items and positive material costs',async()=>{
+ const {CRAFTING_RECIPES}=await import('../js/systems/crafting.js');
+ const {getItem}=await import('../js/data/items.js');
+ const ids=new Set();
+ for(const recipe of CRAFTING_RECIPES){
+  assert.ok(!ids.has(recipe.id),`duplicate recipe: ${recipe.id}`);
+  ids.add(recipe.id);
+  assert.equal(getItem(recipe.output)?.type==='weapon'||getItem(recipe.output)?.type==='armor',true,recipe.id);
+  assert.ok(Number.isSafeInteger(recipe.gold)&&recipe.gold>=0,recipe.id);
+  assert.ok(Number.isSafeInteger(recipe.requiredLevel)&&recipe.requiredLevel>=1,recipe.id);
+  for(const [id,quantity] of Object.entries(recipe.materials)){
+   assert.equal(getItem(id)?.type,'material',`${recipe.id}: ${id}`);
+   assert.ok(Number.isSafeInteger(quantity)&&quantity>0,`${recipe.id}: ${id}`);
+  }
+ }
+});

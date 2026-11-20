@@ -25,7 +25,8 @@ export const ScreenManager = {
             'inventory-screen': () => window.updateInventoryScreen?.(),
             'quests-screen': () => window.updateQuestsScreen?.(),
             'achievements-screen': () => window.updateAchievementsScreen?.(),
-            'shop-screen': () => window.updateShopScreen?.()
+            'shop-screen': () => window.updateShopScreen?.(),
+            'ending-screen': () => window.updateEndingScreen?.()
         };
         
         if (updateFunctions[screenId]) {

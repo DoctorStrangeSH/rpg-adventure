@@ -26,6 +26,7 @@ import { updateInventoryScreen, useInventoryItem, unequipItem } from './ui/inven
 import { updateShopScreen, buyItem } from './ui/shop.js';
 import { updateQuestsScreen, updateQuestProgress, claimQuestReward } from './ui/quests.js';
 import { updateAchievementsScreen, updateAchievements, claimAchievement } from './ui/achievements.js';
+import { updateEndingScreen, startNewGamePlusFromEnding } from './ui/ending.js';
 import { 
     startLocation, 
     startStageBattle,
@@ -66,6 +67,9 @@ window.selectClass = function(classId) {
 
 window.showClassSelection = showClassSelection;
 window.updateMainMenu = updateMainMenu;
+window.initUI = initUI;
+window.updateEndingScreen = updateEndingScreen;
+window.startNewGamePlus = startNewGamePlusFromEnding;
 window.updateCharacterScreen = updateCharacterScreen;
 window.levelUp = levelUp;
 window.chooseTalent = chooseTalent;

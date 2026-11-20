@@ -11,6 +11,7 @@ import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js'
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
 import { awardTravelerFavor, consumeTravelerFavor } from './expeditionFavor.js';
 import { scheduleBloodPursuer, applyBloodPursuer } from './contractPursuit.js';
+import { completeCampaign, claimLocationReward } from './newGamePlus.js';
 
 let locationState = {
     currentLocation: null,
@@ -32,7 +33,8 @@ let locationState = {
     resumedFromCheckpoint: false,
     travelerFavorFights: 0,
     travelerReturnPending: false,
-    bloodPursuerPending: false
+    bloodPursuerPending: false,
+    finalBossDefeated: false
 };
 
 export function getUnbrokenExpeditionBonus(stageNumber, boss, resumed = false) {
@@ -108,6 +110,7 @@ export function startLocation(locationId) {
     locationState.travelerFavorFights = 0;
     locationState.travelerReturnPending = false;
     locationState.bloodPursuerPending = false;
+    locationState.finalBossDefeated = false;
     const runId = ++locationState.runId;
     
     // Показываем экран боя
@@ -452,15 +455,20 @@ export function completeLocation() {
     if (!location || !locationState.inLocation) return;
     const runId = ++locationState.runId;
     
-    // Выдаём награды
-    player.experience += location.rewards.exp;
-    player.gold += location.rewards.gold;
-    if (player.experience >= player.maxExperience) window.levelUp?.();
-    
-    location.rewards.items.forEach(rewardItem => {
-        grantItem(player, rewardItem.id, rewardItem.quantity);
-    });
-    
+    // A region's fixed completion reward is claimable once per campaign cycle.
+    const rewardGranted = claimLocationReward(player, location.id);
+    if (rewardGranted) {
+        player.experience += location.rewards.exp;
+        player.gold += location.rewards.gold;
+        if (player.experience >= player.maxExperience) window.levelUp?.();
+        location.rewards.items.forEach(rewardItem => {
+            grantItem(player, rewardItem.id, rewardItem.quantity);
+        });
+    }
+
+    const campaignEnded = location.id === 'dragon_lair' && locationState.finalBossDefeated;
+    if (campaignEnded) completeCampaign(player);
+
     // Открываем следующую локацию
     const nextLocation = unlockNextLocation(location.id);
     if (nextLocation && !player.unlockedLocations?.includes(nextLocation.id)) {
@@ -475,6 +483,7 @@ export function completeLocation() {
     locationState.pendingRoute = null;
     locationState.pendingSecretRoom = null;
     locationState.pendingCheckpoint = null;
+    locationState.finalBossDefeated = false;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
@@ -482,20 +491,25 @@ export function completeLocation() {
     let nextLocationText = '';
     if (nextLocation) {
         nextLocationText = `\n🔓 Открыта новая локация: ${nextLocation.name}!`;
+    } else if (campaignEnded) {
+        nextLocationText = '\n🏆 Пожиратель миров повержен. Кампания завершена!';
     } else {
-        nextLocationText = '\n🎉 Все локации пройдены!';
+        nextLocationText = '\nВсе доступные локации пройдены.';
     }
     
     window.showNotification(`🎉 Локация пройдена! +${location.rewards.exp} EXP, +${location.rewards.gold} золота!${nextLocationText}`, 'success');
     
-    gameState.save();
+    const saveSucceeded = gameState.save();
+    if (!saveSucceeded) {
+        window.showNotification?.('Не удалось сохранить прогресс. Не закрывайте игру и проверьте свободное место хранилища.', 'error');
+    }
     window.updateMainMenu?.();
     window.updateMapScreen?.();
-    
+
     setTimeout(() => {
         if (locationState.runId !== runId || locationState.inLocation || getBattleState().isActive) return;
         window.exitBattle();
-        window.showScreen('map-screen');
+        window.showScreen(campaignEnded ? 'ending-screen' : 'map-screen');
     }, 3000);
 }
 
@@ -511,6 +525,7 @@ export function fleeLocation() {
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
+    locationState.finalBossDefeated = false;
     
     window.showNotification('Вы покинули локацию. Прогресс сброшен.', 'info');
     window.exitBattle();
@@ -526,6 +541,7 @@ export function resetLocationState() {
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
+    locationState.finalBossDefeated = false;
 }
 
 export function getLocationState() {
@@ -595,6 +611,11 @@ export function handleBossVictory() {
         }
     }
 
+    if (location.id === 'dragon_lair' && stageNumber === location.stages.length &&
+        location.stages[locationState.currentStage]?.boss?.id === 'world_eater') {
+        locationState.finalBossDefeated = true;
+    }
+
     // Проверяем, был ли это последний этап
     if (locationState.currentStage >= location.stages.length - 1) {
         completeLocation();
@@ -618,6 +639,7 @@ export function handleDefeat() {
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
     locationState.currentLocation = null;
+    locationState.finalBossDefeated = false;
     
     window.showNotification('Вы погибли! Прогресс локации сброшен. Начните заново.', 'error');
 }

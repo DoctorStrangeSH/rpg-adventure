@@ -18,6 +18,12 @@ export function initUI() {
             <div class="player-info" id="menu-player-info"></div>
             
             <div class="menu-buttons">
+                ${gameState.player?.campaignCompleted ? `
+                <button class="menu-btn" onclick="window.showScreen('ending-screen')">
+                    <span class="btn-icon">🏆</span>
+                    <span class="btn-text">Эпилог / Новая игра+</span>
+                    <span class="btn-arrow">→</span>
+                </button>` : ''}
                 <button class="menu-btn" onclick="window.showScreen('character-screen')">
                     <span class="btn-icon">👤</span>
                     <span class="btn-text">Персонаж</span>

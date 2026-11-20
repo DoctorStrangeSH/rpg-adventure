@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LOCATIONS } from '../js/data/locations.js';
 import { getEnemy } from '../js/data/enemies.js';
+import { getItem } from '../js/data/items.js';
 import { applyExperience } from '../js/systems/progression.js';
 
 const LOCATION_INDEX = { forest: 1, mountains: 2, ruins: 3, dragon_lair: 4 };
@@ -95,5 +96,60 @@ test('each completed region guarantees its matching boss rune material once thro
         assert.equal(location.rewards.items.filter(item => item.id === itemId)
             .reduce((sum, item) => sum + item.quantity, 0), 1,
         `${location.id} must grant exactly one regional boss rune`);
+    }
+});
+
+test('each region has valid enemy pools, monotonic boss rewards, and resolvable completion rewards', () => {
+    const campaignRegions = LOCATIONS.filter(location => location.type !== 'safe');
+    assert.equal(campaignRegions.length, 4);
+
+    for (const location of campaignRegions) {
+        assert.equal(location.stages.length, location.totalStages, `${location.id} stage count`);
+        assert.ok(Number.isSafeInteger(location.rewards?.exp) && location.rewards.exp > 0,
+            `${location.id} completion XP must be positive`);
+        assert.ok(Number.isSafeInteger(location.rewards?.gold) && location.rewards.gold > 0,
+            `${location.id} completion gold must be positive`);
+
+        for (const stage of location.stages) {
+            assert.ok(Array.isArray(stage.enemies) && stage.enemies.length > 0,
+                `${location.id} stage ${stage.stage} needs an enemy pool`);
+            for (const enemyId of stage.enemies) {
+                const enemy = getEnemy(enemyId);
+                assert.ok(enemy, `${location.id} stage ${stage.stage} references unknown enemy ${enemyId}`);
+                assert.ok(Number.isFinite(enemy.expReward) && enemy.expReward > 0,
+                    `${enemyId} must award positive XP`);
+                assert.ok(Number.isFinite(enemy.goldReward) && enemy.goldReward > 0,
+                    `${enemyId} must award positive gold`);
+            }
+
+            if (stage.boss) {
+                for (const stat of ['health', 'attack', 'defense', 'expReward', 'goldReward']) {
+                    assert.ok(Number.isFinite(stage.boss[stat]) && stage.boss[stat] > 0,
+                        `${location.id} stage ${stage.stage} boss needs positive ${stat}`);
+                }
+            }
+        }
+
+        for (const isMiniBoss of [true, false]) {
+            const bosses = location.stages
+                .map(stage => stage.boss)
+                .filter(boss => boss && Boolean(boss.miniBoss) === isMiniBoss);
+            for (let index = 1; index < bosses.length; index++) {
+                const previous = bosses[index - 1];
+                const current = bosses[index];
+                for (const stat of ['health', 'attack', 'defense', 'expReward', 'goldReward']) {
+                    assert.ok(current[stat] >= previous[stat],
+                        `${location.id} ${isMiniBoss ? 'mini-boss' : 'boss'} ${stat} must not regress`);
+                }
+            }
+        }
+
+        assert.ok(Array.isArray(location.rewards.items) && location.rewards.items.length > 0,
+            `${location.id} must grant completion items`);
+        for (const reward of location.rewards.items) {
+            assert.ok(getItem(reward.id), `${location.id} references unknown reward item ${reward.id}`);
+            assert.ok(Number.isSafeInteger(reward.quantity) && reward.quantity > 0,
+                `${location.id} reward ${reward.id} must have a positive integer quantity`);
+        }
     }
 });

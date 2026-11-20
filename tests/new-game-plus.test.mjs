@@ -5,6 +5,7 @@ import {
     prepareNewGamePlus, startNewGamePlus
 } from '../js/systems/newGamePlus.js';
 import { LOCATIONS } from '../js/data/locations.js';
+import { gameState } from '../js/core/state.js';
 import { claimDeepChestAttempt } from '../js/systems/loot.js';
 
 function makeCompletedPlayer() {
@@ -102,4 +103,47 @@ test('NG+ starts only after a successful save and resets world unlocks', () => {
     assert.deepEqual(LOCATIONS.filter(location => location.unlocked).map(location => location.id)
         .sort(), ['forest', 'village']);
     LOCATIONS.forEach(location => { location.unlocked = false; });
+});
+
+
+test('NG+ cycle survives a real localStorage save and reload', (t) => {
+    const previousStorage = globalThis.localStorage;
+    const previousPlayer = gameState.player;
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    const values = new Map();
+    globalThis.localStorage = {
+        setItem(key, value) { values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    };
+
+    t.after(() => {
+        gameState.player = previousPlayer;
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+
+    gameState.player = makeCompletedPlayer();
+    assert.equal(startNewGamePlus(gameState), true);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.campaignCompleted, false);
+    assert.equal(gameState.save(), true);
+    assert.equal(gameState.load(), true);
+
+    const restored = gameState.player;
+    assert.equal(restored.campaignCycle, 2);
+    assert.equal(restored.completedCampaignCycles, 1);
+    assert.equal(restored.newGamePlusUnlocked, true);
+    assert.equal(restored.campaignCompleted, false);
+    assert.equal(restored.level, 18);
+    assert.equal(restored.gold, 1250);
+    assert.deepEqual(restored.inventory, [{ id: 'dragon_sword', quantity: 1 }]);
+    assert.deepEqual(restored.equipment, { weapon: 'dragon_sword', armor: 'guardian_armor' });
+    assert.deepEqual(restored.unlockedLocations, ['forest']);
+    assert.deepEqual(restored.dungeonProgress, {});
+    assert.equal(restored.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(restored.achievements.find(entry => entry.id === 'first_kill').claimed, true);
+    assert.deepEqual(LOCATIONS.filter(location => location.unlocked).map(location => location.id)
+        .sort(), ['forest', 'village']);
 });

@@ -2,6 +2,7 @@
 import { gameState } from '../core/state.js';
 import { getItemsByType, getItem, RARITIES } from '../data/items.js';
 import { grantItem } from '../systems/loot.js';
+import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 
 export function updateShopScreen() {
     const player = gameState.player;
@@ -77,15 +78,18 @@ export function buyItem(itemId) {
         return;
     }
     
-    if (!grantItem(player, itemId)) {
+    const snapshot = createPlayerSnapshot(player);
+    if (!snapshot || !grantItem(player, itemId)) {
         window.showNotification?.('Не удалось добавить предмет в инвентарь', 'error');
-        return;
+        return false;
     }
     player.gold -= itemData.price;
-    
+    if (!commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить покупку. Золото и инвентарь восстановлены.', 'error');
+        return false;
+    }
+
     window.showNotification(`Вы купили ${itemData.name}!`, 'success');
-    
-    gameState.save();
     updateShopScreen();
     window.updateInventoryScreen?.();
     window.updateMainMenu?.();

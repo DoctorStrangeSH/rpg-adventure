@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getUpgradePreview, upgradeEquipment } from '../js/systems/upgrades.js';
-import { getEnchantPreview, inscribeRune, getRuneExtractionPreview, extractRune } from '../js/systems/enchanting.js';
+import { getEnchantPreview, inscribeRune, getRuneExtractionPreview, extractRune, getRuneSocketCount } from '../js/systems/enchanting.js';
+import { getEffectiveCombatStats } from '../js/systems/combat.js';
 
 function makePlayer() {
     return {
@@ -80,4 +81,38 @@ test('rune extraction rejects invalid currency and overflowing material stacks a
     assert.equal(getRuneExtractionPreview(overflowing, 'dragon_sword', 0).reason, 'inventory_capacity');
     assert.equal(extractRune(overflowing, 'dragon_sword', 0).reason, 'inventory_capacity');
     assert.deepEqual(overflowing, inventorySnapshot);
+});
+
+test('each equipment upgrade adds exactly two combat stat points and socket thresholds stay aligned', () => {
+    const player = makePlayer();
+    player.attack = 100;
+    player.defense = 50;
+    player.equipment.armor = 'frost_armor';
+    player.itemUpgrades = { dragon_sword: 0, frost_armor: 0 };
+
+    const base = getEffectiveCombatStats(player);
+    assert.equal(base.attack, 100);
+    assert.equal(base.defense, 50);
+
+    for (const level of [1, 4, 8, 10]) {
+        player.itemUpgrades.dragon_sword = level;
+        player.itemUpgrades.frost_armor = level;
+        const stats = getEffectiveCombatStats(player);
+        assert.equal(stats.attack, 100 + level * 2);
+        assert.equal(stats.defense, 50 + level * 2);
+    }
+
+    assert.equal(getRuneSocketCount(player, 'dragon_sword'), 3);
+    player.itemUpgrades.dragon_sword = 0;
+    assert.equal(getRuneSocketCount(player, 'dragon_sword'), 0);
+    player.itemUpgrades.dragon_sword = 1;
+    assert.equal(getRuneSocketCount(player, 'dragon_sword'), 1);
+    player.itemUpgrades.dragon_sword = 3;
+    assert.equal(getRuneSocketCount(player, 'dragon_sword'), 1);
+    player.itemUpgrades.dragon_sword = 4;
+    assert.equal(getRuneSocketCount(player, 'dragon_sword'), 2);
+    player.itemUpgrades.dragon_sword = 7;
+    assert.equal(getRuneSocketCount(player, 'dragon_sword'), 2);
+    player.itemUpgrades.dragon_sword = 8;
+    assert.equal(getRuneSocketCount(player, 'dragon_sword'), 3);
 });

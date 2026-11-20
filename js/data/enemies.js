@@ -1,3 +1,5 @@
+import { createContentRegistry } from '../core/contentRegistry.js';
+
 // Враги
 export const ENEMIES = [
     {
@@ -52,8 +54,14 @@ export const ENEMIES = [
     }
 ];
 
+export const ENEMY_REGISTRY = createContentRegistry({
+    kind: 'enemy',
+    validate: entry => typeof entry.name === 'string' && Number.isFinite(entry.health) && entry.health > 0 && Number.isFinite(entry.attack) && entry.attack >= 0
+});
+ENEMY_REGISTRY.registerMany(ENEMIES);
+
 export function getEnemy(enemyId) {
-    return ENEMIES.find(e => e.id === enemyId);
+    return ENEMY_REGISTRY.get(enemyId);
 }
 
 export function getRandomEnemy(enemyIds) {

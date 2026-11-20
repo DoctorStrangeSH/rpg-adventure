@@ -1,3 +1,5 @@
+import { createContentRegistry } from '../core/contentRegistry.js';
+
 // Квесты
 export const QUESTS = [
     {
@@ -71,6 +73,12 @@ export const QUESTS = [
     }
 ];
 
+export const QUEST_REGISTRY = createContentRegistry({
+    kind: 'quest',
+    validate: entry => typeof entry.name === 'string' && typeof entry.description === 'string' && Number.isSafeInteger(entry.target) && entry.target > 0 && Array.isArray(entry.rewardItems)
+});
+QUEST_REGISTRY.registerMany(QUESTS);
+
 export function getQuest(questId) {
-    return QUESTS.find(q => q.id === questId);
+    return QUEST_REGISTRY.get(questId);
 }

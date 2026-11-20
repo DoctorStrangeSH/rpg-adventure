@@ -1,3 +1,5 @@
+import { createContentRegistry } from '../core/contentRegistry.js';
+
 // Локации мира с этапами
 export const LOCATIONS = [
     {
@@ -235,8 +237,14 @@ function generateStages(totalStages, locationLevel, enemies, bosses) {
     return stages;
 }
 
+export const LOCATION_REGISTRY = createContentRegistry({
+    kind: 'location',
+    validate: entry => typeof entry.name === 'string' && (entry.type === 'safe' || (Array.isArray(entry.stages) && entry.stages.length > 0))
+});
+LOCATION_REGISTRY.registerMany(LOCATIONS);
+
 export function getLocation(locationId) {
-    return LOCATIONS.find(l => l.id === locationId);
+    return LOCATION_REGISTRY.get(locationId);
 }
 
 export function getStage(locationId, stageNumber) {

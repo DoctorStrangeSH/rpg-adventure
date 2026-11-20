@@ -6,6 +6,7 @@ import { ACHIEVEMENTS } from '../data/achievements.js';
 import { Storage } from './storage.js';
 import { LOCATIONS } from '../data/locations.js';
 import { getItem } from '../data/items.js';
+import { CURRENT_SAVE_VERSION, migrateSaveData } from './saveMigrations.js';
 
 function isPlainRecord(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -239,14 +240,15 @@ class GameState {
     }
     
     save() {
-        return Storage.save(this.data);
+        return Storage.save({ ...this.data, schemaVersion: CURRENT_SAVE_VERSION });
     }
     
     load() {
         const saved = Storage.load();
-        if (isPlainRecord(saved) && isPlainRecord(saved.player) &&
-            normalizePlayerSave(saved.player)) {
-            this.data = { player: saved.player, screen: 'main-menu' };
+        const migrated = migrateSaveData(saved);
+        if (migrated.ok && isPlainRecord(migrated.data.player) &&
+            normalizePlayerSave(migrated.data.player)) {
+            this.data = { player: migrated.data.player, screen: 'main-menu' };
             restoreUnlockedLocations(this.player);
             return true;
         }

@@ -1,3 +1,5 @@
+import { createContentRegistry } from '../core/contentRegistry.js';
+
 // Достижения
 export const ACHIEVEMENTS = [
     {
@@ -178,8 +180,14 @@ export const ACHIEVEMENTS = [
     }
 ];
 
+export const ACHIEVEMENT_REGISTRY = createContentRegistry({
+    kind: 'achievement',
+    validate: entry => typeof entry.name === 'string' && typeof entry.description === 'string' && Number.isSafeInteger(entry.target) && entry.target > 0 && typeof entry.stat === 'string'
+});
+ACHIEVEMENT_REGISTRY.registerMany(ACHIEVEMENTS);
+
 export function getAchievement(achievementId) {
-    return ACHIEVEMENTS.find(a => a.id === achievementId);
+    return ACHIEVEMENT_REGISTRY.get(achievementId);
 }
 
 export function getAchievementsByCategory(category) {

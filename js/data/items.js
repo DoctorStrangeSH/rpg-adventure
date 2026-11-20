@@ -1,3 +1,5 @@
+import { createContentRegistry } from '../core/contentRegistry.js';
+
 // Предметы
 export const ITEMS = {
     health_potion: {
@@ -104,6 +106,11 @@ export const ITEMS = {
 
 };
 
+export const ITEM_REGISTRY = createContentRegistry({
+    kind: 'item',
+    validate: entry => typeof entry.name === 'string' && ['consumable', 'weapon', 'armor', 'material'].includes(entry.type) && typeof entry.rarity === 'string' && Number.isFinite(entry.price) && entry.price >= 0
+});
+ITEM_REGISTRY.registerMany(Object.values(ITEMS));
 
 export const SALVAGE_YIELDS = Object.freeze({
  common:{iron_ore:1}, uncommon:{iron_ore:2}, rare:{iron_ore:2,ember_core:1},
@@ -140,11 +147,11 @@ export function salvageEquipment(player,index) {
 }
 
 export function getItem(itemId) {
-    return Object.hasOwn(ITEMS, itemId) ? ITEMS[itemId] : undefined;
+    return ITEM_REGISTRY.get(itemId);
 }
 
 export function getItemsByType(type) {
-    return Object.values(ITEMS).filter(item => item.type === type);
+    return ITEM_REGISTRY.list().filter(item => item.type === type);
 }
 
 export const RARITIES = {

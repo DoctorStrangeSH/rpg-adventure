@@ -116,3 +116,22 @@ test('invalid class save never replaces the active player', (t) => {
     assert.equal(gameState.load(), false);
     assert.equal(gameState.player, activePlayer);
 });
+
+
+test('future-version saves are preserved when the active player saves', (t) => {
+    const values = installStorage(t);
+    const futureSave = JSON.stringify({
+        schemaVersion: 99,
+        player: { class: 'warrior', level: 42, futureProgress: { chapter: 8 } }
+    });
+    values.set('rpg_adventure_save', futureSave);
+    const activePlayer = gameState.createPlayer('archer');
+
+    assert.equal(gameState.load(), false);
+    assert.equal(gameState.player, activePlayer);
+    assert.equal(values.get('rpg_adventure_save'), futureSave);
+    assert.equal(gameState.save(), true);
+    assert.equal(values.get(RECOVERY_SAVE_KEY), futureSave);
+    assert.equal(Storage.loadRecovery().player.futureProgress.chapter, 8);
+    assert.equal(gameState.player.class, 'archer');
+});

@@ -185,3 +185,53 @@ test('full +0 to +10 upgrade budget is reproducible and exposes the campaign gol
     assert.ok(campaignGold > upgradeGold * 100,
         'current campaign gold expectation should continue to flag the unresolved economy gap');
 });
+
+function calculateConservativeRegionExperience(location) {
+    const locationIndex = LOCATION_INDEX[location.id];
+    let experience = location.rewards.exp;
+
+    for (const stage of location.stages) {
+        const weakestEnemyExperience = Math.min(...stage.enemies.map(id => getEnemy(id).expReward));
+        const depthTier = Math.min(6, Math.floor((stage.stage - 1) / 5));
+        const depthReward = 1 + depthTier * 0.08;
+        const stageMultiplier = 1 + stage.stage * 0.1 + locationIndex * 0.5;
+        const ordinaryReward = Math.floor(weakestEnemyExperience * stageMultiplier * depthReward);
+        experience += stage.enemiesCount * ordinaryReward;
+
+        // Boss rewards use their authored stage values. Optional unbroken-expedition
+        // bonuses are deliberately excluded from this conservative progression floor.
+        if (stage.boss) experience += stage.boss.expReward;
+    }
+
+    return experience;
+}
+
+function getConservativeClearLevel(location) {
+    const player = {
+        level: 1, experience: 0, maxExperience: 100,
+        maxHealth: 100, health: 100, maxMana: 50, mana: 50,
+        attack: 10, defense: 5
+    };
+    applyExperience(player, calculateConservativeRegionExperience(location));
+    return player.level;
+}
+
+test('region entry gates match the conservative level reached after clearing the previous region', () => {
+    const byId = new Map(LOCATIONS.map(location => [location.id, location]));
+    const progression = [
+        ['forest', 'mountains', 15],
+        ['mountains', 'ruins', 19],
+        ['ruins', 'dragon_lair', 22]
+    ];
+
+    for (const [completedId, nextId, expectedLevel] of progression) {
+        const completed = byId.get(completedId);
+        const next = byId.get(nextId);
+        const conservativeLevel = getConservativeClearLevel(completed);
+
+        assert.equal(conservativeLevel, expectedLevel,
+            `${completedId} conservative clear level`);
+        assert.equal(next.minLevel, expectedLevel,
+            `${nextId} must unlock at the conservative level from ${completedId}`);
+    }
+});

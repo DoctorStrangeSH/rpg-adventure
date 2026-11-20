@@ -63,11 +63,12 @@ export const Storage = {
         }
     },
 
-    restoreRecovery() {
+    restoreRecovery(validatedData = null) {
         try {
             const saved = localStorage.getItem(RECOVERY_SAVE_KEY);
             if (saved === null) return false;
-            localStorage.setItem(GAME_CONFIG.saveKey, saved);
+            const payload = validatedData === null ? saved : JSON.stringify(validatedData);
+            localStorage.setItem(GAME_CONFIG.saveKey, payload);
             return true;
         } catch (error) {
             console.error('Error restoring recovery save:', error);

@@ -82,7 +82,7 @@ function createQuestCard(quest, playerQuest, isCompleted) {
     `;
 }
 
-export function updateQuestProgress(type, amount = 1) {
+export function updateQuestProgress(type, amount = 1, { save = true } = {}) {
     const player = gameState.player;
     if (!player) return;
     
@@ -120,7 +120,7 @@ export function updateQuestProgress(type, amount = 1) {
         }
     });
     
-    gameState.save();
+    if (save) gameState.save();
 }
 
 export function claimQuestReward(questId) {

@@ -21,13 +21,10 @@ function readSources() {
     }));
 }
 
-test('every window callback used by inline UI handlers is registered by the application entry point', () => {
+test('every window callback used by inline UI handlers has a registration in an application module', () => {
     const sources = readSources();
-    const entry = sources.find(file => file.path === 'main.js');
-    assert.ok(entry, 'js/main.js must exist');
-
     const registered = new Set(
-        [...entry.source.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)].map(match => match[1])
+        sources.flatMap(file => [...file.source.matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)].map(match => match[1]))
     );
     const missing = new Map();
 

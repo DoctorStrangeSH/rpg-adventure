@@ -740,22 +740,23 @@ export function battleVictory() {
         window.levelUp?.();
     }
     
-    gameState.save();
-    window.updateMainMenu?.();
-    
     const locationState = window.getLocationState?.();
-    
+
     if (locationState && locationState.inLocation) {
+        // Dungeon handlers persist the player reward and the advanced resume
+        // marker together. Saving before them would let a reload replay a paid fight.
         if (battleState.isBossBattle) {
             window.handleBossVictory?.();
         } else {
             window.handleVictory?.();
         }
     } else {
+        gameState.save();
         setTimeout(() => {
             exitBattle();
         }, 2000);
     }
+    window.updateMainMenu?.();
 }
 
 export function battleDefeat() {

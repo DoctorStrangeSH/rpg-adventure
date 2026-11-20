@@ -5,6 +5,117 @@ import { QUESTS } from '../data/quests.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';
 import { Storage } from './storage.js';
 import { LOCATIONS } from '../data/locations.js';
+import { getItem } from '../data/items.js';
+
+function isPlainRecord(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function safeNonNegativeInteger(value, fallback = 0) {
+    return Number.isSafeInteger(value) && value >= 0 ? value : fallback;
+}
+
+function migrateProgressEntries(savedEntries, definitions, completionField) {
+    const existing = new Map(
+        (Array.isArray(savedEntries) ? savedEntries : [])
+            .filter(entry => isPlainRecord(entry) && typeof entry.id === 'string')
+            .map(entry => [entry.id, entry])
+    );
+    return definitions.map(definition => {
+        const saved = existing.get(definition.id) || {};
+        const progress = Math.min(definition.target, safeNonNegativeInteger(saved.progress));
+        return {
+            id: definition.id,
+            progress,
+            completed: saved.completed === true || progress >= definition.target,
+            [completionField]: saved[completionField] === true
+        };
+    });
+}
+
+function normalizePlayerSave(player) {
+    const classData = CLASSES[player.class];
+    if (!classData) return false;
+
+    const defaults = classData.stats;
+    const numericDefaults = {
+        level: 1, experience: 0, maxExperience: 100,
+        health: defaults.health, maxHealth: defaults.health,
+        mana: defaults.mana, maxMana: defaults.mana,
+        attack: defaults.attack, defense: defaults.defense,
+        speed: defaults.speed, gold: 100
+    };
+    for (const [key, fallback] of Object.entries(numericDefaults)) {
+        const value = player[key];
+        const minimum = key === 'level' || key === 'maxExperience' ? 1 : 0;
+        player[key] = Number.isFinite(value) && value >= minimum ? value : fallback;
+    }
+    player.level = Math.max(1, Math.floor(player.level));
+    player.experience = Math.max(0, Math.floor(player.experience));
+    player.maxExperience = Math.max(1, Math.floor(player.maxExperience));
+    player.gold = Math.floor(player.gold);
+    player.health = Math.min(player.maxHealth, Math.floor(player.health));
+    player.mana = Math.min(player.maxMana, Math.floor(player.mana));
+
+    if (!Array.isArray(player.inventory)) player.inventory = [];
+    const inventory = new Map();
+    for (const entry of player.inventory) {
+        if (!isPlainRecord(entry) || typeof entry.id !== 'string' ||
+            !getItem(entry.id) || !Number.isSafeInteger(entry.quantity) || entry.quantity <= 0) continue;
+        const previous = inventory.get(entry.id) || 0;
+        if (previous > Number.MAX_SAFE_INTEGER - entry.quantity) continue;
+        inventory.set(entry.id, previous + entry.quantity);
+    }
+    player.inventory = [...inventory].map(([id, quantity]) => ({ id, quantity }));
+
+    const equipment = isPlainRecord(player.equipment) ? player.equipment : {};
+    player.equipment = {
+        weapon: getItem(equipment.weapon)?.type === 'weapon' ? equipment.weapon : null,
+        armor: getItem(equipment.armor)?.type === 'armor' ? equipment.armor : null
+    };
+
+    const validLocationIds = new Set(LOCATIONS.map(location => location.id));
+    const unlocked = Array.isArray(player.unlockedLocations)
+        ? player.unlockedLocations.filter(id => typeof id === 'string' && validLocationIds.has(id))
+        : [];
+    player.unlockedLocations = [...new Set(['forest', ...unlocked])];
+    if (isPlainRecord(player.dungeonCheckpoints)) {
+        player.dungeonCheckpoints = Object.fromEntries(
+            Object.entries(player.dungeonCheckpoints).filter(([id, stage]) => {
+                const location = LOCATIONS.find(entry => entry.id === id && entry.type !== 'safe');
+                return location && Number.isInteger(stage) && stage > 0 && stage < location.stages.length;
+            })
+        );
+    } else {
+        player.dungeonCheckpoints = {};
+    }
+
+    player.discoveredItems = Array.isArray(player.discoveredItems)
+        ? [...new Set(player.discoveredItems.filter(id => typeof id === 'string' && Boolean(getItem(id))))]
+        : player.inventory.map(entry => entry.id);
+    player.talents = Array.isArray(player.talents) ? player.talents.filter(id => typeof id === 'string') : [];
+    player.relics = Array.isArray(player.relics) ? player.relics.filter(id => typeof id === 'string') : [];
+    player.activeRelics = Array.isArray(player.activeRelics) ? player.activeRelics.filter(id => typeof id === 'string') : [];
+
+    const statDefaults = {
+        kills: 0, battles: 0, wins: 0, losses: 0,
+        dungeonsCompleted: 0, bossesKilled: 0
+    };
+    const stats = isPlainRecord(player.stats) ? player.stats : {};
+    player.stats = Object.fromEntries(Object.entries(statDefaults).map(([key, fallback]) =>
+        [key, safeNonNegativeInteger(stats[key], fallback)]
+    ));
+
+    player.quests = migrateProgressEntries(player.quests, QUESTS, 'rewardClaimed');
+    player.achievements = migrateProgressEntries(player.achievements, ACHIEVEMENTS, 'claimed');
+    if (!Number.isSafeInteger(player.id) || player.id < 0) player.id = Date.now();
+    if (typeof player.username !== 'string' || !player.username.trim()) player.username = 'Игрок';
+    if (typeof player.telegramId !== 'number' && typeof player.telegramId !== 'string') player.telegramId = 0;
+    if (typeof player.createdAt !== 'string' || !Number.isFinite(Date.parse(player.createdAt))) {
+        player.createdAt = new Date().toISOString();
+    }
+    return true;
+}
 
 function restoreUnlockedLocations(player) {
     const ids = new Set(Array.isArray(player.unlockedLocations) ? player.unlockedLocations : ['forest']);
@@ -104,24 +215,9 @@ class GameState {
     
     load() {
         const saved = Storage.load();
-        if (saved && typeof saved === 'object' && !Array.isArray(saved) &&
-            saved.player && typeof saved.player === 'object' &&
-            CLASSES[saved.player.class] &&
-            Array.isArray(saved.player.inventory) &&
-            saved.player.equipment && typeof saved.player.equipment === 'object') {
+        if (isPlainRecord(saved) && isPlainRecord(saved.player) &&
+            normalizePlayerSave(saved.player)) {
             this.data = { player: saved.player, screen: 'main-menu' };
-            if (!Array.isArray(this.player.discoveredItems)) {
-                this.player.discoveredItems = this.player.inventory
-                    .filter(entry => entry && typeof entry.id === 'string')
-                    .map(entry => entry.id);
-            }
-            this.player.discoveredItems = [...new Set(this.player.discoveredItems.filter(id =>
-                typeof id === 'string' && this.player.inventory.some(entry => entry?.id === id) ||
-                typeof id === 'string'
-            ))];
-            if (!Array.isArray(this.player.talents)) this.player.talents = [];
-            if (!Array.isArray(this.player.relics)) this.player.relics = [];
-            if (!Array.isArray(this.player.activeRelics)) this.player.activeRelics = [];
             restoreUnlockedLocations(this.player);
             return true;
         }

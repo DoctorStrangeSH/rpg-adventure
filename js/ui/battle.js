@@ -1,5 +1,6 @@
 // Экран боя
 import { gameState } from '../core/state.js';
+import { addEventListenerOnce } from '../core/listeners.js';
 import { CLASSES } from '../data/classes.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
@@ -45,10 +46,11 @@ let battleState = {
 
 export function initBattle() {
     battleState.canvas = document.getElementById('battle-canvas');
+    if (!battleState.canvas) return;
     battleState.ctx = battleState.canvas.getContext('2d');
     
     resizeBattleCanvas();
-    window.addEventListener('resize', resizeBattleCanvas);
+    addEventListenerOnce(window, 'resize', resizeBattleCanvas);
 }
 
 function resizeBattleCanvas() {

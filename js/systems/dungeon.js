@@ -298,6 +298,8 @@ function presentDungeonCheckpoint() {
     if (!ui) {
         locationState.pendingCheckpoint = null;
         locationState.visitedCheckpointStages.add(stage);
+        persistDungeonProgress();
+        gameState.save();
         startStageBattle();
         return;
     }
@@ -375,6 +377,8 @@ function presentRouteChoice() {
         locationState.pendingRoute = null;
         locationState.visitedRouteStages.add(stage);
         locationState.routeChoices[stage] = 'safe';
+        persistDungeonProgress();
+        gameState.save();
         startStageBattle();
         return;
     }
@@ -411,9 +415,11 @@ function presentAdventureEvent() {
     const stage = locationState.currentStage;
     locationState.pendingEvent = { id: event.id, stage, runId: locationState.runId };
     const ui = document.getElementById('battle-ui');
-    if (!ui) { // If no UI is mounted, continue without blocking the run.
+    if (!ui) { // If no UI is mounted, consume the event and persist the fallback.
         locationState.visitedEventStages.add(stage);
         locationState.pendingEvent = null;
+        persistDungeonProgress();
+        gameState.save();
         startStageBattle();
         return;
     }

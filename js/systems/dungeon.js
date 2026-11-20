@@ -329,7 +329,9 @@ export function chooseDungeonCheckpoint(choice) {
     const hadPreviousCheckpoint = Object.hasOwn(player.dungeonCheckpoints, locationId);
     const previousCheckpoint = player.dungeonCheckpoints[locationId];
     const previousProgress = player.dungeonProgress?.[locationId]
-        ? structuredClone(player.dungeonProgress[locationId]) : null;
+        ? JSON.parse(JSON.stringify(player.dungeonProgress[locationId])) : null;
+    const previousEnemiesDefeated = locationState.enemiesDefeated;
+    const previousResumedFromCheckpoint = locationState.resumedFromCheckpoint;
     locationState.visitedCheckpointStages.add(pending.stage);
     player.dungeonCheckpoints[locationId] = pending.stage;
     locationState.enemiesDefeated = 0;
@@ -343,6 +345,8 @@ export function chooseDungeonCheckpoint(choice) {
         if (previousProgress) player.dungeonProgress[locationId] = previousProgress;
         else clearDungeonProgress(player, locationId);
         locationState.visitedCheckpointStages.delete(pending.stage);
+        locationState.enemiesDefeated = previousEnemiesDefeated;
+        locationState.resumedFromCheckpoint = previousResumedFromCheckpoint;
         window.showNotification?.('Не удалось сохранить контрольную точку. Экспедиция не прервана — попробуйте ещё раз.', 'error');
         return false;
     }

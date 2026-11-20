@@ -172,3 +172,22 @@ test('rune socket thresholds expose exactly three forge sockets',async()=>{
  const p={itemUpgrades:{blade:0}};
  assert.deepEqual([0,1,4,8,10].map(level=>{p.itemUpgrades.blade=level;return getRuneSocketCount(p,'blade')}),[0,1,2,3,3]);
 });
+
+
+test('tenth equipment upgrade has a valid cost and completes without a runtime error',async()=>{
+ const {upgradeEquipment,getUpgradePreview,getItemUpgradeLevel}=await import('../js/systems/upgrades.js');
+ const p={gold:12000,equipment:{weapon:'iron_sword',armor:null},itemUpgrades:{iron_sword:9},inventory:[
+  {id:'iron_ore',quantity:15},{id:'ember_core',quantity:4},{id:'frost_crystal',quantity:4},{id:'blood_essence',quantity:3}
+ ]};
+ const preview=getUpgradePreview(p,'iron_sword');
+ assert.equal(preview.available,true);
+ assert.equal(preview.next,10);
+ assert.equal(preview.gold,12000);
+ const result=upgradeEquipment(p,'iron_sword');
+ assert.equal(result.ok,true);
+ assert.equal(result.level,10);
+ assert.equal(getItemUpgradeLevel(p,'iron_sword'),10);
+ assert.equal(p.gold,0);
+ assert.equal(p.inventory.length,0);
+ assert.equal(getUpgradePreview(p,'iron_sword').reason,'max_level');
+});

@@ -214,7 +214,7 @@ function generateStages(totalStages, locationLevel, enemies, bosses) {
         
         // Каждый 5 этап - мини босс. Regional base stats carry the broad
         // campaign progression; local scaling adds at most 25% HP, 15% attack,
-        // 10% defense and 40% reward by the last mini-boss.
+        // 10% defense by the last mini-boss. Reward formulas remain unchanged.
         if (i % 5 === 0 && i % 10 !== 0) {
             const progress = getBossProgress(i, 5, totalStages);
             stage.boss = {
@@ -230,7 +230,7 @@ function generateStages(totalStages, locationLevel, enemies, bosses) {
         
         // Каждый 10 этап - главный босс. The regional base values increase
         // between biomes; local scaling adds at most 35% HP, 20% attack,
-        // 15% defense and 50% reward across the region.
+        // 15% defense across the region. Reward formulas remain unchanged.
         if (i % 10 === 0) {
             const progress = getBossProgress(i, 10, totalStages);
             stage.boss = {

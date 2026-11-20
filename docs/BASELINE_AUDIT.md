@@ -175,6 +175,7 @@ PR и ветки требуют отдельной сверки с main, scope �
 - Нормативные документы находятся в ожидаемых местах: docs/PROJECT_SPEC.md и ROADMAP.md в корне.
 - Поиск по индексируемому коду не вернул совпадений для console.log, debugger, TODO, FIXME, unused и prototype. Это не заменяет полный локальный статический анализ и не доказывает отсутствие таких строк в неиндексируемых ресурсах.
 - Обнаружено 16 старых feature/refactor-веток. Сверка каждой с main показала, что 15 веток не содержат уникальных коммитов относительно main (ahead = 0); они являются кандидатами на удаление после проверки владельцем.
+  Кандидаты: feat/archer-precision-marks, feat/blood-contract-pursuit, feat/combat-hit-feedback, feat/dungeon-choice-feedback, feat/expedition-traveler-favor, feat/gothic-goblin-sprites, feat/gothic-wolf-sprites, feat/hero-sprite-foundation, feat/linked-traveler-events, feat/mage-archer-attack, feat/skeleton-gothic-sprites, feat/twilight-gothic-visual-foundation, feat/warrior-perfect-guard, feat/warrior-sword-swing, refactor/gameplay-reliability-20261114.
 - feat/death-knight-visuals содержит 1 уникальный коммит и соответствует открытому PR #16. Ветка и PR сохранены; не удалять до решения по PR.
 - Для HEAD 5485326 endpoint статусов коммита не вернул проверок. Последний результат, записанный в истории аудита, — 352/352 теста в тестовой среде; это не подтверждает зелёный CI именно на текущем HEAD.
 

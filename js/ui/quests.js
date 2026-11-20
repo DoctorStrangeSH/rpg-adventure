@@ -72,7 +72,7 @@ function createQuestCard(quest, playerQuest, isCompleted) {
     `;
 }
 
-export function updateQuestProgress(type, amount = 1, { save = true } = {}) {
+export function updateQuestProgress(type, amount = 1, { save = true, notifications = null } = {}) {
     const player = gameState.player;
     if (!player) return false;
     const snapshot = save ? createPlayerSnapshot(player) : null;
@@ -108,7 +108,10 @@ export function updateQuestProgress(type, amount = 1, { save = true } = {}) {
         window.showNotification?.('Не удалось сохранить прогресс квестов. Изменения отменены.', 'error');
         return false;
     }
-    newlyCompleted.forEach(name => window.showNotification?.(`🎉 Квест выполнен: ${name}!`, 'success'));
+    newlyCompleted.forEach(name => {
+        if (Array.isArray(notifications)) notifications.push({ kind: 'quest', name });
+        else window.showNotification?.(`🎉 Квест выполнен: ${name}!`, 'success');
+    });
     return true;
 }
 

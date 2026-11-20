@@ -64,7 +64,7 @@ function createAchievementCard(achievement, playerAchievements) {
     `;
 }
 
-export function updateAchievements() {
+export function updateAchievements({ save = true } = {}) {
     const player = gameState.player;
     if (!player) return;
     
@@ -114,7 +114,7 @@ export function updateAchievements() {
         }
     });
     
-    gameState.save();
+    if (save) gameState.save();
 }
 
 export function claimAchievement(achievementId) {

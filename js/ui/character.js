@@ -4,6 +4,7 @@ import { CLASSES } from '../data/classes.js';
 import { SoundSystem } from '../systems/sound.js';
 import { applyExperience } from '../systems/progression.js';
 import { escapeHtml } from '../core/html.js';
+import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
 import { getEffectiveCombatStats } from '../systems/combat.js';
 import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, getActiveRelicSynergies, toggleRelic } from '../systems/relics.js';
@@ -90,16 +91,25 @@ export function updateCharacterScreen() {
 }
 
 export function toggleCharacterRelic(id) {
-    if (!toggleRelic(gameState.player, id)) return false;
-    gameState.save();
+    const player = gameState.player;
+    const snapshot = createPlayerSnapshot(player);
+    if (!snapshot || !toggleRelic(player, id)) return false;
+    if (!commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить изменение реликвии. Изменения отменены.', 'error');
+        return false;
+    }
     updateCharacterScreen();
     return true;
 }
 
 export function chooseTalent(id) {
     const player = gameState.player;
-    if (!unlockTalent(player, id)) return false;
-    gameState.save();
+    const snapshot = createPlayerSnapshot(player);
+    if (!snapshot || !unlockTalent(player, id)) return false;
+    if (!commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить талант. Очки талантов восстановлены.', 'error');
+        return false;
+    }
     updateCharacterScreen();
     window.showNotification?.('🌟 Новый талант изучен!', 'success');
     return true;

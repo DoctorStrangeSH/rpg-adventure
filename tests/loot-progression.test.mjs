@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getItem } from '../js/data/items.js';
-import { rollLoot, rollDeepChest } from '../js/systems/loot.js';
+import { claimDeepChestAttempt, rollLoot, rollDeepChest } from '../js/systems/loot.js';
 import {
     awardRelic, toggleRelic, getRelicBonuses, MAX_ACTIVE_RELICS, RELICS
 } from '../js/systems/relics.js';
@@ -98,4 +98,20 @@ test('relic collection is unique and no more than two relics can be active', () 
     assert.equal(toggleRelic(player, 'ash_heart'), true);
     assert.equal(toggleRelic(player, 'eagle_eye'), true);
     assert.deepEqual(player.activeRelics, ['stone_oath', 'eagle_eye']);
+});
+
+test('deep chest attempts are unique per region milestone and campaign cycle', () => {
+    const player = { campaignCycle: 1, deepChestRewardCycles: {} };
+
+    assert.equal(claimDeepChestAttempt(player, 'forest', 20), true);
+    assert.equal(claimDeepChestAttempt(player, 'forest', 20), false);
+    assert.equal(claimDeepChestAttempt(player, 'forest', 30), true);
+    assert.equal(claimDeepChestAttempt(player, 'mountains', 20), true);
+    assert.equal(claimDeepChestAttempt(player, 'village', 20), false);
+    assert.equal(claimDeepChestAttempt(player, 'forest', 19), false);
+    assert.equal(claimDeepChestAttempt(player, 'forest', 40), false);
+
+    player.campaignCycle = 2;
+    assert.equal(claimDeepChestAttempt(player, 'forest', 20), true);
+    assert.equal(player.deepChestRewardCycles['forest:20'], 2);
 });

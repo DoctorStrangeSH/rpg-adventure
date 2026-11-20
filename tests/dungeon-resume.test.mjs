@@ -174,3 +174,45 @@ test('safe-route fallback is persisted when the battle UI is not mounted', (t) =
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;
 });
+
+test('dungeon entry is cancelled and the previous resume snapshot is preserved when the initial save fails', (t) => {
+    const { player } = setup(t);
+    const previousSave = gameState.save;
+    const previousProgress = {
+        campaignCycle: 1,
+        stage: 3,
+        enemiesDefeated: 2,
+        visitedEventStages: [1],
+        routeChoices: { 2: 'safe' }
+    };
+    player.dungeonProgress = { forest: structuredClone(previousProgress) };
+    gameState.save = () => false;
+    const screens = [];
+    const notifications = [];
+    window.showScreen = (screen) => screens.push(screen);
+    window.showNotification = (message, type) => notifications.push({ message, type });
+
+    t.after(() => { gameState.save = previousSave; });
+
+    startLocation('forest');
+
+    assert.equal(getLocationState().inLocation, false);
+    assert.equal(getLocationState().currentLocation, null);
+    assert.deepEqual(player.dungeonProgress.forest, previousProgress);
+    assert.equal(screens.includes('battle-screen'), false);
+    assert.equal(notifications.some(entry => entry.type === 'error'), true);
+});
+
+test('failed initial save does not leave a new empty expedition snapshot behind', (t) => {
+    const { player } = setup(t);
+    const previousSave = gameState.save;
+    delete player.dungeonProgress;
+    gameState.save = () => false;
+
+    t.after(() => { gameState.save = previousSave; });
+
+    startLocation('forest');
+
+    assert.equal(getLocationState().inLocation, false);
+    assert.equal(player.dungeonProgress, undefined);
+});

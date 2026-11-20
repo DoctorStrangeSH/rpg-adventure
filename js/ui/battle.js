@@ -11,7 +11,7 @@ import { getArenaTheme, drawArenaAtmosphere } from './arenaTheme.js';
 import { createArenaBackdropCache } from './arenaBackdrop.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
 import { BossSpellFx } from '../systems/bossSpellFx.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
+import { calculateDamage, applyDamage, consumeHealingPotion, consumeManaPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
@@ -320,9 +320,16 @@ export function updateBattleUI() {
                     <small>${skill.description}</small>
                 </button>
             `).join('')}
-            <button class="battle-btn item" onclick="window.playerUseItem()" ${!canAct ? 'disabled' : ''}>
-                🧪 Зелье
-            </button>
+            ${player.health < player.maxHealth && player.inventory?.some(item => item.id === 'health_potion' && item.quantity > 0) ? `
+                <button class="battle-btn item" onclick="window.playerUseItem('health_potion')" ${!canAct ? 'disabled' : ''}>
+                    ❤️ Зелье здоровья
+                </button>
+            ` : ''}
+            ${player.mana < player.maxMana && player.inventory?.some(item => item.id === 'mana_potion' && item.quantity > 0) ? `
+                <button class="battle-btn item" onclick="window.playerUseItem('mana_potion')" ${!canAct ? 'disabled' : ''}>
+                    💙 Зелье маны
+                </button>
+            ` : ''}
             <button class="battle-btn flee" onclick="window.playerFlee()" ${!canAct ? 'disabled' : ''}>
                 🏃 Сбежать
             </button>
@@ -506,36 +513,37 @@ export function playerSkill(skillId) {
     }, 500);
 }
 
-export function playerUseItem() {
-    if (isProcessing) return;
-    if (!battleState.isActive) return;
-    if (battleState.turn !== 'player') return;
-    
+export function playerUseItem(potionId = 'health_potion') {
+    if (isProcessing || !battleState.isActive || battleState.turn !== 'player') return;
+    if (!['health_potion', 'mana_potion'].includes(potionId)) return;
+
     const player = gameState.player;
-    
-    const potionIndex = player.inventory.findIndex(item => item.id === 'health_potion' && item.quantity > 0);
-    
-    if (potionIndex === -1) {
-        showBattleMessage('У вас нет зелий!');
+    if (!Array.isArray(player?.inventory)) return;
+    const potion = player.inventory.find(item => item.id === potionId && item.quantity > 0);
+    if (!potion) {
+        showBattleMessage('Такого зелья нет в инвентаре!');
         return;
     }
-    
-    const potion = player.inventory[potionIndex];
+
     const potionData = getItem(potion.id);
-    const healAmount = consumeHealingPotion(player, potion, potionData);
-    if (!healAmount) {
-        showBattleMessage('Здоровье уже полностью восстановлено!');
+    const restored = potionId === 'mana_potion'
+        ? consumeManaPotion(player, potion, potionData)
+        : consumeHealingPotion(player, potion, potionData);
+    if (!restored) {
+        showBattleMessage(potionId === 'mana_potion'
+            ? 'Запас маны уже полностью восстановлен!'
+            : 'Здоровье уже полностью восстановлено!');
         return;
     }
+
     isProcessing = true;
     disableBattleButtons();
-    
-    showBattleMessage(`Вы использовали ${potionData.name}! +${healAmount} HP`);
-    
+    const resourceLabel = potionId === 'mana_potion' ? 'MP' : 'HP';
+    showBattleMessage(`Вы использовали ${potionData.name}! +${restored} ${resourceLabel}`);
     gameState.save();
-    
     battleState.turn = 'enemy';
     setTimeout(() => {
+        if (!battleState.isActive) return;
         enemyTurn();
     }, 1000);
 }

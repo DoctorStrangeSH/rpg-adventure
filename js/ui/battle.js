@@ -806,10 +806,14 @@ export function battleDefeat() {
     
     showBattleMessage(`Вы погибли! Потеряно ${goldLoss} золота!`);
     
-    window.handleDefeat?.();
+    const defeatCommitted = window.handleDefeat?.();
     window.resetLocationState?.();
-    
-    gameState.save();
+
+    // handleDefeat owns the single atomic save for both dungeon and field losses.
+    // Do not issue a second write that could mask a failed dungeon reset.
+    if (typeof window.handleDefeat !== 'function' && defeatCommitted === undefined) {
+        gameState.save();
+    }
     window.updateMainMenu?.();
     
     setTimeout(() => {

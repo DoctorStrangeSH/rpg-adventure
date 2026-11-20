@@ -10,18 +10,29 @@ export const CRAFTING_RECIPES = Object.freeze([
 ]);
 
 function countItem(player, id) {
-    return player.inventory.filter(entry => entry.id === id).reduce((sum, entry) => sum + entry.quantity, 0);
+    if (!Array.isArray(player?.inventory)) return null;
+    let total = 0;
+    for (const entry of player.inventory) {
+        if (entry?.id !== id) continue;
+        if (!Number.isSafeInteger(entry.quantity) || entry.quantity < 0 ||
+            total > Number.MAX_SAFE_INTEGER - entry.quantity) return null;
+        total += entry.quantity;
+    }
+    return total;
 }
 
 export function getCraftingAvailability(player, recipe) {
     if (!player || !recipe) return { available: false, reason: 'invalid_recipe' };
+    if (!Array.isArray(player.inventory)) return { available: false, reason: 'invalid_inventory' };
     if ((player.level || 1) < recipe.requiredLevel) return { available: false, reason: 'level', requiredLevel: recipe.requiredLevel };
     if (recipe.requiresDiscovery && !player.discoveredItems?.includes(recipe.requiresDiscovery)) {
         return { available: false, reason: 'discovery', requiredItem: recipe.requiresDiscovery };
     }
     if ((player.gold || 0) < recipe.gold) return { available: false, reason: 'gold', missing: recipe.gold - (player.gold || 0) };
     for (const [id, quantity] of Object.entries(recipe.materials)) {
-        const missing = quantity - countItem(player, id);
+        const owned = countItem(player, id);
+        if (owned === null) return { available: false, reason: 'invalid_inventory', itemId: id };
+        const missing = quantity - owned;
         if (missing > 0) return { available: false, reason: 'materials', itemId: id, missing };
     }
     return { available: true };
@@ -33,11 +44,15 @@ export function craftItem(player, recipeId) {
     if (!availability.available) return { ok: false, ...availability };
     const output = getItem(recipe.output);
     if (!output) return { ok: false, reason: 'invalid_output' };
-    // Validate every stack before consuming anything; crafting is atomic.
+    // Validate every relevant stack and the output capacity before consuming
+    // anything. A malformed save must never turn a failed award into a free loss.
     for (const [id, quantity] of Object.entries(recipe.materials)) {
-        if (countItem(player, id) < quantity) return { ok: false, reason: 'materials', itemId: id };
+        const owned = countItem(player, id);
+        if (owned === null) return { ok: false, reason: 'invalid_inventory', itemId: id };
+        if (owned < quantity) return { ok: false, reason: 'materials', itemId: id, missing: quantity - owned };
     }
     const oldQuantity = countItem(player, recipe.output);
+    if (oldQuantity === null) return { ok: false, reason: 'invalid_inventory', itemId: recipe.output };
     if (oldQuantity > Number.MAX_SAFE_INTEGER - 1) return { ok: false, reason: 'inventory_limit' };
     for (const [id, quantity] of Object.entries(recipe.materials)) {
         let remaining = quantity;

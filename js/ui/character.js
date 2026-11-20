@@ -153,18 +153,18 @@ function createStatCard(label, value) {
     `;
 }
 
-export function levelUp() {
+export function levelUp({ save = true } = {}) {
     const player = gameState.player;
     if (!player) return;
     const gainedLevels = applyExperience(player);
     if (gainedLevels) {
         SoundSystem.playSound('levelup');
         window.showNotification(`🎉 +${gainedLevels} ур.! Теперь вы ${player.level} уровня!`, 'success');
-        window.updateQuestProgress?.('level', player.level);
+        window.updateQuestProgress?.('level', player.level, { save });
     }
-    gameState.save();
+    if (save) gameState.save();
     window.updateMainMenu?.();
     updateCharacterScreen();
     window.updateQuestsScreen?.();
-    window.updateAchievements?.();
+    window.updateAchievements?.({ save });
 }

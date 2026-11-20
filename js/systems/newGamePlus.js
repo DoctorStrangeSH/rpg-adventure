@@ -41,7 +41,8 @@ export function prepareNewGamePlus(player) {
     next.campaignCompleted = false;
     next.newGamePlusUnlocked = true;
     next.unlockedLocations = ['forest'];
-    next.dungeonCheckpoints = {};\n    next.dungeonProgress = {};
+    next.dungeonCheckpoints = {};
+    next.dungeonProgress = {};
     next.health = next.maxHealth;
     next.mana = next.maxMana;
     next.quests = QUESTS.map(quest => {

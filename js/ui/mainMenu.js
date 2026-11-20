@@ -23,6 +23,33 @@ export function createPlayerWithPersistence(classId) {
     return true;
 }
 
+
+export function showRecoveryScreen() {
+    const mainMenu = document.getElementById('main-menu');
+    mainMenu.innerHTML = `
+        <div class="menu-container">
+            <div class="game-logo">
+                <div class="logo-icon">🛡️</div>
+                <h1 class="game-title">ВОССТАНОВЛЕНИЕ ПРОФИЛЯ</h1>
+                <p class="game-subtitle">Найдена резервная копия сохранения</p>
+            </div>
+            <div class="player-info">
+                <h3>Ваше основное сохранение не удалось загрузить</h3>
+                <p>Можно восстановить проверенную резервную копию. Она будет перенесена в текущий формат игры. Исходная резервная копия останется нетронутой.</p>
+                <p>Не закрывайте игру во время восстановления.</p>
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="window.restoreRecoverySave()">
+                    <span class="btn-icon">♻️</span>
+                    <span class="btn-text">Восстановить резервную копию</span>
+                    <span class="btn-arrow">→</span>
+                </button>
+            </div>
+        </div>
+    `;
+    mainMenu.classList.add('active');
+}
+
 export function initUI() {
     const mainMenu = document.getElementById('main-menu');
     

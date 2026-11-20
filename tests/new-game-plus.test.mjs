@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    canStartNewGamePlus, completeCampaign, claimLocationReward,
+    canStartNewGamePlus, canClaimLocationReward, completeCampaign, claimLocationReward,
     prepareNewGamePlus, startNewGamePlus
 } from '../js/systems/newGamePlus.js';
 import { LOCATIONS } from '../js/data/locations.js';
@@ -148,4 +148,13 @@ test('NG+ cycle survives a real localStorage save and reload', (t) => {
     assert.equal(restored.achievements.find(entry => entry.id === 'first_kill').claimed, true);
     assert.deepEqual(LOCATIONS.filter(location => location.unlocked).map(location => location.id)
         .sort(), ['forest', 'village']);
+});
+
+test('location reward eligibility can be checked without consuming its campaign claim', () => {
+    const player = { campaignCycle: 1 };
+    assert.equal(canClaimLocationReward(player, 'forest'), true);
+    assert.deepEqual(player, { campaignCycle: 1 });
+    assert.equal(claimLocationReward(player, 'forest'), true);
+    assert.equal(canClaimLocationReward(player, 'forest'), false);
+    assert.equal(canClaimLocationReward({ campaignCycle: 1, locationRewardCycles: [] }, 'forest'), false);
 });

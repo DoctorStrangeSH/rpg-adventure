@@ -1,4 +1,4 @@
-export const CURRENT_SAVE_VERSION = 1;
+export const CURRENT_SAVE_VERSION = 2;
 
 function isRecord(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -14,6 +14,13 @@ export function migrateSaveData(saved) {
         if (version === 0) {
             data = { ...data, schemaVersion: 1 };
             version = 1;
+        } else if (version === 1) {
+            data = {
+                ...data,
+                schemaVersion: 2,
+                player: { ...data.player, dungeonProgress: data.player.dungeonProgress ?? {} }
+            };
+            version = 2;
         } else {
             return { ok: false, error: 'missing_save_migration' };
         }

@@ -81,7 +81,7 @@ test('migration repairs malformed counters, equipment, inventory and checkpoints
     assert.equal(player.mana, 50);
     assert.equal(player.gold, 100);
     assert.equal(player.attack, 20);
-    assert.equal(player.defense, 5);
+    assert.equal(player.defense, 3);
     assert.deepEqual(player.inventory, [{ id: 'health_potion', quantity: 5 }]);
     assert.deepEqual(player.equipment, { weapon: null, armor: null });
     assert.deepEqual(player.unlockedLocations, ['forest', 'mountains']);

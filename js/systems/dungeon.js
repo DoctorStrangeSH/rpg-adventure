@@ -5,13 +5,13 @@ import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
 import { getBattleState, resetBattlePresentation } from '../ui/battle.js';
 import { getBattlePositions } from '../ui/battleLayout.js';
-import { claimDeepChestAttempt, grantItem, rollDeepChest } from './loot.js';
+import { canGrantItems, claimDeepChestAttempt, grantItem, grantItemsAtomically, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
 import { awardTravelerFavor, consumeTravelerFavor } from './expeditionFavor.js';
 import { scheduleBloodPursuer, applyBloodPursuer } from './contractPursuit.js';
-import { completeCampaign, claimLocationReward } from './newGamePlus.js';
+import { completeCampaign, canClaimLocationReward, claimLocationReward } from './newGamePlus.js';
 
 let locationState = {
     currentLocation: null,
@@ -558,15 +558,26 @@ export function completeLocation() {
     if (!location || !locationState.inLocation) return;
     const runId = ++locationState.runId;
     
-    // A region's fixed completion reward is claimable once per campaign cycle.
-    const rewardGranted = claimLocationReward(player, location.id);
-    if (rewardGranted) {
-        player.experience += location.rewards.exp;
-        player.gold += location.rewards.gold;
-        if (player.experience >= player.maxExperience) window.levelUp?.();
-        location.rewards.items.forEach(rewardItem => {
-            grantItem(player, rewardItem.id, rewardItem.quantity);
-        });
+    // Preflight the complete fixed reward before consuming its once-per-cycle claim.
+    // A damaged inventory or unsafe currency total must leave the reward claim available.
+    const rewardItems = Array.isArray(location.rewards?.items) ? location.rewards.items : [];
+    const rewardExp = location.rewards?.exp;
+    const rewardGold = location.rewards?.gold;
+    const canApplyReward = canClaimLocationReward(player, location.id) &&
+        Number.isSafeInteger(player.experience) && Number.isSafeInteger(rewardExp) && rewardExp >= 0 &&
+        player.experience <= Number.MAX_SAFE_INTEGER - rewardExp &&
+        Number.isSafeInteger(player.gold) && Number.isSafeInteger(rewardGold) && rewardGold >= 0 &&
+        player.gold <= Number.MAX_SAFE_INTEGER - rewardGold &&
+        canGrantItems(player, rewardItems);
+
+    if (canApplyReward && claimLocationReward(player, location.id)) {
+        // The batch was fully validated above; no partial item award can consume
+        // the region claim or leave the player with only part of the reward.
+        if (grantItemsAtomically(player, rewardItems)) {
+            player.experience += rewardExp;
+            player.gold += rewardGold;
+            if (player.experience >= player.maxExperience) window.levelUp?.();
+        }
     }
 
     const campaignEnded = location.id === 'dragon_lair' && locationState.finalBossDefeated;

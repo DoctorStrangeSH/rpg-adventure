@@ -570,10 +570,12 @@ export function completeLocation() {
         player.gold <= Number.MAX_SAFE_INTEGER - rewardGold &&
         canGrantItems(player, rewardItems);
 
+    let rewardGranted = false;
     if (canApplyReward && claimLocationReward(player, location.id)) {
         // The batch was fully validated above; no partial item award can consume
         // the region claim or leave the player with only part of the reward.
         if (grantItemsAtomically(player, rewardItems)) {
+            rewardGranted = true;
             player.experience += rewardExp;
             player.gold += rewardGold;
             if (player.experience >= player.maxExperience) window.levelUp?.();

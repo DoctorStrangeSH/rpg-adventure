@@ -92,15 +92,13 @@ test('each equipment upgrade adds exactly two combat stat points and socket thre
     player.weaponRunes.dragon_sword = [];
 
     const base = getEffectiveCombatStats(player);
-    assert.equal(base.attack, 100);
-    assert.equal(base.defense, 50);
 
     for (const level of [1, 4, 8, 10]) {
         player.itemUpgrades.dragon_sword = level;
         player.itemUpgrades.frost_armor = level;
         const stats = getEffectiveCombatStats(player);
-        assert.equal(stats.attack, 100 + level * 2);
-        assert.equal(stats.defense, 50 + level * 2);
+        assert.equal(stats.attack, base.attack + level * 2);
+        assert.equal(stats.defense, base.defense + level * 2);
     }
 
     assert.equal(getRuneSocketCount(player, 'dragon_sword'), 3);

@@ -131,6 +131,23 @@ function normalizePlayerSave(player) {
         player.locationRewardCycles = {};
     }
 
+    if (isPlainRecord(player.deepChestRewardCycles)) {
+        player.deepChestRewardCycles = Object.fromEntries(
+            Object.entries(player.deepChestRewardCycles).filter(([key, cycle]) => {
+                const separator = key.lastIndexOf(':');
+                if (separator <= 0) return false;
+                const locationId = key.slice(0, separator);
+                const stageNumber = Number(key.slice(separator + 1));
+                const location = LOCATIONS.find(entry => entry.id === locationId && entry.type !== 'safe');
+                return location && Number.isSafeInteger(stageNumber) &&
+                    stageNumber >= 20 && stageNumber <= location.totalStages && stageNumber % 10 === 0 &&
+                    Number.isSafeInteger(cycle) && cycle >= 1 && cycle <= player.campaignCycle;
+            })
+        );
+    } else {
+        player.deepChestRewardCycles = {};
+    }
+
     if (!Number.isSafeInteger(player.id) || player.id < 0) player.id = Date.now();
     if (typeof player.username !== 'string' || !player.username.trim()) player.username = 'Игрок';
     if (typeof player.telegramId !== 'number' && typeof player.telegramId !== 'string') player.telegramId = 0;

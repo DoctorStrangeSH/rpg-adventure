@@ -2,7 +2,7 @@
 import { gameState } from './core/state.js';
 import { ScreenManager } from './core/screen.js';
 import { SoundSystem } from './systems/sound.js';
-import { initUI, showClassSelection, updateMainMenu } from './ui/mainMenu.js';
+import { initUI, showClassSelection, updateMainMenu, createPlayerWithPersistence } from './ui/mainMenu.js';
 import { updateCharacterScreen, levelUp, chooseTalent, toggleCharacterRelic } from './ui/character.js';
 import { initMap, updateMapScreen, enterLocation } from './ui/map.js';
 import { 
@@ -58,8 +58,7 @@ window.showScreen = function(screenId) {
 };
 
 window.selectClass = function(classId) {
-    if (!gameState.createPlayer(classId)) return;
-    gameState.save();
+    if (!createPlayerWithPersistence(classId)) return;
     initUI();
     ScreenManager.show('main-menu');
     updateMainMenu();

@@ -102,3 +102,29 @@ test('malformed and out-of-range expedition snapshots are discarded during save 
     assert.equal(gameState.load(), true);
     assert.deepEqual(gameState.player.dungeonProgress, {});
 });
+
+
+test('boss rewards and the next stage resume marker are committed in the same save', async (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 4;
+    run.enemiesDefeated = getLocation('forest').stages[4].enemiesCount;
+    run.claimedDeepChestStages = new Set();
+    run.claimedUnbrokenBonusStages = new Set();
+    player.experience = 777;
+    player.gold = 888;
+
+    const { handleBossVictory } = await import('../js/systems/dungeon.js');
+    handleBossVictory();
+
+    const saved = Storage.load().player;
+    assert.equal(saved.experience, 777);
+    assert.equal(saved.gold, 888);
+    assert.equal(saved.dungeonProgress.forest.stage, 5);
+    assert.equal(saved.dungeonProgress.forest.enemiesDefeated, 0);
+
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.dungeonProgress.forest.stage, 5);
+});

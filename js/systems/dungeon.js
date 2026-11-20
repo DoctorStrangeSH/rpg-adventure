@@ -390,6 +390,11 @@ export function chooseDungeonRoute(routeId) {
     locationState.routeChoices[pending.stage] = routeId;
     locationState.visitedRouteStages.add(pending.stage);
     locationState.pendingRoute = null;
+    persistDungeonProgress();
+    if (gameState.save() !== true) {
+        window.showNotification?.('Не удалось сохранить выбор маршрута. Попробуйте ещё раз.', 'error');
+        return false;
+    }
     window.showNotification?.(`Вы выбрали: ${getRoute(routeId).name}`, 'info');
     startStageBattle();
     return true;
@@ -434,7 +439,11 @@ export function chooseAdventureEvent(choiceId) {
     locationState.visitedEventStages.add(pending.stage);
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
-    gameState.save();
+    persistDungeonProgress();
+    if (gameState.save() !== true) {
+        window.showNotification?.('Не удалось сохранить исход события. Проверьте свободное место хранилища.', 'error');
+        return false;
+    }
     window.showNotification?.(outcome.message, 'info');
     startStageBattle();
     return true;
@@ -467,7 +476,11 @@ export function chooseSecretRoom(choice) {
     const outcome = resolveSecretRoom(gameState.player, pending.id, choice);
     if (!outcome) return false;
     locationState.pendingSecretRoom = null;
-    gameState.save();
+    persistDungeonProgress();
+    if (gameState.save() !== true) {
+        window.showNotification?.('Не удалось сохранить исход тайной комнаты. Проверьте свободное место хранилища.', 'error');
+        return false;
+    }
     window.showNotification?.(outcome.message, 'info');
     startStageBattle();
     return true;
@@ -696,9 +709,6 @@ export function handleBossVictory() {
                 grantItem(gameState.player, itemId, 1);
                 window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
             }
-            // Persist the attempt even on an empty roll; otherwise a re-entry
-            // could reroll the same milestone before the next campaign cycle.
-            gameState.save();
         }
     }
 
@@ -712,7 +722,6 @@ export function handleBossVictory() {
             gameState.player.experience += bonus.exp;
             gameState.player.gold += bonus.gold;
             if (gameState.player.experience >= gameState.player.maxExperience) window.levelUp?.();
-            gameState.save();
             window.showNotification?.(`🏆 Экспедиция без отступления: +${bonus.exp} опыта, +${bonus.gold} золота!`, 'success');
         }
     }

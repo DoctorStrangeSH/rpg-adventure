@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { LOCATIONS } from '../js/data/locations.js';
 import { CLASSES } from '../js/data/classes.js';
 import { gameState } from '../js/core/state.js';
-import { applyEnemyAction, calculateTypedDamage } from '../js/systems/combat.js';
+import { applyEnemyAction, useSkillEffect } from '../js/systems/combat.js';
 
 const REGIONS = LOCATIONS.filter(location => location.type !== 'safe');
 
@@ -40,30 +40,41 @@ test('regional boss scaling stays bounded and preserves increasing regional base
     }
 });
 
-test('final world eater can be damaged by all three class signature skills', () => {
+test('final world eater can be damaged by each class real signature skill', () => {
     const finalRegion = REGIONS.find(region => region.id === 'dragon_lair');
     const finalBoss = finalRegion.stages.at(-1).boss;
-    const scenarios = [
-        { classId: 'warrior', multiplier: 2, hits: 1, element: 'physical' },
-        { classId: 'mage', multiplier: 2.5, hits: 1, element: 'fire' },
-        { classId: 'archer', multiplier: 1.5, hits: 2, element: 'physical' }
-    ];
+    const signatureSkills = {
+        warrior: 'power_strike',
+        mage: 'fireball',
+        archer: 'rapid_shot'
+    };
 
-    for (const scenario of scenarios) {
-        const classStats = CLASSES[scenario.classId].stats;
-        const player = gameState.createPlayer(scenario.classId);
-        // Model a level-26 character with the best ordinary weapon/armor
-        // bonuses used by the progression audit, without talents or relics.
-        player.attack = classStats.attack + 25 * 5 + 40;
-        player.defense = classStats.defense + 25 * 3 + 19;
-        const perHit = calculateTypedDamage(
-            player.attack, finalBoss.defense, 0, scenario.multiplier, finalBoss, scenario.element
-        );
-        const damagePerAction = perHit * scenario.hits;
-        const actionsToDefeat = Math.ceil(finalBoss.health / damagePerAction);
-        assert.ok(perHit > 0, `${scenario.classId} must damage the final boss`);
+    for (const [classId, skillId] of Object.entries(signatureSkills)) {
+        const classData = CLASSES[classId];
+        const skill = classData.skills.find(entry => entry.id === skillId);
+        assert.ok(skill, `${classId} must retain its configured signature skill`);
+        assert.ok(skill.manaCost > 0 && skill.manaCost <= classData.stats.mana,
+            `${classId} must be able to cast its signature skill from a full starting mana pool`);
+
+        const player = gameState.createPlayer(classId);
+        // Level 26 with the same ordinary weapon and armor stat budget for
+        // every class. useSkillEffect applies the real skill, relic, affinity,
+        // hit-count and status rules rather than a hand-written multiplier.
+        player.attack = classData.stats.attack + 25 * 5 + 40;
+        player.defense = classData.stats.defense + 25 * 3 + 19;
+        const enemy = {
+            ...finalBoss,
+            health: finalBoss.health,
+            maxHealth: finalBoss.health,
+            effects: {}
+        };
+        const result = useSkillEffect(player, enemy, skill);
+        const actionsToDefeat = Math.ceil(finalBoss.health / result.damage);
+
+        assert.ok(result.damage > 0, `${classId} signature skill must damage the final boss`);
         assert.ok(actionsToDefeat <= 20,
-            `${scenario.classId} needs at most 20 signature actions, got ${actionsToDefeat}`);
+            `${classId} needs at most 20 signature actions, got ${actionsToDefeat}`);
+        assert.equal(result.hits, Math.max(1, Math.floor(skill.hits || 1)));
     }
 });
 

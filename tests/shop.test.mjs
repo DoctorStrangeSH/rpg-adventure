@@ -84,3 +84,29 @@ test('shop permits a purchase once the required level and currency are available
     if (previousDocument === undefined) delete globalThis.document;
     else globalThis.document = previousDocument;
 });
+
+test('shop purchase restores gold and inventory when the save fails', () => {
+    const player = {
+        level: 8,
+        gold: 1500,
+        inventory: [],
+        discoveredItems: []
+    };
+    const previousSave = gameState.save;
+    const previousDocument = globalThis.document;
+    gameState.save = () => false;
+    globalThis.document = { getElementById: () => ({ innerHTML: '' }) };
+
+    withShopState(player, notifications => {
+        buyItem('dragon_sword');
+        assert.equal(player.gold, 1500);
+        assert.deepEqual(player.inventory, []);
+        assert.deepEqual(player.discoveredItems, []);
+        assert.equal(notifications.length, 1);
+        assert.match(notifications[0].message, /сохранить покупку/);
+    });
+
+    gameState.save = previousSave;
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+});

@@ -55,6 +55,7 @@ test('legacy saves migrate missing systems without losing existing progression',
     assert.equal(player.campaignCompleted, false);
     assert.equal(player.newGamePlusUnlocked, false);
     assert.deepEqual(player.locationRewardCycles, {});
+    assert.deepEqual(player.deepChestRewardCycles, {});
     assert.equal(gameState.save(), true);
     assert.equal(Storage.load().player.level, 7);
 });
@@ -74,6 +75,7 @@ test('migration repairs malformed counters, equipment, inventory and checkpoints
         equipment: { weapon: 'leather_armor', armor: 'unknown_item' },
         unlockedLocations: ['forest', 'unknown_location', 'mountains'],
         dungeonCheckpoints: { forest: 4, mountains: -1, village: 2, ruins: 999 },
+        deepChestRewardCycles: { 'forest:20': 1, 'forest:10': 1, 'village:20': 1, 'unknown:20': 1, 'mountains:40': 2, broken: 1 },
         stats: { kills: -5, battles: 12.5, wins: 3, losses: 0, bossesKilled: 2 }
     };
     values.set('rpg_adventure_save', JSON.stringify({ player: malformed }));
@@ -91,6 +93,8 @@ test('migration repairs malformed counters, equipment, inventory and checkpoints
     assert.deepEqual(player.equipment, { weapon: null, armor: null });
     assert.deepEqual(player.unlockedLocations, ['forest', 'mountains']);
     assert.deepEqual(player.dungeonCheckpoints, { forest: 4 });
+    assert.deepEqual(player.deepChestRewardCycles, { 'forest:20': 1 },
+        'only valid deep-chest milestones from the current campaign may survive migration');
     assert.deepEqual(player.stats, {
         kills: 0, battles: 0, wins: 3, losses: 0,
         dungeonsCompleted: 0, bossesKilled: 2

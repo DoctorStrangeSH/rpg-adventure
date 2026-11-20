@@ -54,6 +54,8 @@ test('failed checkpoint save preserves the active expedition and previous saved 
     assert.equal(run.inLocation, true);
     assert.equal(run.currentLocation.id, 'forest');
     assert.equal(run.currentStage, 4);
+    assert.equal(run.enemiesDefeated, 0);
+    assert.equal(run.resumedFromCheckpoint, false);
     assert.deepEqual(run.pendingCheckpoint, { stage: 4, runId: 12 });
     assert.equal(run.visitedCheckpointStages.has(4), false);
     assert.deepEqual(screens, []);

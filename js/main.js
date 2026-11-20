@@ -2,7 +2,7 @@
 import { gameState } from './core/state.js';
 import { ScreenManager } from './core/screen.js';
 import { SoundSystem } from './systems/sound.js';
-import { initUI, showClassSelection, updateMainMenu, createPlayerWithPersistence } from './ui/mainMenu.js';
+import { initUI, showClassSelection, showRecoveryScreen, updateMainMenu, createPlayerWithPersistence } from './ui/mainMenu.js';
 import { updateCharacterScreen, levelUp, chooseTalent, toggleCharacterRelic } from './ui/character.js';
 import { initMap, updateMapScreen, enterLocation } from './ui/map.js';
 import { 
@@ -62,6 +62,23 @@ window.selectClass = function(classId) {
     initUI();
     ScreenManager.show('main-menu');
     updateMainMenu();
+};
+
+window.restoreRecoverySave = function() {
+    if (!gameState.canRestoreRecovery()) {
+        showNotification('Резервная копия повреждена или несовместима с этой версией игры.', 'error');
+        showClassSelection();
+        return false;
+    }
+    if (!gameState.restoreRecovery()) {
+        showNotification('Не удалось восстановить резервную копию. Исходная копия сохранена — попробуйте ещё раз.', 'error');
+        return false;
+    }
+    initUI();
+    ScreenManager.show('main-menu');
+    updateMainMenu();
+    showNotification('Профиль успешно восстановлен из резервной копии.', 'success');
+    return true;
 };
 
 window.showClassSelection = showClassSelection;
@@ -173,7 +190,8 @@ function initGame() {
     
     setTimeout(() => {
         if (!gameState.load()) {
-            showClassSelection();
+            if (gameState.canRestoreRecovery()) showRecoveryScreen();
+            else showClassSelection();
         } else {
             initUI();
             ScreenManager.show('main-menu');

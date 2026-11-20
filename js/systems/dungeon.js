@@ -5,7 +5,7 @@ import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
 import { getBattleState, resetBattlePresentation } from '../ui/battle.js';
 import { getBattlePositions } from '../ui/battleLayout.js';
-import { grantItem, rollDeepChest } from './loot.js';
+import { claimDeepChestAttempt, grantItem, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
 import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
@@ -601,10 +601,15 @@ export function handleBossVictory() {
     const stageNumber = locationState.currentStage + 1;
     if (!locationState.claimedDeepChestStages.has(stageNumber)) {
         locationState.claimedDeepChestStages.add(stageNumber);
-        const itemId = rollDeepChest(stageNumber);
-        if (itemId && grantItem(gameState.player, itemId, 1) === 1) {
+        if (claimDeepChestAttempt(gameState.player, location.id, stageNumber)) {
+            const itemId = rollDeepChest(stageNumber);
+            if (itemId) {
+                grantItem(gameState.player, itemId, 1);
+                window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
+            }
+            // Persist the attempt even on an empty roll; otherwise a re-entry
+            // could reroll the same milestone before the next campaign cycle.
             gameState.save();
-            window.showNotification?.(`🎁 Редкий сундук глубины: ${getItem(itemId).name}!`, 'success');
         }
     }
 

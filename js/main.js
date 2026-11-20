@@ -2,6 +2,7 @@
 import { gameState } from './core/state.js';
 import { ScreenManager } from './core/screen.js';
 import { SoundSystem } from './systems/sound.js';
+import { healPlayer, restorePlayerMana, addPlayerGold } from './systems/playerUtilities.js';
 import { initUI, showClassSelection, showRecoveryScreen, updateMainMenu, createPlayerWithPersistence } from './ui/mainMenu.js';
 import { updateCharacterScreen, levelUp, chooseTalent, toggleCharacterRelic } from './ui/character.js';
 import { initMap, updateMapScreen, enterLocation } from './ui/map.js';
@@ -159,27 +160,33 @@ window.showNotification = function(message, type = 'info') {
 
 // Вспомогательные функции
 window.heal = function(amount) {
-    const player = gameState.player;
-    player.health = Math.min(player.maxHealth, player.health + amount);
-    gameState.save();
+    if (!healPlayer(gameState.player, amount, () => gameState.save())) {
+        showNotification('Не удалось сохранить восстановление здоровья. Изменения отменены.', 'error');
+        return false;
+    }
     updateMainMenu();
     updateCharacterScreen();
+    return true;
 };
 
 window.restoreMana = function(amount) {
-    const player = gameState.player;
-    player.mana = Math.min(player.maxMana, player.mana + amount);
-    gameState.save();
+    if (!restorePlayerMana(gameState.player, amount, () => gameState.save())) {
+        showNotification('Не удалось сохранить восстановление маны. Изменения отменены.', 'error');
+        return false;
+    }
     updateMainMenu();
     updateCharacterScreen();
+    return true;
 };
 
 window.addGold = function(amount) {
-    const player = gameState.player;
-    player.gold += amount;
-    gameState.save();
+    if (!addPlayerGold(gameState.player, amount, () => gameState.save())) {
+        showNotification('Не удалось сохранить получение золота. Изменения отменены.', 'error');
+        return false;
+    }
     updateMainMenu();
     updateCharacterScreen();
+    return true;
 };
 
 // Инициализация игры

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
 import { getLocation } from '../js/data/locations.js';
 import { getBattleState } from '../js/ui/battle.js';
-import { getLocationState, handleBossVictory, resetLocationState } from '../js/systems/dungeon.js';
+import { getLocationState, handleBossVictory, resetLocationState, completeLocation } from '../js/systems/dungeon.js';
 
 function installBrowserStubs(t) {
     const previousWindow = globalThis.window;
@@ -80,7 +80,6 @@ test('a final-region clear without the World Eater victory flag cannot unlock NG
     battle.currentEnemy = null;
 
     // Completion without the final boss callback must not count as campaign victory.
-    const { completeLocation } = await import('../js/systems/dungeon.js');
     completeLocation();
     assert.equal(player.campaignCompleted, false);
     assert.equal(player.newGamePlusUnlocked, false);

@@ -31,8 +31,10 @@ export const Storage = {
     save(data) {
         try {
             const existingRaw = localStorage.getItem(GAME_CONFIG.saveKey);
-            if (needsRecoveryBackup(existingRaw, data)) {
-                // If the recovery copy cannot be written, keep the original save untouched.
+            if (needsRecoveryBackup(existingRaw, data) &&
+                localStorage.getItem(RECOVERY_SAVE_KEY) === null) {
+                // Keep the first recovery copy until the user explicitly replaces it.
+                // A later failed/invalid save must never overwrite the only known backup.
                 localStorage.setItem(RECOVERY_SAVE_KEY, existingRaw);
             }
             localStorage.setItem(GAME_CONFIG.saveKey, JSON.stringify(data));

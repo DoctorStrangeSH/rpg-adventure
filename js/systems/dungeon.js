@@ -784,6 +784,7 @@ export function handleVictory(playerBeforeBattle = null) {
         if (gameState.player) {
             if (previousProgress) gameState.player.dungeonProgress = previousProgress;
             else delete gameState.player.dungeonProgress;
+            if (playerBeforeBattle) restorePlayer(playerBeforeBattle);
         }
         window.showNotification?.('Не удалось сохранить победу. Награда отменена, бой будет предложен повторно.', 'error');
         return false;

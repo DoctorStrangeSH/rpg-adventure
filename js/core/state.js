@@ -7,6 +7,7 @@ import { Storage } from './storage.js';
 import { LOCATIONS } from '../data/locations.js';
 import { getItem } from '../data/items.js';
 import { CURRENT_SAVE_VERSION, migrateSaveData } from './saveMigrations.js';
+import { RUNE_CATALOG } from '../systems/enchanting.js';
 
 function isPlainRecord(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -74,6 +75,29 @@ function normalizePlayerSave(player) {
         weapon: getItem(equipment.weapon)?.type === 'weapon' ? equipment.weapon : null,
         armor: getItem(equipment.armor)?.type === 'armor' ? equipment.armor : null
     };
+
+    // Equipment progression is part of the save contract too. Normalize it
+    // independently so malformed legacy fields cannot crash the forge or grant
+    // unbounded stat bonuses after a reload.
+    const savedUpgrades = isPlainRecord(player.itemUpgrades) ? player.itemUpgrades : {};
+    player.itemUpgrades = Object.fromEntries(
+        Object.entries(savedUpgrades)
+            .filter(([id, level]) => ['weapon', 'armor'].includes(getItem(id)?.type) &&
+                Number.isSafeInteger(level) && level >= 0)
+            .map(([id, level]) => [id, Math.min(10, level)])
+    );
+
+    const savedWeaponRunes = isPlainRecord(player.weaponRunes) ? player.weaponRunes : {};
+    player.weaponRunes = Object.fromEntries(
+        Object.entries(savedWeaponRunes)
+            .filter(([weaponId, runes]) => getItem(weaponId)?.type === 'weapon' && Array.isArray(runes))
+            .map(([weaponId, runes]) => [
+                weaponId,
+                [...new Set(runes.filter(runeId => typeof runeId === 'string' &&
+                    Object.hasOwn(RUNE_CATALOG, runeId)))].slice(0, 3)
+            ])
+            .filter(([, runes]) => runes.length > 0)
+    );
 
     const validLocationIds = new Set(LOCATIONS.map(location => location.id));
     const unlocked = Array.isArray(player.unlockedLocations)

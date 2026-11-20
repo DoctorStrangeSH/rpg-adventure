@@ -213,3 +213,27 @@ test('Dragon Lair completion grants the exact scale requirement once per campaig
  p.campaignCycle=2;
  assert.equal(claimLocationReward(p,'dragon_lair'),true);
 });
+
+test('crafting rejects malformed material stacks without consuming any resources',()=>{
+ const p=player();
+ p.inventory.find(entry=>entry.id==='iron_ore').quantity=Number.NaN;
+ const snapshot=structuredClone(p);
+ assert.equal(craftItem(p,'iron_sword').reason,'invalid_inventory');
+ assert.deepEqual(p,snapshot);
+});
+
+test('crafting rejects an unsafe existing output stack before consuming ingredients',()=>{
+ const p=player();
+ p.inventory.push({id:'iron_sword',quantity:Number.MAX_SAFE_INTEGER+1});
+ const snapshot=structuredClone(p);
+ assert.equal(craftItem(p,'iron_sword').reason,'invalid_inventory');
+ assert.deepEqual(p,snapshot);
+});
+
+test('crafting reports missing inventory instead of throwing on damaged saves',()=>{
+ const p={level:10,gold:2000};
+ assert.deepEqual(getCraftingAvailability(p,{requiredLevel:1,gold:1,materials:{iron_ore:1}}),
+  {available:false,reason:'invalid_inventory'});
+ assert.equal(craftItem(p,'iron_sword').reason,'invalid_inventory');
+ assert.deepEqual(p,{level:10,gold:2000});
+});

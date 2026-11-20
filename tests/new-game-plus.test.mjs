@@ -17,6 +17,7 @@ function makeCompletedPlayer() {
         talents: ['warrior_force'], relics: ['ember_crown'], activeRelics: ['ember_crown'],
         discoveredItems: ['dragon_sword'], unlockedLocations: ['forest', 'mountains', 'ruins', 'dragon_lair'],
         dungeonCheckpoints: { forest: 9 }, locationRewardCycles: { forest: 1, mountains: 1 },
+        deepChestRewardCycles: { 'forest:20': 1, 'mountains:30': 1 },
         stats: { kills: 300, battles: 400, wins: 350, losses: 5, dungeonsCompleted: 4, bossesKilled: 18 },
         quests: [
             { id: 'first_blood', progress: 1, completed: true, rewardClaimed: true },
@@ -65,6 +66,7 @@ test('NG+ carries character progression and resets only campaign-run state', () 
     assert.deepEqual(next.unlockedLocations, ['forest']);
     assert.deepEqual(next.dungeonCheckpoints, {});
     assert.deepEqual(next.locationRewardCycles, player.locationRewardCycles);
+    assert.deepEqual(next.deepChestRewardCycles, player.deepChestRewardCycles);
     assert.equal(next.health, next.maxHealth);
     assert.equal(next.mana, next.maxMana);
     assert.equal(next.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);

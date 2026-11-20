@@ -11,6 +11,17 @@ export function getSalvagePreview(itemId) {
  return Object.entries(SALVAGE_YIELDS[item.rarity]||SALVAGE_YIELDS.common)
   .map(([id,quantity])=>({id,quantity,item:getItem(id)}));
 }
+function countMaterial(player,id) {
+ let total=0;
+ for(const stack of player.inventory) {
+  if(stack?.id!==id) continue;
+  if(!Number.isSafeInteger(stack.quantity)||stack.quantity<0||
+     total>Number.MAX_SAFE_INTEGER-stack.quantity) return null;
+  total+=stack.quantity;
+ }
+ return total;
+}
+
 export function salvageEquipment(player,index) {
  if(!player||!Array.isArray(player.inventory)||!Number.isInteger(index)||index<0||index>=player.inventory.length)
   return {ok:false,reason:'invalid_item'};
@@ -19,10 +30,11 @@ export function salvageEquipment(player,index) {
  if(player.equipment?.weapon===item.id||player.equipment?.armor===item.id) return {ok:false,reason:'equipped'};
  if(!Number.isSafeInteger(entry.quantity)||entry.quantity<1) return {ok:false,reason:'invalid_quantity'};
  const preview=getSalvagePreview(item.id);
+ // Validate every matching material stack and aggregate capacity before mutation.
  for(const reward of preview){
-  const current=player.inventory.filter(stack=>stack.id===reward.id)
-   .reduce((sum,stack)=>sum+(Number.isSafeInteger(stack.quantity)&&stack.quantity>0?stack.quantity:0),0);
-  if(current>Number.MAX_SAFE_INTEGER-reward.quantity) return {ok:false,reason:'inventory_limit'};
+  const current=countMaterial(player,reward.id);
+  if(current===null) return {ok:false,reason:'invalid_inventory',itemId:reward.id};
+  if(current>Number.MAX_SAFE_INTEGER-reward.quantity) return {ok:false,reason:'inventory_limit',itemId:reward.id};
  }
  entry.quantity--;
  if(entry.quantity===0) player.inventory.splice(index,1);

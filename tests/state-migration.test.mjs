@@ -135,3 +135,63 @@ test('future-version saves are preserved when the active player saves', (t) => {
     assert.equal(Storage.loadRecovery().player.futureProgress.chapter, 8);
     assert.equal(gameState.player.class, 'archer');
 });
+
+test('migration normalizes saved equipment upgrades and rune sockets without losing valid progression', (t) => {
+    const values = installStorage(t);
+    const saved = {
+        class: 'warrior',
+        level: 12,
+        equipment: { weapon: 'iron_sword', armor: 'leather_armor' },
+        itemUpgrades: {
+            iron_sword: 4,
+            leather_armor: 8,
+            dragon_sword: 99,
+            health_potion: 5,
+            unknown_weapon: 3,
+            malformed: 1.5,
+            negative: -2
+        },
+        weaponRunes: {
+            iron_sword: ['flame', 'retired_rune', 'flame', 'frost', 'blood', 'storm'],
+            dragon_sword: ['dragon'],
+            health_potion: ['blood'],
+            unknown_weapon: ['flame'],
+            malformed: 'flame'
+        },
+        inventory: [{ id: 'health_potion', quantity: 2 }]
+    };
+    values.set('rpg_adventure_save', JSON.stringify({ player: saved }));
+
+    assert.equal(gameState.load(), true);
+    const player = gameState.player;
+    assert.deepEqual(player.itemUpgrades, {
+        iron_sword: 4,
+        leather_armor: 8,
+        dragon_sword: 10
+    });
+    assert.deepEqual(player.weaponRunes, {
+        iron_sword: ['flame', 'frost', 'blood'],
+        dragon_sword: ['dragon']
+    });
+    assert.equal(gameState.save(), true);
+    const reloaded = Storage.load().player;
+    assert.deepEqual(reloaded.itemUpgrades, player.itemUpgrades);
+    assert.deepEqual(reloaded.weaponRunes, player.weaponRunes);
+});
+
+test('migration replaces malformed equipment progression containers with empty safe records', (t) => {
+    const values = installStorage(t);
+    values.set('rpg_adventure_save', JSON.stringify({
+        player: {
+            class: 'mage',
+            itemUpgrades: ['iron_sword', 10],
+            weaponRunes: 'not-a-record',
+            inventory: [],
+            equipment: {}
+        }
+    }));
+
+    assert.equal(gameState.load(), true);
+    assert.deepEqual(gameState.player.itemUpgrades, {});
+    assert.deepEqual(gameState.player.weaponRunes, {});
+});

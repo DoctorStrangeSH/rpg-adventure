@@ -128,3 +128,35 @@ test('a final-region clear without the World Eater victory flag cannot unlock NG
     assert.equal(player.campaignCompleted, false);
     assert.equal(player.newGamePlusUnlocked, false);
 });
+
+test('failed regional item batch does not consume the once-per-cycle reward claim', (t) => {
+    installBrowserStubs(t);
+    const player = gameState.createPlayer('warrior');
+    const location = getLocation('forest');
+    const run = getLocationState();
+    const initialExperience = player.experience;
+    const initialGold = player.gold;
+    player.inventory.push({ id: 'iron_sword', quantity: Number.MAX_SAFE_INTEGER });
+
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.inLocation = true;
+    completeLocation();
+
+    assert.equal(player.locationRewardCycles?.forest, undefined);
+    assert.equal(player.experience, initialExperience);
+    assert.equal(player.gold, initialGold);
+    assert.equal(player.inventory.find(item => item.id === 'rune_verdant_heart'), undefined);
+
+    // Repair the damaged stack and retry the completion claim in the same cycle.
+    player.inventory = player.inventory.filter(item => item.id !== 'iron_sword');
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.inLocation = true;
+    completeLocation();
+
+    assert.equal(player.locationRewardCycles.forest, 1);
+    assert.equal(player.inventory.find(item => item.id === 'rune_verdant_heart')?.quantity, 1);
+    assert.equal(player.experience, initialExperience + location.rewards.exp);
+    assert.equal(player.gold, initialGold + location.rewards.gold);
+});

@@ -280,11 +280,14 @@ test('failed secret-room save rolls back inventory and leaves the room choice pe
 });
 
 test('headless checkpoint fallback keeps the checkpoint pending when persistence fails', (t) => {
-    const { player } = setup(t);
+    const { player, battle } = setup(t);
+    startLocation('forest');
     const previousDocument = globalThis.document;
     const previousSave = gameState.save;
     globalThis.document = { getElementById() { return null; } };
     gameState.save = () => false;
+    battle.isActive = false;
+    battle.currentEnemy = null;
     const run = getLocationState();
     run.currentStage = 4;
     t.after(() => {
@@ -302,11 +305,14 @@ test('headless checkpoint fallback keeps the checkpoint pending when persistence
 });
 
 test('headless route fallback does not apply a safe route after save failure', (t) => {
-    setup(t);
+    const { battle } = setup(t);
+    startLocation('forest');
     const previousDocument = globalThis.document;
     const previousSave = gameState.save;
     globalThis.document = { getElementById() { return null; } };
     gameState.save = () => false;
+    battle.isActive = false;
+    battle.currentEnemy = null;
     const run = getLocationState();
     run.currentStage = 2;
     t.after(() => {
@@ -324,11 +330,14 @@ test('headless route fallback does not apply a safe route after save failure', (
 });
 
 test('headless event fallback preserves its pending event when save fails', (t) => {
-    setup(t);
+    const { battle } = setup(t);
+    startLocation('forest');
     const previousDocument = globalThis.document;
     const previousSave = gameState.save;
     globalThis.document = { getElementById() { return null; } };
     gameState.save = () => false;
+    battle.isActive = false;
+    battle.currentEnemy = null;
     const run = getLocationState();
     run.currentStage = 4;
     run.visitedCheckpointStages.add(4);
@@ -347,11 +356,14 @@ test('headless event fallback preserves its pending event when save fails', (t) 
 });
 
 test('secret-stage discovery marker is restored when its save fails', (t) => {
-    setup(t);
+    const { battle } = setup(t);
+    startLocation('forest');
     const previousSave = gameState.save;
     const previousRandom = Math.random;
     gameState.save = () => false;
     Math.random = () => 0.1;
+    battle.isActive = false;
+    battle.currentEnemy = null;
     const run = getLocationState();
     run.currentStage = 6;
     t.after(() => {

@@ -16,7 +16,8 @@ let mapState = {
     selectedLocation: null,
     playerX: 100,
     playerY: 100,
-    isAnimating: false
+    isAnimating: false,
+    resizeObserver: null
 };
 
 export function initMap() {
@@ -24,21 +25,33 @@ export function initMap() {
     if (!mapState.canvas) return;
     mapState.ctx = mapState.canvas.getContext('2d');
     
+    const container = mapState.canvas.parentElement;
+    if (!container) return;
+
     resizeMap();
     addEventListenerOnce(window, 'resize', resizeMap);
+    addEventListenerOnce(window, 'orientationchange', resizeMap);
+    if (window.visualViewport) {
+        addEventListenerOnce(window.visualViewport, 'resize', resizeMap);
+    }
     addEventListenerOnce(mapState.canvas, 'click', handleMapClick);
+    if (typeof ResizeObserver !== 'undefined' && !mapState.resizeObserver) {
+        mapState.resizeObserver = new ResizeObserver(resizeMap);
+        mapState.resizeObserver.observe(container);
+    }
 }
 
 function resizeMap() {
     if (!mapState.canvas) return;
-    
+
     const container = mapState.canvas.parentElement;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
-    
-    mapState.canvas.width = width;
-    mapState.canvas.height = height;
-    
+    if (!container) return;
+    const width = Math.max(1, Math.round(container.clientWidth));
+    const height = Math.max(1, Math.round(container.clientHeight));
+
+    if (mapState.canvas.width !== width) mapState.canvas.width = width;
+    if (mapState.canvas.height !== height) mapState.canvas.height = height;
+
     scaleLocations(width, height);
     drawMap();
 }
@@ -52,10 +65,10 @@ function scaleLocations(width, height) {
         location.scaledY = (location.y / originalHeight) * height;
     });
     
-    if (mapState.playerX === 100 && mapState.playerY === 100) {
-        mapState.playerX = (100 / originalWidth) * width;
-        mapState.playerY = (100 / originalHeight) * height;
-    }
+    // The marker uses canonical map coordinates, so it must be recalculated
+    // after every resize/orientation change instead of keeping stale pixels.
+    mapState.playerX = (100 / originalWidth) * width;
+    mapState.playerY = (100 / originalHeight) * height;
 }
 
 function drawMap() {

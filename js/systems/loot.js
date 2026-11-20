@@ -1,18 +1,68 @@
 import { getItem } from '../data/items.js';
 import { LOCATIONS } from '../data/locations.js';
 
+/**
+ * Validates a batch of item awards without mutating the player.
+ * Duplicate inventory stacks and duplicate rewards are counted together so
+ * an award cannot overflow the aggregate quantity while each stack looks safe.
+ */
+export function canGrantItems(player, rewards) {
+    if (!player || !Array.isArray(player.inventory) || !Array.isArray(rewards)) return false;
+    const requested = new Map();
+    for (const reward of rewards) {
+        if (!reward || !getItem(reward.id) || !Number.isSafeInteger(reward.quantity) ||
+            reward.quantity <= 0) return false;
+        const previous = requested.get(reward.id) || 0;
+        if (previous > Number.MAX_SAFE_INTEGER - reward.quantity) return false;
+        requested.set(reward.id, previous + reward.quantity);
+    }
+    for (const [itemId, quantity] of requested) {
+        let owned = 0;
+        for (const stack of player.inventory) {
+            if (stack?.id !== itemId) continue;
+            if (!Number.isSafeInteger(stack.quantity) || stack.quantity < 0 ||
+                owned > Number.MAX_SAFE_INTEGER - stack.quantity) return false;
+            owned += stack.quantity;
+        }
+        if (owned > Number.MAX_SAFE_INTEGER - quantity) return false;
+    }
+    return true;
+}
+
+/** Applies a fully validated batch as one inventory operation. */
+export function grantItemsAtomically(player, rewards) {
+    if (!canGrantItems(player, rewards)) return false;
+    const requested = new Map();
+    for (const reward of rewards) {
+        requested.set(reward.id, (requested.get(reward.id) || 0) + reward.quantity);
+    }
+    for (const [itemId, quantity] of requested) {
+        let firstIndex = -1;
+        let total = 0;
+        for (let i = 0; i < player.inventory.length; i++) {
+            if (player.inventory[i]?.id !== itemId) continue;
+            if (firstIndex === -1) firstIndex = i;
+            total += player.inventory[i].quantity;
+        }
+        if (firstIndex === -1) {
+            player.inventory.push({ id: itemId, quantity });
+        } else {
+            player.inventory[firstIndex].quantity = total + quantity;
+            for (let i = player.inventory.length - 1; i > firstIndex; i--) {
+                if (player.inventory[i]?.id === itemId) player.inventory.splice(i, 1);
+            }
+        }
+    }
+    if (!Array.isArray(player.discoveredItems)) player.discoveredItems = [];
+    for (const itemId of requested.keys()) {
+        if (!player.discoveredItems.includes(itemId)) player.discoveredItems.push(itemId);
+    }
+    return true;
+}
+
 // Returns the quantity actually awarded; invalid IDs and quantities never modify a save.
 export function grantItem(player, itemId, quantity = 1) {
-    if (!player || !Array.isArray(player.inventory) || !getItem(itemId) ||
-        !Number.isSafeInteger(quantity) || quantity <= 0) return 0;
-    const existing = player.inventory.find(item => item.id === itemId);
-    if (existing && (!Number.isSafeInteger(existing.quantity) || existing.quantity < 0 ||
-        existing.quantity > Number.MAX_SAFE_INTEGER - quantity)) return 0;
-    if (existing) existing.quantity += quantity;
-    else player.inventory.push({ id: itemId, quantity });
-    if (!Array.isArray(player.discoveredItems)) player.discoveredItems = [];
-    if (!player.discoveredItems.includes(itemId)) player.discoveredItems.push(itemId);
-    return quantity;
+    return grantItemsAtomically(player, [{ id: itemId, quantity }]) ? quantity : 0;
 }
 
 // A small, predictable economy: ordinary enemies mostly award gold; bosses

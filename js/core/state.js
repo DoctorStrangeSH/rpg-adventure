@@ -332,6 +332,51 @@ class GameState {
         }
         return false;
     }
+
+    canRestoreRecovery() {
+        const recovery = Storage.loadRecovery();
+        if (!isPlainRecord(recovery)) return false;
+        let candidate;
+        try {
+            candidate = JSON.parse(JSON.stringify(recovery));
+        } catch {
+            return false;
+        }
+        const migrated = migrateSaveData(candidate);
+        return migrated.ok && isPlainRecord(migrated.data.player) &&
+            normalizePlayerSave(migrated.data.player);
+    }
+
+    restoreRecovery() {
+        const recovery = Storage.loadRecovery();
+        if (!isPlainRecord(recovery)) return false;
+        let candidate;
+        try {
+            candidate = JSON.parse(JSON.stringify(recovery));
+        } catch {
+            return false;
+        }
+        const migrated = migrateSaveData(candidate);
+        if (!migrated.ok || !isPlainRecord(migrated.data.player) ||
+            !normalizePlayerSave(migrated.data.player)) return false;
+
+        const restoredData = {
+            schemaVersion: CURRENT_SAVE_VERSION,
+            player: migrated.data.player,
+            screen: 'main-menu'
+        };
+        let restored = false;
+        try {
+            restored = Storage.restoreRecovery(restoredData) === true;
+        } catch {
+            restored = false;
+        }
+        if (!restored) return false;
+
+        this.data = { player: restoredData.player, screen: 'main-menu' };
+        restoreUnlockedLocations(this.player);
+        return true;
+    }
 }
 
 export const gameState = new GameState();

@@ -5,6 +5,7 @@ import { SoundSystem } from '../systems/sound.js';
 import { applyExperience } from '../systems/progression.js';
 import { escapeHtml } from '../core/html.js';
 import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
+import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
 import { getEffectiveCombatStats } from '../systems/combat.js';
 import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, getActiveRelicSynergies, toggleRelic } from '../systems/relics.js';
@@ -165,16 +166,41 @@ function createStatCard(label, value) {
 
 export function levelUp({ save = true } = {}) {
     const player = gameState.player;
-    if (!player) return;
+    if (!player) return false;
+    const snapshot = save ? createPlayerSnapshot(player) : null;
+    if (save && !snapshot) return false;
+    const deferredNotifications = [];
     const gainedLevels = applyExperience(player);
+
+    if (gainedLevels) {
+        window.updateQuestProgress?.('level', player.level, {
+            save: false,
+            notifications: save ? deferredNotifications : null
+        });
+    }
+    window.updateAchievements?.({
+        save: false,
+        notifications: save ? deferredNotifications : null
+    });
+
+    if (save && !commitPlayerMutation(player, snapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить повышение уровня. Опыт и характеристики восстановлены.', 'error');
+        return false;
+    }
+
     if (gainedLevels) {
         SoundSystem.playSound('levelup');
-        window.showNotification(`🎉 +${gainedLevels} ур.! Теперь вы ${player.level} уровня!`, 'success');
-        window.updateQuestProgress?.('level', player.level, { save });
+        window.showNotification?.(`🎉 +${gainedLevels} ур.! Теперь вы ${player.level} уровня!`, 'success');
     }
-    if (save) gameState.save();
+    deferredNotifications.forEach(({ kind, name }) => {
+        const message = kind === 'quest'
+            ? `🎉 Квест выполнен: ${name}!`
+            : `🏆 Достижение получено: ${name}!`;
+        window.showNotification?.(message, 'success');
+    });
+
     window.updateMainMenu?.();
     updateCharacterScreen();
     window.updateQuestsScreen?.();
-    window.updateAchievements?.({ save });
+    return true;
 }

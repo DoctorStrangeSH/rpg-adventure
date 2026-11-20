@@ -764,7 +764,13 @@ export function battleVictory() {
         // Dungeon handlers persist the player reward and the advanced resume
         // marker together. Saving before them would let a reload replay a paid fight.
         if (battleState.isBossBattle) {
-            window.handleBossVictory?.();
+            const committed = window.handleBossVictory?.(playerBeforeBattle);
+            if (committed === false) {
+                restorePlayerSnapshot(player, playerBeforeBattle);
+                setTimeout(() => {
+                    if (locationState?.inLocation && !battleState.isActive) window.startStageBattle?.();
+                }, 500);
+            }
         } else {
             const committed = window.handleVictory?.(playerBeforeBattle);
             if (committed === false) {

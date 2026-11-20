@@ -24,6 +24,7 @@ export function restorePlayerSnapshot(player, snapshot) {
  * the player in memory and returns false; callers must not show success feedback.
  */
 export function commitPlayerMutation(player, snapshot, save) {
+    if (!player || !snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return false;
     if (typeof save !== 'function') {
         restorePlayerSnapshot(player, snapshot);
         return false;

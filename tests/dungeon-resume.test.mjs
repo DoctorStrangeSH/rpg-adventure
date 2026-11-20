@@ -278,3 +278,90 @@ test('failed secret-room save rolls back inventory and leaves the room choice pe
     assert.deepEqual(run.pendingSecretRoom, pending);
     assert.equal(battle.isActive, false);
 });
+
+test('headless checkpoint fallback keeps the checkpoint pending when persistence fails', (t) => {
+    const { player } = setup(t);
+    const previousDocument = globalThis.document;
+    const previousSave = gameState.save;
+    globalThis.document = { getElementById() { return null; } };
+    gameState.save = () => false;
+    const run = getLocationState();
+    run.currentStage = 4;
+    t.after(() => {
+        gameState.save = previousSave;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startStageBattle();
+
+    assert.equal(run.inLocation, true);
+    assert.deepEqual(run.pendingCheckpoint, { stage: 4, runId: run.runId });
+    assert.equal(run.visitedCheckpointStages.has(4), false);
+    assert.equal(player.dungeonProgress.forest.stage, 0);
+});
+
+test('headless route fallback does not apply a safe route after save failure', (t) => {
+    setup(t);
+    const previousDocument = globalThis.document;
+    const previousSave = gameState.save;
+    globalThis.document = { getElementById() { return null; } };
+    gameState.save = () => false;
+    const run = getLocationState();
+    run.currentStage = 2;
+    t.after(() => {
+        gameState.save = previousSave;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startStageBattle();
+
+    assert.equal(run.inLocation, true);
+    assert.deepEqual(run.pendingRoute, { stage: 2, runId: run.runId });
+    assert.equal(run.visitedRouteStages.has(2), false);
+    assert.equal(run.routeChoices[2], undefined);
+});
+
+test('headless event fallback preserves its pending event when save fails', (t) => {
+    setup(t);
+    const previousDocument = globalThis.document;
+    const previousSave = gameState.save;
+    globalThis.document = { getElementById() { return null; } };
+    gameState.save = () => false;
+    const run = getLocationState();
+    run.currentStage = 4;
+    run.visitedCheckpointStages.add(4);
+    t.after(() => {
+        gameState.save = previousSave;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startStageBattle();
+
+    assert.equal(run.inLocation, true);
+    assert.ok(run.pendingEvent);
+    assert.equal(run.pendingEvent.stage, 4);
+    assert.equal(run.visitedEventStages.has(4), false);
+});
+
+test('secret-stage discovery marker is restored when its save fails', (t) => {
+    setup(t);
+    const previousSave = gameState.save;
+    const previousRandom = Math.random;
+    gameState.save = () => false;
+    Math.random = () => 0.1;
+    const run = getLocationState();
+    run.currentStage = 6;
+    t.after(() => {
+        gameState.save = previousSave;
+        Math.random = previousRandom;
+    });
+
+    startStageBattle();
+
+    assert.equal(run.inLocation, true);
+    assert.equal(run.checkedSecretStages.has(6), false);
+    assert.equal(run.pendingSecretRoom, null);
+});

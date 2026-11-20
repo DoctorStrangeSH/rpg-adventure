@@ -266,10 +266,29 @@ export function startStageBattle() {
             startBossFight(stage.boss);
             return;
         }
+        const previousStage = locationState.currentStage;
+        const previousDefeated = locationState.enemiesDefeated;
+        const previousProgress = gameState.player?.dungeonProgress
+            ? structuredClone(gameState.player.dungeonProgress) : null;
         locationState.currentStage++;
         locationState.enemiesDefeated = 0;
         persistDungeonProgress();
-        gameState.save();
+        let saved = false;
+        try {
+            saved = gameState.save() === true;
+        } catch {
+            saved = false;
+        }
+        if (!saved) {
+            locationState.currentStage = previousStage;
+            locationState.enemiesDefeated = previousDefeated;
+            if (gameState.player) {
+                if (previousProgress) gameState.player.dungeonProgress = previousProgress;
+                else delete gameState.player.dungeonProgress;
+            }
+            window.showNotification?.('Не удалось сохранить переход этапа. Экспедиция сохранена на прежнем этапе — попробуйте снова.', 'error');
+            return;
+        }
         startStageBattle();
         return;
     }

@@ -4,6 +4,25 @@ import { CLASSES } from '../data/classes.js';
 import { ScreenManager } from '../core/screen.js';
 import { escapeHtml } from '../core/html.js';
 
+
+export function createPlayerWithPersistence(classId) {
+    const previousPlayer = gameState.player;
+    if (!gameState.createPlayer(classId)) return false;
+
+    let saved = false;
+    try {
+        saved = gameState.save() === true;
+    } catch {
+        saved = false;
+    }
+    if (!saved) {
+        gameState.player = previousPlayer;
+        window.showNotification?.('Не удалось сохранить нового персонажа. Проверьте доступное место хранилища и попробуйте ещё раз.', 'error');
+        return false;
+    }
+    return true;
+}
+
 export function initUI() {
     const mainMenu = document.getElementById('main-menu');
     

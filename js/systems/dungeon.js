@@ -572,7 +572,8 @@ export function completeLocation() {
         player.unlockedLocations.push(nextLocation.id);
     }
     player.stats.dungeonsCompleted = (player.stats.dungeonsCompleted || 0) + 1;
-    if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];\n    clearDungeonProgress(player, location.id);
+    if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];
+    clearDungeonProgress(player, location.id);
     
     locationState.inLocation = false;
     locationState.pendingEvent = null;

@@ -19,13 +19,21 @@ export function completeCampaign(player, completedAt = new Date().toISOString())
     return true;
 }
 
-export function claimLocationReward(player, locationId) {
+export function canClaimLocationReward(player, locationId) {
     if (!player || typeof locationId !== 'string' ||
         !LOCATIONS.some(location => location.id === locationId && location.type !== 'safe')) return false;
-    player.locationRewardCycles ||= {};
+    const cycles = player.locationRewardCycles;
+    if (cycles !== undefined && (cycles === null || typeof cycles !== 'object' || Array.isArray(cycles))) return false;
     const cycle = Number.isSafeInteger(player.campaignCycle) && player.campaignCycle >= 1
         ? player.campaignCycle : 1;
-    if (player.locationRewardCycles[locationId] === cycle) return false;
+    return cycles?.[locationId] !== cycle;
+}
+
+export function claimLocationReward(player, locationId) {
+    if (!canClaimLocationReward(player, locationId)) return false;
+    if (!player.locationRewardCycles) player.locationRewardCycles = {};
+    const cycle = Number.isSafeInteger(player.campaignCycle) && player.campaignCycle >= 1
+        ? player.campaignCycle : 1;
     player.locationRewardCycles[locationId] = cycle;
     return true;
 }

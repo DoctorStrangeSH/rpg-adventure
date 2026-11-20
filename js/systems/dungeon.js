@@ -497,8 +497,17 @@ export function completeLocation() {
         nextLocationText = '\nВсе доступные локации пройдены.';
     }
     
+    const itemRewardSummary = rewardGranted
+        ? location.rewards.items
+            .map(rewardItem => {
+                const item = getItem(rewardItem.id);
+                return item ? `${item.name} ×${rewardItem.quantity}` : null;
+            })
+            .filter(Boolean)
+            .join(', ')
+        : '';
     const rewardSummary = rewardGranted
-        ? `+${location.rewards.exp} EXP, +${location.rewards.gold} золота!`
+        ? `+${location.rewards.exp} EXP, +${location.rewards.gold} золота!${itemRewardSummary ? ` Предметы: ${itemRewardSummary}.` : ''}`
         : 'Награда за эту локацию в текущем цикле уже получена.';
     window.showNotification(`🎉 Локация пройдена! ${rewardSummary}${nextLocationText}`, 'success');
     

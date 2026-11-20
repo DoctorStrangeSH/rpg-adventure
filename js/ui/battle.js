@@ -12,7 +12,7 @@ import { createArenaBackdropCache } from './arenaBackdrop.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
 import { BossSpellFx } from '../systems/bossSpellFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, consumeManaPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
-import { grantItem, rollLoot } from '../systems/loot.js';
+import { grantItem, hasBossTrophy, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 
 const particleSystem = new ParticleSystem();
@@ -727,8 +727,9 @@ export function battleVictory() {
     
     window.updateAchievements?.();
     
-    const lootId = rollLoot(battleState.isBossBattle, Math.random,
-        battleState.isBossBattle && !enemy.miniBoss ? enemy.id : null);
+    const storyBossId = battleState.isBossBattle && !enemy.miniBoss ? enemy.id : null;
+    const lootId = rollLoot(battleState.isBossBattle, Math.random, storyBossId,
+        hasBossTrophy(player, storyBossId));
     const lootQuantity = lootId ? grantItem(player, lootId) : 0;
     const lootText = lootQuantity ? ` 🎁 Добыча: ${getItem(lootId).name}!` : '';
     const relicId = awardRelic(player, enemy.elite === true || enemy.miniBoss === true, battleState.isBossBattle && !enemy.miniBoss);

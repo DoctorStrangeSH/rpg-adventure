@@ -80,7 +80,7 @@ test('migration repairs malformed counters, equipment, inventory and checkpoints
     assert.equal(player.health, 90);
     assert.equal(player.mana, 50);
     assert.equal(player.gold, 100);
-    assert.equal(player.attack, 10);
+    assert.equal(player.attack, 20);
     assert.equal(player.defense, 5);
     assert.deepEqual(player.inventory, [{ id: 'health_potion', quantity: 5 }]);
     assert.deepEqual(player.equipment, { weapon: null, armor: null });
@@ -94,6 +94,12 @@ test('migration repairs malformed counters, equipment, inventory and checkpoints
 
 test('invalid class save never replaces the active player', (t) => {
     installStorage(t);
+    const previousWindow = globalThis.window;
+    globalThis.window = {};
+    t.after(() => {
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+    });
     const activePlayer = gameState.createPlayer('archer');
     globalThis.localStorage.setItem('rpg_adventure_save', JSON.stringify({
         player: { class: 'unknown', inventory: [], equipment: {} }

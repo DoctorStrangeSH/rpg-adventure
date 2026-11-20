@@ -772,23 +772,41 @@ export function completeLocation(playerBeforeCompletion = null) {
 }
 
 export function fleeLocation() {
-    if (gameState.player?.dungeonCheckpoints && locationState.currentLocation)
-        delete gameState.player.dungeonCheckpoints[locationState.currentLocation.id];
-    if (locationState.currentLocation) clearDungeonProgress(gameState.player, locationState.currentLocation.id);
-    gameState.save();
+    const player = gameState.player;
+    const location = locationState.currentLocation;
+    if (!player || !location || !locationState.inLocation) return false;
+
+    const playerBeforeFlee = snapshotPlayer();
+    if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];
+    clearDungeonProgress(player, location.id);
+
+    let saved = false;
+    try {
+        saved = gameState.save() === true;
+    } catch {
+        saved = false;
+    }
+    if (!saved) {
+        restorePlayer(playerBeforeFlee);
+        window.showNotification?.('Не удалось сохранить выход. Прогресс экспедиции сохранён — попробуйте ещё раз.', 'error');
+        return false;
+    }
+
     locationState.runId++;
     locationState.inLocation = false;
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
     locationState.pendingSecretRoom = null;
+    locationState.pendingCheckpoint = null;
     locationState.currentLocation = null;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.finalBossDefeated = false;
-    
-    window.showNotification('Вы покинули локацию. Прогресс сброшен.', 'info');
+
+    window.showNotification?.('Вы покинули локацию. Прогресс сброшен.', 'info');
     window.exitBattle();
     window.showScreen('map-screen');
+    return true;
 }
 
 export function resetLocationState() {
@@ -989,18 +1007,37 @@ export function handleBossVictory(playerBeforeBattle = null) {
 
 // Вызывается при поражении
 export function handleDefeat() {
-    if (gameState.player?.dungeonCheckpoints && locationState.currentLocation)
-        delete gameState.player.dungeonCheckpoints[locationState.currentLocation.id];
-    if (locationState.currentLocation) clearDungeonProgress(gameState.player, locationState.currentLocation.id);
-    gameState.save();
+    const player = gameState.player;
+    if (!player) return false;
+    const playerBeforeDefeatCommit = snapshotPlayer();
+    const locationId = locationState.currentLocation?.id;
+
+    if (locationId && player.dungeonCheckpoints) delete player.dungeonCheckpoints[locationId];
+    if (locationId) clearDungeonProgress(player, locationId);
+
+    let saved = false;
+    try {
+        saved = gameState.save() === true;
+    } catch {
+        saved = false;
+    }
+    if (!saved) {
+        restorePlayer(playerBeforeDefeatCommit);
+        window.showNotification?.('Не удалось сохранить поражение. Прогресс экспедиции восстановлен в сохранении.', 'error');
+        return false;
+    }
+
     locationState.runId++;
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.inLocation = false;
     locationState.pendingEvent = null;
     locationState.pendingRoute = null;
+    locationState.pendingSecretRoom = null;
+    locationState.pendingCheckpoint = null;
     locationState.currentLocation = null;
     locationState.finalBossDefeated = false;
-    
-    window.showNotification('Вы погибли! Прогресс локации сброшен. Начните заново.', 'error');
+
+    window.showNotification?.('Вы погибли! Прогресс локации сброшен. Начните заново.', 'error');
+    return true;
 }

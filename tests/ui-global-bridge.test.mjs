@@ -16,7 +16,7 @@ function collectJavaScript(directory) {
 
 function readSources() {
     return collectJavaScript(root).map(path => ({
-        path: relative(root.pathname, path).replaceAll('\\', '/'),
+        path: relative(root, path).replaceAll('\\', '/'),
         source: readFileSync(path, 'utf8')
     }));
 }

@@ -65,7 +65,8 @@ test('crafting, upgrades, rune inscription/extraction and salvage survive save r
     assert.equal(inscribeRune(loaded, 'iron_sword', 'flame').ok, true);
     loaded = saveAndReload(loaded);
     assert.deepEqual(getWeaponRunes(loaded, 'iron_sword'), ['flame']);
-    assert.equal(loaded.inventory.find(entry => entry.id === 'ember_core'), undefined);
+    assert.equal(loaded.inventory.find(entry => entry.id === 'ember_core')?.quantity, 2,
+        'inscription must persist the exact remaining material quantity');
 
     // Extraction returns the exact materials and removes the rune after reload.
     assert.equal(extractRune(loaded, 'iron_sword', 0).ok, true);

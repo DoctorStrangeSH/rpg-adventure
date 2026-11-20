@@ -1,4 +1,5 @@
 import { getItem } from '../data/items.js';
+import { LOCATIONS } from '../data/locations.js';
 
 // Returns the quantity actually awarded; invalid IDs and quantities never modify a save.
 export function grantItem(player, itemId, quantity = 1) {
@@ -53,6 +54,30 @@ export function rollLoot(isBoss = false, random = Math.random, bossId = null) {
     if (tier < 0.48) return 'blood_dagger';
     if (tier < 0.72) return 'big_health_potion';
     return 'mana_potion';
+}
+
+
+/**
+ * Claims one deep-chest attempt per milestone and campaign cycle.
+ * The attempt is consumed even when the chest roll produces no item, preventing
+ * re-entering a cleared region from rerolling the same milestone indefinitely.
+ */
+export function claimDeepChestAttempt(player, locationId, stageNumber) {
+    const location = LOCATIONS.find(entry => entry.id === locationId && entry.type !== 'safe');
+    if (!player || !location || !Number.isSafeInteger(stageNumber) ||
+        stageNumber < 20 || stageNumber > location.totalStages || stageNumber % 10 !== 0) return false;
+
+    const cycle = Number.isSafeInteger(player.campaignCycle) && player.campaignCycle >= 1
+        ? player.campaignCycle : 1;
+    if (!player.deepChestRewardCycles || typeof player.deepChestRewardCycles !== 'object' ||
+        Array.isArray(player.deepChestRewardCycles)) player.deepChestRewardCycles = {};
+
+    const key = `${locationId}:${stageNumber}`;
+    const previousCycle = player.deepChestRewardCycles[key];
+    if (Number.isSafeInteger(previousCycle) && previousCycle >= cycle) return false;
+
+    player.deepChestRewardCycles[key] = cycle;
+    return true;
 }
 
 // Deep chests can only drop after a major boss milestone (stage 20, 30, ...).

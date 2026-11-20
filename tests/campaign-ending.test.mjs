@@ -67,6 +67,50 @@ test('World Eater victory completes the campaign, saves it and opens the ending'
     assert.equal(gameState.player.newGamePlusUnlocked, true);
 });
 
+
+test('region completion pipeline grants each guaranteed rune exactly once per campaign cycle', (t) => {
+    installBrowserStubs(t);
+    const previousPlayer = gameState.player;
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => {
+        gameState.player = previousPlayer;
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+    });
+
+    const expected = new Map([
+        ['forest', 'rune_verdant_heart'],
+        ['mountains', 'rune_dragon_heart'],
+        ['ruins', 'rune_lich_soul'],
+        ['dragon_lair', 'rune_world_fragment']
+    ]);
+
+    for (const [locationId, runeId] of expected) {
+        const player = gameState.createPlayer('warrior');
+        const location = getLocation(locationId);
+        const run = getLocationState();
+
+        run.currentLocation = location;
+        run.currentStage = location.stages.length - 1;
+        run.inLocation = true;
+        run.finalBossDefeated = false;
+        completeLocation();
+
+        assert.equal(player.locationRewardCycles[locationId], 1);
+        assert.equal(player.inventory.find(item => item.id === runeId)?.quantity, 1,
+            `${locationId} must grant its guaranteed rune through the runtime reward pipeline`);
+
+        // Simulate entering and clearing the same region again in the same cycle.
+        run.currentLocation = location;
+        run.currentStage = location.stages.length - 1;
+        run.inLocation = true;
+        run.finalBossDefeated = false;
+        completeLocation();
+
+        assert.equal(player.inventory.find(item => item.id === runeId)?.quantity, 1,
+            `${locationId} must not duplicate its guaranteed rune in one campaign cycle`);
+    }
+});
+
 test('a final-region clear without the World Eater victory flag cannot unlock NG+', (t) => {
     installBrowserStubs(t);
     const player = gameState.createPlayer('mage');

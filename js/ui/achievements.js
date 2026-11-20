@@ -65,7 +65,7 @@ function createAchievementCard(achievement, playerAchievements) {
     `;
 }
 
-export function updateAchievements({ save = true } = {}) {
+export function updateAchievements({ save = true, notifications = null } = {}) {
     const player = gameState.player;
     if (!player) return false;
     const snapshot = save ? createPlayerSnapshot(player) : null;
@@ -99,7 +99,10 @@ export function updateAchievements({ save = true } = {}) {
         window.showNotification?.('Не удалось сохранить прогресс достижений. Изменения отменены.', 'error');
         return false;
     }
-    newlyCompleted.forEach(name => window.showNotification?.(`🏆 Достижение получено: ${name}!`, 'success'));
+    newlyCompleted.forEach(name => {
+        if (Array.isArray(notifications)) notifications.push({ kind: 'achievement', name });
+        else window.showNotification?.(`🏆 Достижение получено: ${name}!`, 'success');
+    });
     return true;
 }
 

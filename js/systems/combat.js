@@ -246,18 +246,36 @@ export function applyDamage(entity, damage) {
     return amount;
 }
 
-export function consumeHealingPotion(player, item, potionData) {
-    if (!item || item.quantity <= 0 || !player.inventory.includes(item) ||
-        !potionData?.heal || player.health >= player.maxHealth) {
-        return 0;
-    }
-    const restored = Math.min(potionData.heal, player.maxHealth - player.health);
-    player.health += restored;
+export function consumeResourcePotion(player, item, potionData, resource = 'health') {
+    if (!player || !Array.isArray(player.inventory) || !item ||
+        !Number.isSafeInteger(item.quantity) || item.quantity <= 0 ||
+        !player.inventory.includes(item)) return 0;
+
+    const config = resource === 'health'
+        ? { amount: potionData?.heal, current: player.health, maximum: player.maxHealth }
+        : resource === 'mana'
+            ? { amount: potionData?.manaHeal, current: player.mana, maximum: player.maxMana }
+            : null;
+    if (!config || !Number.isFinite(config.amount) || config.amount <= 0 ||
+        !Number.isFinite(config.current) || !Number.isFinite(config.maximum) ||
+        config.current >= config.maximum) return 0;
+
+    const restored = Math.max(0, Math.min(Math.floor(config.amount), config.maximum - config.current));
+    if (restored <= 0) return 0;
+    if (resource === 'health') player.health += restored;
+    else player.mana += restored;
+
     item.quantity--;
-    if (item.quantity === 0) {
-        player.inventory.splice(player.inventory.indexOf(item), 1);
-    }
+    if (item.quantity === 0) player.inventory.splice(player.inventory.indexOf(item), 1);
     return restored;
+}
+
+export function consumeHealingPotion(player, item, potionData) {
+    return consumeResourcePotion(player, item, potionData, 'health');
+}
+
+export function consumeManaPotion(player, item, potionData) {
+    return consumeResourcePotion(player, item, potionData, 'mana');
 }
 
 export function useSkillEffect(player, enemy, skill) {

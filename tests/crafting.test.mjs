@@ -191,3 +191,25 @@ test('tenth equipment upgrade has a valid cost and completes without a runtime e
  assert.equal(p.inventory.length,0);
  assert.equal(getUpgradePreview(p,'iron_sword').reason,'max_level');
 });
+
+test('Dragon Lair completion grants the exact scale requirement once per campaign cycle',async()=>{
+ const {LOCATIONS}=await import('../js/data/locations.js');
+ const {claimLocationReward}=await import('../js/systems/newGamePlus.js');
+ const {grantItem}=await import('../js/systems/loot.js');
+ const {getCraftingAvailability,CRAFTING_RECIPES}=await import('../js/systems/crafting.js');
+ const location=LOCATIONS.find(entry=>entry.id==='dragon_lair');
+ const scaleReward=location.rewards.items.find(entry=>entry.id==='dragon_scale');
+ assert.deepEqual(scaleReward,{id:'dragon_scale',quantity:3});
+
+ const p={level:10,gold:2000,campaignCycle:1,locationRewardCycles:{},discoveredItems:[],inventory:[
+  {id:'ember_core',quantity:5},{id:'frost_crystal',quantity:5},{id:'blood_essence',quantity:5}
+ ]};
+ assert.equal(claimLocationReward(p,'dragon_lair'),true);
+ assert.equal(grantItem(p,scaleReward.id,scaleReward.quantity),3);
+ assert.equal(getCraftingAvailability(p,CRAFTING_RECIPES.find(recipe=>recipe.id==='dragon_sword')).available,true);
+ assert.equal(claimLocationReward(p,'dragon_lair'),false);
+ assert.equal(p.inventory.find(entry=>entry.id==='dragon_scale').quantity,3);
+
+ p.campaignCycle=2;
+ assert.equal(claimLocationReward(p,'dragon_lair'),true);
+});

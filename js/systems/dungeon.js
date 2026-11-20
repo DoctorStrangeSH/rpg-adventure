@@ -392,8 +392,7 @@ export function chooseDungeonRoute(routeId) {
     locationState.pendingRoute = null;
     persistDungeonProgress();
     if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить выбор маршрута. Попробуйте ещё раз.', 'error');
-        return false;
+        window.showNotification?.('Не удалось сохранить выбор маршрута. Он может потребоваться повторно после перезагрузки.', 'error');
     }
     window.showNotification?.(`Вы выбрали: ${getRoute(routeId).name}`, 'info');
     startStageBattle();
@@ -441,8 +440,7 @@ export function chooseAdventureEvent(choiceId) {
     locationState.pendingRoute = null;
     persistDungeonProgress();
     if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить исход события. Проверьте свободное место хранилища.', 'error');
-        return false;
+        window.showNotification?.('Не удалось сохранить исход события. После перезагрузки выбор может потребоваться повторить.', 'error');
     }
     window.showNotification?.(outcome.message, 'info');
     startStageBattle();
@@ -478,8 +476,7 @@ export function chooseSecretRoom(choice) {
     locationState.pendingSecretRoom = null;
     persistDungeonProgress();
     if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить исход тайной комнаты. Проверьте свободное место хранилища.', 'error');
-        return false;
+        window.showNotification?.('Не удалось сохранить исход тайной комнаты. После перезагрузки награда может не сохраниться.', 'error');
     }
     window.showNotification?.(outcome.message, 'info');
     startStageBattle();
@@ -625,6 +622,7 @@ export function completeLocation() {
 export function fleeLocation() {
     if (gameState.player?.dungeonCheckpoints && locationState.currentLocation)
         delete gameState.player.dungeonCheckpoints[locationState.currentLocation.id];
+    if (locationState.currentLocation) clearDungeonProgress(gameState.player, locationState.currentLocation.id);
     gameState.save();
     locationState.runId++;
     locationState.inLocation = false;
@@ -751,6 +749,7 @@ export function handleBossVictory() {
 export function handleDefeat() {
     if (gameState.player?.dungeonCheckpoints && locationState.currentLocation)
         delete gameState.player.dungeonCheckpoints[locationState.currentLocation.id];
+    if (locationState.currentLocation) clearDungeonProgress(gameState.player, locationState.currentLocation.id);
     gameState.save();
     locationState.runId++;
     locationState.currentStage = 0;

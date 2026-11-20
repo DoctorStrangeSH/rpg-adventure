@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
-import { getLocation } from '../js/data/locations.js';
+import { getLocation, LOCATIONS } from '../js/data/locations.js';
 import { getBattleState } from '../js/ui/battle.js';
 import { getLocationState, handleBossVictory, resetLocationState, completeLocation } from '../js/systems/dungeon.js';
 

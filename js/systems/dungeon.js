@@ -764,40 +764,74 @@ export function getLocationState() {
 }
 
 // Вызывается после победы над обычным врагом
-export function handleVictory() {
-    if (!locationState.inLocation || !locationState.currentLocation) return;
+export function handleVictory(playerBeforeBattle = null) {
+    if (!locationState.inLocation || !locationState.currentLocation) return false;
+    const previousStage = locationState.currentStage;
+    const previousDefeated = locationState.enemiesDefeated;
+    const previousProgress = gameState.player?.dungeonProgress
+        ? structuredClone(gameState.player.dungeonProgress) : null;
     locationState.enemiesDefeated++;
     persistDungeonProgress();
-    if (gameState.save() !== true) {
-        window.showNotification?.('Не удалось сохранить награду и прогресс боя. Проверьте свободное место хранилища.', 'error');
+    let saved = false;
+    try {
+        saved = gameState.save() === true;
+    } catch {
+        saved = false;
+    }
+    if (!saved) {
+        locationState.currentStage = previousStage;
+        locationState.enemiesDefeated = previousDefeated;
+        if (gameState.player) {
+            if (previousProgress) gameState.player.dungeonProgress = previousProgress;
+            else delete gameState.player.dungeonProgress;
+        }
+        window.showNotification?.('Не удалось сохранить победу. Награда отменена, бой будет предложен повторно.', 'error');
+        return false;
     }
 
     const location = locationState.currentLocation;
     const stage = location.stages[locationState.currentStage];
-    if (!stage) return;
+    if (!stage) return true;
     const runId = locationState.runId;
     const stageIndex = locationState.currentStage;
-    
+
     setTimeout(() => {
         if (!locationState.inLocation || locationState.runId !== runId ||
             locationState.currentStage !== stageIndex || getBattleState().isActive) return;
         if (locationState.enemiesDefeated >= stage.enemiesCount) {
             if (stage.boss) {
-                // Бой с боссом
                 startBossFight(stage.boss);
             } else {
-                // Переход на следующий этап
+                const oldStage = locationState.currentStage;
+                const oldDefeated = locationState.enemiesDefeated;
+                const oldProgress = gameState.player?.dungeonProgress
+                    ? structuredClone(gameState.player.dungeonProgress) : null;
                 locationState.currentStage++;
                 locationState.enemiesDefeated = 0;
                 persistDungeonProgress();
-                gameState.save();
+                let transitionSaved = false;
+                try {
+                    transitionSaved = gameState.save() === true;
+                } catch {
+                    transitionSaved = false;
+                }
+                if (!transitionSaved) {
+                    locationState.currentStage = oldStage;
+                    locationState.enemiesDefeated = oldDefeated;
+                    if (gameState.player) {
+                        if (oldProgress) gameState.player.dungeonProgress = oldProgress;
+                        else delete gameState.player.dungeonProgress;
+                    }
+                    window.showNotification?.('Не удалось сохранить переход этапа. Текущий этап сохранён — повторите попытку.', 'error');
+                    return;
+                }
                 startStageBattle();
             }
         } else {
-            // Следующий враг на этом же этапе
             startStageBattle();
         }
     }, 2000);
+    return true;
 }
 
 // Вызывается после победы над боссом

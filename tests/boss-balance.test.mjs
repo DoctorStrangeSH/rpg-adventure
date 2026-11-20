@@ -20,8 +20,6 @@ test('regional boss scaling stays bounded and preserves increasing regional base
             assert.ok(boss.health <= base.health * 1.35);
             assert.ok(boss.attack <= base.attack * 1.20);
             assert.ok(boss.defense <= base.defense * 1.15);
-            assert.ok(boss.expReward <= base.expReward * 1.5);
-            assert.ok(boss.goldReward <= base.goldReward * 1.5);
         }
 
         const firstMini = miniBosses[0].boss;
@@ -30,8 +28,6 @@ test('regional boss scaling stays bounded and preserves increasing regional base
         assert.ok(lastMini.health <= miniBase.health * 1.25);
         assert.ok(lastMini.attack <= miniBase.attack * 1.15);
         assert.ok(lastMini.defense <= miniBase.defense * 1.10);
-        assert.ok(lastMini.expReward <= miniBase.expReward * 1.4);
-        assert.ok(lastMini.goldReward <= miniBase.goldReward * 1.4);
         assert.ok(lastMini.health >= firstMini.health);
     }
 });

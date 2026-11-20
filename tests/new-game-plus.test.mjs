@@ -70,8 +70,8 @@ test('NG+ carries character progression and resets only campaign-run state', () 
     assert.equal(next.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
     assert.equal(next.quests.find(entry => entry.id === 'monster_hunter').progress, 0);
     assert.equal(player.campaignCycle, 1);
-    assert.deepEqual(LOCATIONS.filter(location => location.type !== 'safe' && location.unlocked)
-        .map(location => location.id), ['forest', 'mountains', 'ruins', 'dragon_lair']);
+    assert.deepEqual(LOCATIONS.map(location => location.unlocked),
+        [true, false, false, false, true]);
 });
 
 test('NG+ save failure rolls back player and world unlocks', () => {

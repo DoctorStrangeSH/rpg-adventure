@@ -3,6 +3,7 @@ import { gameState } from '../core/state.js';
 import { LOCATIONS, getLocation } from '../data/locations.js';
 import { CLASSES } from '../data/classes.js';
 import { getDungeonCheckpoint } from '../systems/dungeon.js';
+import { addEventListenerOnce } from '../core/listeners.js';
 
 export function getMapCheckpointLabel(player, location) {
     const stage = location?.type === 'safe' ? 0 : getDungeonCheckpoint(player, location?.id, location);
@@ -20,12 +21,12 @@ let mapState = {
 
 export function initMap() {
     mapState.canvas = document.getElementById('map-canvas');
+    if (!mapState.canvas) return;
     mapState.ctx = mapState.canvas.getContext('2d');
     
     resizeMap();
-    window.addEventListener('resize', resizeMap);
-    
-    mapState.canvas.addEventListener('click', handleMapClick);
+    addEventListenerOnce(window, 'resize', resizeMap);
+    addEventListenerOnce(mapState.canvas, 'click', handleMapClick);
 }
 
 function resizeMap() {

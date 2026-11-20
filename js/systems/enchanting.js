@@ -68,14 +68,18 @@ export function getRuneExtractionPreview(player,weaponId,index){
  if(!Number.isInteger(index)||index<0||index>=runes.length)return {available:false,reason:'invalid_socket'};
  const rune=RUNE_CATALOG[runes[index]];
  if(!Number.isSafeInteger(player.gold)||player.gold<0)return {available:false,reason:'invalid_currency',rune,index};
- if(!Array.isArray(player.inventory))return {available:false,reason:'invalid_inventory',rune,index};
+ const gold=player.gold;
+ if(gold<RUNE_EXTRACTION_GOLD)return {available:false,reason:'gold',cost:RUNE_EXTRACTION_GOLD,rune,index};
+ // Legacy saves may omit inventory; extraction creates it when returning materials.
+ // A present but malformed inventory is rejected rather than silently replaced.
+ if(player.inventory!=null&&!Array.isArray(player.inventory))return {available:false,reason:'invalid_inventory',rune,index};
+ const inventoryPlayer=player.inventory==null?{inventory:[]}:player;
  for(const [itemId,quantity] of Object.entries(rune.cost)){
-  const owned=countMaterial(player,itemId);
+  const owned=countMaterial(inventoryPlayer,itemId);
   if(owned===null)return {available:false,reason:'invalid_inventory',rune,index};
   if(owned>Number.MAX_SAFE_INTEGER-quantity)return {available:false,reason:'inventory_capacity',rune,index};
  }
- const gold=player.gold;
- return {available:gold>=RUNE_EXTRACTION_GOLD,reason:gold>=RUNE_EXTRACTION_GOLD?null:'gold',cost:RUNE_EXTRACTION_GOLD,rune,index};
+ return {available:true,reason:null,cost:RUNE_EXTRACTION_GOLD,rune,index};
 }
 export function extractRune(player,weaponId,index){
  const preview=getRuneExtractionPreview(player,weaponId,index);

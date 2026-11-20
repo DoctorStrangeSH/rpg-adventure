@@ -89,6 +89,7 @@ test('each equipment upgrade adds exactly two combat stat points and socket thre
     player.defense = 50;
     player.equipment.armor = 'frost_armor';
     player.itemUpgrades = { dragon_sword: 0, frost_armor: 0 };
+    player.weaponRunes.dragon_sword = [];
 
     const base = getEffectiveCombatStats(player);
     assert.equal(base.attack, 100);

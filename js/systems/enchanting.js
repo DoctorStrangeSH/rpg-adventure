@@ -13,8 +13,16 @@ export function getRuneSocketCount(player,weaponId){
  const level=Math.max(0,Math.min(10,Math.floor(Number(player?.itemUpgrades?.[weaponId])||0)));
  return level>=8?3:level>=4?2:level>=1?1:0;
 }
+function getRuneEntries(player, weaponId) {
+ const list = player?.weaponRunes?.[weaponId];
+ if (!Array.isArray(list)) return [];
+ return list.reduce((entries, id, storageIndex) => {
+  if (RUNE_CATALOG[id]) entries.push({ id, storageIndex });
+  return entries;
+ }, []);
+}
 export function getWeaponRunes(player,weaponId=player?.equipment?.weapon){
- const list=player?.weaponRunes?.[weaponId];return Array.isArray(list)?list.filter(id=>RUNE_CATALOG[id]):[];
+ return getRuneEntries(player,weaponId).map(entry=>entry.id);
 }
 
 function countMaterial(player,id){
@@ -63,10 +71,11 @@ export function inscribeRune(player,weaponId,runeId){
 }
 export const RUNE_EXTRACTION_GOLD = 50;
 export function getRuneExtractionPreview(player,weaponId,index){
- const runes=getWeaponRunes(player,weaponId);
+ const entries=getRuneEntries(player,weaponId);
  if(!player||player.equipment?.weapon!==weaponId)return {available:false,reason:'not_equipped'};
- if(!Number.isInteger(index)||index<0||index>=runes.length)return {available:false,reason:'invalid_socket'};
- const rune=RUNE_CATALOG[runes[index]];
+ if(!Number.isInteger(index)||index<0||index>=entries.length)return {available:false,reason:'invalid_socket'};
+ const entry=entries[index];
+ const rune=RUNE_CATALOG[entry.id];
  if(!Number.isSafeInteger(player.gold)||player.gold<0)return {available:false,reason:'invalid_currency',rune,index};
  const gold=player.gold;
  if(gold<RUNE_EXTRACTION_GOLD)return {available:false,reason:'gold',cost:RUNE_EXTRACTION_GOLD,rune,index};
@@ -79,14 +88,14 @@ export function getRuneExtractionPreview(player,weaponId,index){
   if(owned===null)return {available:false,reason:'invalid_inventory',rune,index};
   if(owned>Number.MAX_SAFE_INTEGER-quantity)return {available:false,reason:'inventory_capacity',rune,index};
  }
- return {available:true,reason:null,cost:RUNE_EXTRACTION_GOLD,rune,index};
+ return {available:true,reason:null,cost:RUNE_EXTRACTION_GOLD,rune,index,storageIndex:entry.storageIndex};
 }
 export function extractRune(player,weaponId,index){
  const preview=getRuneExtractionPreview(player,weaponId,index);
  if(!preview.available)return {ok:false,...preview};
  player.gold-=preview.cost;
- player.weaponRunes[weaponId].splice(index,1);
- if(player.weaponRunes[weaponId].length===0)delete player.weaponRunes[weaponId];
+ player.weaponRunes[weaponId].splice(preview.storageIndex,1);
+ if(getWeaponRunes(player,weaponId).length===0)delete player.weaponRunes[weaponId];
  player.inventory ||= [];
  for(const [itemId,quantity] of Object.entries(preview.rune.cost)){
   const stack=player.inventory.find(item=>item.id===itemId);

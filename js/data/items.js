@@ -50,6 +50,7 @@ export const ITEMS = {
         lore: 'Выкован из чешуи последнего дракона, павшего над Чёрным шпилем. Клинок долго хранили без ножен: говорили, что в темноте он помнит огонь своего создателя.',
         origin: 'Чёрный шпиль · Эпоха Пепельных королей',
         requiredLevel: 8,
+        shopRequiresDiscovery: 'dragon_scale',
         price: 1000
     },
     leather_armor: {
@@ -117,6 +118,9 @@ export function validateItemDefinition(entry) {
     if (!Number.isFinite(entry.price) || entry.price < 0) return 'price must be a non-negative finite number';
     if (entry.requiredLevel !== undefined &&
         (!Number.isSafeInteger(entry.requiredLevel) || entry.requiredLevel < 1)) return 'requiredLevel must be a positive integer';
+    if (entry.shopRequiresDiscovery !== undefined &&
+        (typeof entry.shopRequiresDiscovery !== 'string' || !entry.shopRequiresDiscovery.trim() ||
+         !Object.hasOwn(ITEMS, entry.shopRequiresDiscovery))) return 'shopRequiresDiscovery must reference a known item';
     if (entry.type === 'weapon' &&
         (!Number.isFinite(entry.attackBonus) || entry.attackBonus < 0)) return 'weapon attackBonus must be non-negative';
     if (entry.type === 'armor' &&

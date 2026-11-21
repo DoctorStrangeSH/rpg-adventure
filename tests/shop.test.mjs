@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
-import { buyItem } from '../js/ui/shop.js';
+import { buyItem, updateShopScreen } from '../js/ui/shop.js';
 
 function withShopState(player, callback) {
     const previousPlayer = gameState.player;
@@ -38,6 +38,33 @@ test('shop enforces required level in purchase logic, not only in the UI', () =>
     });
 });
 
+test('shop blocks the legendary Dragon Sword until its story material is discovered', () => {
+    const player = {
+        level: 8,
+        gold: 5000,
+        inventory: [],
+        discoveredItems: []
+    };
+    const previousDocument = globalThis.document;
+    globalThis.document = { getElementById: () => ({ innerHTML: '' }) };
+
+    withShopState(player, notifications => {
+        buyItem('dragon_sword');
+        assert.equal(player.gold, 5000);
+        assert.deepEqual(player.inventory, []);
+        assert.equal(notifications.length, 1);
+        assert.match(notifications[0].message, /чешую дракона/);
+
+        updateShopScreen();
+        const html = globalThis.document.getElementById('shop-content').innerHTML;
+        assert.match(html, /Сначала найдите: Чешуя дракона/);
+        assert.match(html, /window.buyItem\('dragon_sword'\)[\s\S]*?disabled/);
+    });
+
+    if (previousDocument === undefined) delete globalThis.document;
+    else globalThis.document = previousDocument;
+});
+
 test('shop rejects malformed gold instead of treating an invalid balance as free money', () => {
     const player = {
         level: 20,
@@ -60,7 +87,7 @@ test('shop permits a purchase once the required level and currency are available
         level: 8,
         gold: 1500,
         inventory: [],
-        discoveredItems: []
+        discoveredItems: ['dragon_scale']
     };
     const previousSave = gameState.save;
     let saved = false;

@@ -302,10 +302,17 @@ test('expedition combat resource and relic ownership changes survive a real save
     assert.equal(gameState.player.health, committedHealth);
     assert.equal(gameState.player.mana, player.mana);
     assert.deepEqual(gameState.player.relics, ['phoenix_feather']);
-    assert.deepEqual(gameState.player.dungeonProgress.forest, {
-        campaignCycle: 1, stage: 3, enemiesDefeated: 1
-    });
+    const restoredProgress = gameState.player.dungeonProgress.forest;
+    assert.equal(restoredProgress.campaignCycle, 1);
+    assert.equal(restoredProgress.stage, 3);
+    assert.equal(restoredProgress.enemiesDefeated, 1);
+    assert.equal(restoredProgress.activeEncounter.turn, 'enemy');
+    assert.equal(restoredProgress.activeEncounter.enemy.health, 200);
     assert.equal(gameState.player.inventory.find(item => item.id === 'health_potion').quantity, 1);
+
+    // Complete the scheduled enemy turn so module-level battle processing is
+    // reset before the next test starts.
+    while (callbacks.length) callbacks.shift()();
 });
 
 
@@ -318,6 +325,8 @@ test('a committed expedition guard action saves the exact enemy and next turn fo
         setItem(key, value) { values.set(key, String(value)); },
         removeItem(key) { values.delete(key); }
     };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
     t.after(() => {
         if (previousStorage === undefined) delete globalThis.localStorage;
         else globalThis.localStorage = previousStorage;
@@ -353,6 +362,7 @@ test('a committed expedition guard action saves the exact enemy and next turn fo
     assert.equal(saved.enemy.intent, 'heavy');
     assert.equal(saved.turn, 'enemy');
     assert.ok(saved.guardReduction > 0);
+    while (callbacks.length) callbacks.shift()();
 });
 
 

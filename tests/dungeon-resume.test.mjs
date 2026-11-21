@@ -779,3 +779,27 @@ test('an unresolved secret room keeps its exact discovery and choice UI after re
     assert.match(ui.innerHTML, /Забытая оружейная/);
     assert.equal(Storage.load().player.dungeonProgress.forest.pendingSecretRoomId, 'armory');
 });
+
+
+test('failed expedition boss startup rolls back battle counters and never opens an unsaved boss', (t) => {
+    const { player, battle } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 9;
+    run.enemiesDefeated = getLocation('forest').stages[9].enemiesCount;
+    run.visitedCheckpointStages.add(9);
+    run.visitedEventStages.add(9);
+    const beforePlayer = structuredClone(player);
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    t.after(() => { gameState.save = previousSave; });
+
+    startStageBattle();
+
+    assert.equal(player.stats.battles, beforePlayer.stats.battles);
+    assert.deepEqual(player.dungeonProgress, beforePlayer.dungeonProgress);
+    assert.equal(battle.isActive, false);
+    assert.equal(battle.currentEnemy, null);
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentStage, 9);
+});

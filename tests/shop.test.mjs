@@ -46,7 +46,8 @@ test('shop blocks the legendary Dragon Sword until its story material is discove
         discoveredItems: []
     };
     const previousDocument = globalThis.document;
-    globalThis.document = { getElementById: () => ({ innerHTML: '' }) };
+    const shopContent = { innerHTML: '' };
+    globalThis.document = { getElementById: () => shopContent };
 
     withShopState(player, notifications => {
         buyItem('dragon_sword');
@@ -56,7 +57,7 @@ test('shop blocks the legendary Dragon Sword until its story material is discove
         assert.match(notifications[0].message, /чешую дракона/);
 
         updateShopScreen();
-        const html = globalThis.document.getElementById('shop-content').innerHTML;
+        const html = shopContent.innerHTML;
         assert.match(html, /Сначала найдите: Чешуя дракона/);
         assert.match(html, /window.buyItem\('dragon_sword'\)[\s\S]*?disabled/);
     });

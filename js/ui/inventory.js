@@ -101,7 +101,7 @@ function createEquipmentSlot(slot, icon, name, itemId) {
         : itemData?.defenseBonus ? `🛡️ +${itemData.defenseBonus} защиты` : '';
     return `
         <div class="equipment-slot ${itemData ? 'slot-filled' : 'slot-empty'} ${upgradeProfile?.className || ''}" style="${rarity ? `--item-rarity:${rarity.color}` : ''}" onclick="window.unequipItem('${slot}')">
-            <div class="slot-icon">${icon}</div>
+            <div class="slot-icon icon-${slot}">${icon}</div>
             <div class="slot-name">${name}</div>
             <div class="slot-item">
                 ${itemData ? itemData.icon + ' ' + itemData.name : 'Пусто'}
@@ -135,7 +135,7 @@ function createInventoryItem(item, index, player) {
     return `
         <div class="inventory-item ${isEquipped ? 'equipped' : ''} rarity-${itemData.rarity || 'common'} ${upgradeProfile.className}" style="--item-rarity:${rarity.color}" onclick="window.useInventoryItem(${index})">
             <div class="item-type-label">${itemTypeLabel}</div>
-            <div class="item-icon">${itemData.icon}</div>
+            <div class="item-icon icon-${itemData.type}">${itemData.icon}</div>
             <div class="item-name">${itemData.name}</div>
             <div class="item-rarity" style="color:${rarity.color}">${rarity.name}</div>
             ${getItemAbilityDescription(itemData) ? `<div class="item-stats">${getItemAbilityDescription(itemData)}</div>` : ''}

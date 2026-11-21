@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { RELICS } from '../js/systems/relics.js';
+import { RELICS, RELIC_SYNERGIES, getRelicBonuses } from '../js/systems/relics.js';
 
 const character = readFileSync(new URL('../js/ui/character.js', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
@@ -64,4 +64,35 @@ test('disabled relic actions explain how to free a slot and have accessible labe
     assert.match(character, /title="\$\{!player\.activeRelics\?\.includes\(id\) && activeRelicCount >= MAX_ACTIVE_RELICS \? 'Сначала снимите одну из экипированных реликвий' : ''\}"/);
     assert.match(character, /aria-label="\$\{player\.activeRelics\?\.includes\(id\) \? 'Снять реликвию ' : 'Надеть реликвию '\}\$\{RELICS\[id\]\.name\}"/);
     assert.match(css, /\.relic-card \.relic-toggle-button:disabled\s*\{[^}]*cursor:\s*not-allowed/s);
+});
+
+
+test('character screen summarizes all effective relic bonuses including active synergies', () => {
+    assert.match(character, /getRelicBonuses\(player\)/);
+    assert.match(character, /Сила реликвий/);
+    for (const label of ['Атака', 'Защита', 'Критический удар', 'Сила умений']) {
+        assert.ok(character.includes(label), label);
+    }
+    const paired = { relics: Object.keys(RELICS), activeRelics: ['ash_heart', 'arcane_spark'] };
+    const bonuses = getRelicBonuses(paired);
+    assert.equal(bonuses.attack, 6);
+    assert.equal(bonuses.skillPower, 0.25);
+});
+
+test('all relic synergies show their required pair and an explicit active or locked state', () => {
+    assert.match(character, /RELIC_SYNERGIES\.map\(synergy =>/);
+    assert.match(character, /relic-synergy-active/);
+    assert.match(character, /relic-synergy-locked/);
+    assert.match(character, /Нужны обе реликвии/);
+    for (const synergy of RELIC_SYNERGIES) {
+        assert.equal(synergy.relics.length, 2);
+        assert.ok(synergy.relics.every(id => Object.hasOwn(RELICS, id)));
+    }
+});
+
+test('relic bonus and synergy panels remain legible on 375px screens', () => {
+    assert.match(css, /\.relic-bonus-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/s);
+    assert.match(css, /\.relic-synergy-card\.relic-synergy-active/);
+    assert.match(css, /\.relic-synergy-card\.relic-synergy-locked/);
+    assert.match(css, /@media\s*\(max-width:\s*375px\)[\s\S]*?\.relic-synergy-state\s*\{[^}]*grid-column:\s*2/s);
 });

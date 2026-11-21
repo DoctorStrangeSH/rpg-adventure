@@ -576,7 +576,22 @@ export function playerDefend() {
     disableBattleButtons();
     
     const enemy = battleState.currentEnemy;
-    battleState.guardReduction = Math.max(battleState.guardReduction, getClassTacticalBonus(gameState.player, enemy).guardReduction);
+    const player = gameState.player;
+    const playerSnapshot = createPlayerSnapshot(player);
+    const previousGuardReduction = battleState.guardReduction;
+    if (!playerSnapshot) {
+        isProcessing = false;
+        updateBattleUI();
+        return;
+    }
+    battleState.guardReduction = Math.max(battleState.guardReduction, getClassTacticalBonus(player, enemy).guardReduction);
+    if (!commitCurrentBattleState(player, playerSnapshot,
+        'Не удалось сохранить защитную стойку. Действие отменено.')) {
+        battleState.guardReduction = previousGuardReduction;
+        isProcessing = false;
+        updateBattleUI();
+        return;
+    }
     showBattleMessage('Вы готовитесь отразить следующий удар!');
     
     battleState.turn = 'enemy';

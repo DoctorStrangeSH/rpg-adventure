@@ -105,3 +105,93 @@ test('recovery validation does not mutate the stored backup or active profile', 
     assert.deepEqual(gameState.player, activeBefore);
     assert.equal(values.get(RECOVERY_SAVE_KEY), recovery);
 });
+
+
+test('recovery restores NG+ progression, equipment upgrades, runes, claims and expedition resume state across reload', (t) => {
+    const values = setup(t);
+    const player = gameState.createPlayer('warrior');
+    Object.assign(player, {
+        level: 18,
+        experience: 35,
+        gold: 1250,
+        campaignCycle: 2,
+        completedCampaignCycles: 1,
+        lastCompletedCampaignCycle: 1,
+        campaignCompleted: false,
+        newGamePlusUnlocked: true,
+        inventory: [
+            { id: 'iron_sword', quantity: 1 },
+            { id: 'health_potion', quantity: 4 },
+            { id: 'ember_core', quantity: 2 }
+        ],
+        equipment: { weapon: 'iron_sword', armor: 'leather_armor' },
+        itemUpgrades: { iron_sword: 8, leather_armor: 4 },
+        weaponRunes: { iron_sword: ['flame', 'blood'] },
+        unlockedLocations: ['forest'],
+        locationRewardCycles: { forest: 2, mountains: 1 },
+        deepChestRewardCycles: { 'forest:20': 2 },
+        dungeonProgress: {
+            forest: {
+                campaignCycle: 2,
+                stage: 0,
+                enemiesDefeated: 1,
+                visitedEventStages: [0],
+                visitedRouteStages: [0],
+                routeChoices: { 0: 'safe' },
+                checkedSecretStages: [],
+                visitedCheckpointStages: [],
+                claimedDeepChestStages: [],
+                claimedUnbrokenBonusStages: [],
+                resumedFromCheckpoint: true,
+                travelerFavorFights: 2,
+                travelerReturnPending: false,
+                bloodPursuerPending: true,
+                finalBossDefeated: false
+            }
+        },
+        stats: { kills: 300, battles: 400, wins: 350, losses: 5, dungeonsCompleted: 4, bossesKilled: 18 }
+    });
+    player.quests.find(entry => entry.id === 'first_blood').rewardClaimed = true;
+    player.achievements.find(entry => entry.id === 'first_kill').claimed = true;
+
+    const recovery = JSON.stringify({ schemaVersion: 2, player });
+    values.set(RECOVERY_SAVE_KEY, recovery);
+    values.set(GAME_CONFIG.saveKey, '{damaged-primary-save');
+
+    assert.equal(gameState.canRestoreRecovery(), true);
+    assert.equal(gameState.restoreRecovery(), true);
+    assert.equal(gameState.save(), true);
+    assert.equal(gameState.load(), true);
+
+    const restored = gameState.player;
+    assert.equal(restored.campaignCycle, 2);
+    assert.equal(restored.completedCampaignCycles, 1);
+    assert.equal(restored.newGamePlusUnlocked, true);
+    assert.equal(restored.campaignCompleted, false);
+    assert.deepEqual(restored.itemUpgrades, { iron_sword: 8, leather_armor: 4 });
+    assert.deepEqual(restored.weaponRunes, { iron_sword: ['flame', 'blood'] });
+    assert.deepEqual(restored.locationRewardCycles, { forest: 2, mountains: 1 });
+    assert.deepEqual(restored.deepChestRewardCycles, { 'forest:20': 2 });
+    assert.deepEqual(restored.dungeonProgress.forest, {
+        campaignCycle: 2,
+        stage: 0,
+        enemiesDefeated: 1,
+        visitedEventStages: [0],
+        visitedRouteStages: [0],
+        routeChoices: { 0: 'safe' },
+        checkedSecretStages: [],
+        visitedCheckpointStages: [],
+        claimedDeepChestStages: [],
+        claimedUnbrokenBonusStages: [],
+        resumedFromCheckpoint: true,
+        travelerFavorFights: 2,
+        travelerReturnPending: false,
+        bloodPursuerPending: true,
+        finalBossDefeated: false
+    });
+    assert.equal(restored.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(restored.achievements.find(entry => entry.id === 'first_kill').claimed, true);
+    assert.equal(restored.stats.bossesKilled, 18);
+    assert.equal(values.get(RECOVERY_SAVE_KEY), recovery,
+        'restoration and subsequent save must not consume or rewrite the recovery copy');
+});

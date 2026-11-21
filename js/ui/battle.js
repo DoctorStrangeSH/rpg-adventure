@@ -77,7 +77,11 @@ function commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot, fail
     const nextTurn = previousTurn === 'player' ? 'enemy' : 'player';
     if (location?.inLocation && location.currentLocation?.id) {
         const progress = player.dungeonProgress?.[location.currentLocation.id];
-        if (!progress) return false;
+        if (!progress) {
+            restoreBattleEntity(enemy, enemySnapshot);
+            window.showNotification?.('Не найдено сохранение текущей экспедиции. Боевое действие отменено.', 'error');
+            return false;
+        }
         battleState.turn = nextTurn;
         const encounter = {
             enemy: cloneBattleEntity(enemy),

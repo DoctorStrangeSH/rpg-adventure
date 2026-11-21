@@ -25,7 +25,13 @@ export function getCraftingAvailability(player, recipe) {
     if (!player || !recipe) return { available: false, reason: 'invalid_recipe' };
     if (!Array.isArray(player.inventory)) return { available: false, reason: 'invalid_inventory' };
     if (!Number.isSafeInteger(player.gold) || player.gold < 0) return { available: false, reason: 'invalid_currency' };
-    if ((player.level || 1) < recipe.requiredLevel) return { available: false, reason: 'level', requiredLevel: recipe.requiredLevel };
+    if (!Number.isSafeInteger(player.level) || player.level < 1 ||
+        !Number.isSafeInteger(recipe.requiredLevel) || recipe.requiredLevel < 1) {
+        return { available: false, reason: 'invalid_level' };
+    }
+    if (player.level < recipe.requiredLevel) {
+        return { available: false, reason: 'level', requiredLevel: recipe.requiredLevel };
+    }
     if (recipe.requiresDiscovery && !player.discoveredItems?.includes(recipe.requiresDiscovery)) {
         return { available: false, reason: 'discovery', requiredItem: recipe.requiresDiscovery };
     }

@@ -73,6 +73,62 @@ test('a cleared enemy reward and its next encounter position survive reload toge
     assert.equal(restored.visitedEventStages.has(0), true);
 });
 
+test('a saved boss encounter is restored into the live battle without resetting its combat state', (t) => {
+    const { player, battle } = setup(t);
+    const savedEncounter = {
+        enemy: {
+            id: 'forest_guardian',
+            name: 'Страж леса',
+            health: 437,
+            maxHealth: 900,
+            attack: 52,
+            defense: 18,
+            behavior: 'boss',
+            intent: 'heavy',
+            phase: 2,
+            effects: { burnTurns: 2, poisonTurns: 1 },
+            archerMarks: 1,
+            adaptiveResistance: { type: 'fire', turns: 2 }
+        },
+        isBossBattle: true,
+        turn: 'enemy',
+        guardReduction: 0.75,
+        relicEffects: { phoenixRebirthUsed: true }
+    };
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 8,
+            enemiesDefeated: getLocation('forest').stages[8].enemiesCount,
+            activeEncounter: structuredClone(savedEncounter)
+        }
+    };
+    const previousDocument = globalThis.document;
+    globalThis.document = { getElementById() { return { innerHTML: '' }; } };
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startLocation('forest');
+    assert.equal(getLocationState().activeEncounter.enemy.health, 437);
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    assert.equal(battle.isLocationBattle, true);
+    assert.equal(battle.isDungeonBattle, true);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(battle.guardReduction, 0.75);
+    assert.deepEqual(battle.relicEffects, { phoenixRebirthUsed: true });
+    assert.equal(battle.currentEnemy.id, 'forest_guardian');
+    assert.equal(battle.currentEnemy.health, 437);
+    assert.equal(battle.currentEnemy.intent, 'heavy');
+    assert.equal(battle.currentEnemy.phase, 2);
+    assert.deepEqual(battle.currentEnemy.effects, { burnTurns: 2, poisonTurns: 1 });
+    assert.deepEqual(battle.currentEnemy.adaptiveResistance, { type: 'fire', turns: 2 });
+});
+
 test('per-location expedition snapshots do not overwrite another region resume point', (t) => {
     const { player } = setup(t);
     player.dungeonProgress = {

@@ -448,6 +448,8 @@ test('boss encounters preserve elemental weaknesses and status immunities', asyn
     window.animateBattle = () => {};
     window.showBattleMessage = () => {};
     run.inLocation = true;
+    run.currentLocation = getLocation('forest');
+    run.currentStage = 0;
     battle.isActive = false;
     try {
         startBossFight({

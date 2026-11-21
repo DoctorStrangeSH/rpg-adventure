@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
 import { CLASSES } from '../js/data/classes.js';
-import { startBattle, playerAttack, playerSkill, playerUseItem, getBattleState } from '../js/ui/battle.js';
+import { startBattle, playerAttack, playerSkill, playerUseItem, playerDefend, getBattleState } from '../js/ui/battle.js';
 
 function setup(t, classId = 'warrior') {
     const previousPlayer = gameState.player;
@@ -134,7 +134,6 @@ test('failed enemy-turn save restores player and enemy state and returns the tur
     gameState.save = () => false;
 
     // Defend advances directly into the enemy action using the deterministic timer stub.
-    const { playerDefend } = await import('../js/ui/battle.js');
     playerDefend();
 
     assert.deepEqual(player, beforePlayer);

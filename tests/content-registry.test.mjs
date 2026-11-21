@@ -71,3 +71,35 @@ test('valid bounded healing armor and critical weapon effects remain accepted', 
         onCrit: { type: 'echo', fraction: 0.25, maxTargetHealthFraction: 0.08 }
     }), true);
 });
+
+
+test('weapon progression keeps level gates and base power within the intended tier ladder', () => {
+    const expected = [
+        ['iron_sword', 2, 15],
+        ['blood_dagger', 3, 12],
+        ['ember_sword', 4, 20],
+        ['frost_blade', 6, 24],
+        ['moonblade', 6, 28],
+        ['dragon_sword', 8, 40]
+    ];
+    for (const [id, level, attack] of expected) {
+        const item = getItem(id);
+        assert.equal(item.requiredLevel, level, id);
+        assert.equal(item.attackBonus, attack, id);
+    }
+    assert.ok(getItem('dragon_sword').attackBonus > getItem('moonblade').attackBonus);
+});
+
+test('armor progression retains valid defensive tiers and level requirements', () => {
+    const expected = [
+        ['leather_armor', undefined, 8],
+        ['blood_armor', 3, 13],
+        ['guardian_armor', 4, 17],
+        ['frost_armor', 6, 19]
+    ];
+    for (const [id, level, defense] of expected) {
+        const item = getItem(id);
+        assert.equal(item.requiredLevel, level, id);
+        assert.equal(item.defenseBonus, defense, id);
+    }
+});

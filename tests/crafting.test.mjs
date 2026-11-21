@@ -306,3 +306,43 @@ test('salvage conversion stays consistent across all equipment rarities',async()
  assert.equal(getSalvagePreview('health_potion'),null);
  assert.equal(getSalvagePreview('iron_ore'),null);
 });
+
+
+test('crafting rejects invalid player levels instead of treating malformed saves as eligible', () => {
+ for (const level of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, '10']) {
+  const p = player(); p.level = level; const snapshot = structuredClone(p);
+  const result = craftItem(p, 'dragon_sword');
+  assert.equal(result.ok, false, String(level));
+  assert.equal(result.reason, 'invalid_level', String(level));
+  assert.deepEqual(p, snapshot, String(level));
+ }
+});
+
+test('crafting rejects malformed recipe level metadata without consuming resources', () => {
+ const p = player(); const snapshot = structuredClone(p);
+ for (const requiredLevel of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+  const result = getCraftingAvailability(p, {
+   requiredLevel, gold: 1, materials: {}
+  });
+  assert.equal(result.available, false);
+  assert.equal(result.reason, 'invalid_level');
+  assert.deepEqual(p, snapshot);
+ }
+});
+
+test('salvage rejects malformed duplicate material stacks atomically', async () => {
+ const { salvageEquipment } = await import('../js/systems/salvage.js');
+ const p = {
+  equipment: {},
+  inventory: [
+   { id: 'moonblade', quantity: 1 },
+   { id: 'iron_ore', quantity: 3 },
+   { id: 'iron_ore', quantity: -1 }
+  ]
+ };
+ const snapshot = structuredClone(p);
+ const result = salvageEquipment(p, 0);
+ assert.equal(result.ok, false);
+ assert.equal(result.reason, 'invalid_inventory');
+ assert.deepEqual(p, snapshot);
+});

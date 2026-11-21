@@ -1218,3 +1218,33 @@ test('phoenix revival health and one-use flag remain spent after a full save rel
     assert.equal(battle.turn, 'player');
     assert.equal(Storage.load().player.dungeonProgress.forest.activeEncounter.relicEffects.phoenixRebirthUsed, true);
 });
+
+
+test('a duplicate boss victory callback cannot award rewards or advance the following stage twice', async (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 4;
+    run.enemiesDefeated = getLocation('forest').stages[4].enemiesCount;
+    run.claimedDeepChestStages = new Set();
+    run.claimedUnbrokenBonusStages = new Set();
+    const { handleBossVictory } = await import('../js/systems/dungeon.js');
+
+    assert.equal(handleBossVictory(), true);
+    assert.equal(run.currentStage, 5);
+    assert.equal(run.enemiesDefeated, 0);
+    const afterFirstCommit = {
+        experience: player.experience,
+        gold: player.gold,
+        bossesKilled: player.stats.bossesKilled,
+        progress: structuredClone(player.dungeonProgress.forest)
+    };
+
+    assert.equal(handleBossVictory(), false);
+    assert.equal(run.currentStage, 5);
+    assert.equal(run.enemiesDefeated, 0);
+    assert.equal(player.experience, afterFirstCommit.experience);
+    assert.equal(player.gold, afterFirstCommit.gold);
+    assert.equal(player.stats.bossesKilled, afterFirstCommit.bossesKilled);
+    assert.deepEqual(player.dungeonProgress.forest, afterFirstCommit.progress);
+});

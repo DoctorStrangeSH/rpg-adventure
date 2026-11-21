@@ -418,12 +418,14 @@ export function playerAttack() {
     
     const player = gameState.player;
     const enemy = battleState.currentEnemy;
-    
-    SoundSystem.playSound('attack');
-    
-    battleState.playerSprite.isAttacking = true;
-    launchPlayerProjectile();
-    
+    const playerSnapshot = createPlayerSnapshot(player);
+    const enemySnapshot = cloneBattleEntity(enemy);
+    if (!playerSnapshot || !enemySnapshot) {
+        isProcessing = false;
+        updateBattleUI();
+        return;
+    }
+
     const isCrit = Math.random() < getEffectiveCombatStats(player).critChance;
     const tacticalBonus = getClassTacticalBonus(player, enemy);
     const warriorOpening = consumeWarriorOpening(player, enemy);
@@ -443,8 +445,18 @@ export function playerAttack() {
     const rangerBleed = triggerRangerEffect(player, enemy);
     const dragonEcho = triggerDragonSwordEcho(player, enemy, damage, isCrit);
     const moonMana = triggerMoonbladeMana(player, damage, isCrit);
-    if (moonMana) gameState.save();
-    
+    if (moonMana && !commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
+        'Не удалось сохранить эффект оружия. Урон и восстановление маны отменены.')) {
+        isProcessing = false;
+        updateBattleUI();
+        return;
+    }
+
+    SoundSystem.playSound('attack');
+    battleState.playerSprite.isAttacking = true;
+    launchPlayerProjectile();
+    if (damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);
+
     addDamageText(
         battleState.enemySprite.x,
         battleState.enemySprite.y - 50,

@@ -11,7 +11,7 @@ import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
 import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD, getRuneLoadoutPreview } from '../systems/enchanting.js';
 import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 
-function getFullEquipmentPreview(player, inventoryIndex) {
+export function getFullEquipmentPreview(player, inventoryIndex) {
     const entry = player?.inventory?.[inventoryIndex];
     const item = entry ? getItem(entry.id) : null;
     if (!item || !['weapon', 'armor'].includes(item.type) ||
@@ -154,8 +154,6 @@ function createInventoryItem(item, index, player) {
     if (!itemData) return '';
     
     const isEquipped = (player.equipment.weapon === item.id || player.equipment.armor === item.id);
-    const currentItem = itemData.type === 'weapon' || itemData.type === 'armor'
-        ? getItem(player.equipment[itemData.type]) : null;
     const levelLocked = (itemData.requiredLevel || 1) > player.level;
     const comparison = getFullEquipmentPreview(player, index);
     

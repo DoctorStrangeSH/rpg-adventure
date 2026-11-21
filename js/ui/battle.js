@@ -783,7 +783,6 @@ function enemyTurn() {
     if (effects.frozen) {
         const interrupted = interruptEnemyWindup(enemy);
         battleState.guardReduction = 0;
-        battleState.turn = 'player';
         if (!commitBattleMutation(player, playerTurnSnapshot, enemy, enemyTurnSnapshot,
             'Не удалось сохранить пропуск хода замороженного противника.')) {
             battleState.turn = 'enemy';
@@ -800,7 +799,6 @@ function enemyTurn() {
     const plan = planEnemyTurn(enemy, player);
     if (plan.phaseChanged) showBattleMessage(`⚡ ${enemy.name} переходит в фазу ${plan.phase}!`);
     if (plan.warned) {
-        battleState.turn = 'player';
         if (!commitBattleMutation(player, playerTurnSnapshot, enemy, enemyTurnSnapshot,
             'Не удалось сохранить подготовку особого удара.')) {
             battleState.turn = 'enemy';
@@ -816,7 +814,6 @@ function enemyTurn() {
     const action = plan.action;
     if (action === 'adapt') {
         const result = applyEnemyAction(enemy, player, 'adapt');
-        battleState.turn = 'player';
         if (!commitBattleMutation(player, playerTurnSnapshot, enemy, enemyTurnSnapshot,
             'Не удалось сохранить адаптацию противника.')) {
             battleState.turn = 'enemy';

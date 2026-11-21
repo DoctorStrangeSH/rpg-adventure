@@ -1033,6 +1033,72 @@ test('a saved boss telegraph survives reload without rerolling or losing the pre
     assert.equal(Storage.load().player.dungeonProgress.forest.activeEncounter.enemy.intent, 'thorn_burst');
 });
 
+
+
+test('final World Eater cataclysm telegraph and phase survive a full expedition reload', (t) => {
+    const { player, battle } = setup(t);
+    const location = getLocation('dragon_lair');
+    const previousUnlocks = LOCATIONS.map(entry => entry.unlocked);
+    location.unlocked = true;
+    player.level = 100;
+    player.unlockedLocations = ['forest', 'mountains', 'ruins', 'dragon_lair'];
+    t.after(() => {
+        LOCATIONS.forEach((entry, index) => { entry.unlocked = previousUnlocks[index]; });
+    });
+
+    startLocation('dragon_lair');
+    const run = getLocationState();
+    const finalStageIndex = location.stages.length - 1;
+    const finalStage = location.stages[finalStageIndex];
+    const worldEater = {
+        ...structuredClone(finalStage.boss),
+        health: 777,
+        maxHealth: finalStage.boss.health,
+        behavior: 'boss',
+        intent: 'cataclysm',
+        phase: 3,
+        effects: { burnTurns: 2, weakenTurns: 1 }
+    };
+    run.currentStage = finalStageIndex;
+    run.enemiesDefeated = finalStage.enemiesCount;
+    player.dungeonProgress.dragon_lair = {
+        campaignCycle: player.campaignCycle,
+        stage: finalStageIndex,
+        enemiesDefeated: finalStage.enemiesCount,
+        activeEncounter: {
+            enemy: worldEater,
+            isBossBattle: true,
+            turn: 'enemy',
+            guardReduction: 0,
+            relicEffects: { phoenixRebirthUsed: true }
+        }
+    };
+    assert.equal(gameState.save(), true);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    assert.equal(gameState.load(), true);
+    startLocation('dragon_lair');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    assert.equal(battle.isDungeonBattle, true);
+    assert.equal(battle.currentEnemy.id, 'world_eater');
+    assert.equal(battle.currentEnemy.health, 777);
+    assert.equal(battle.currentEnemy.intent, 'cataclysm');
+    assert.equal(battle.currentEnemy.phase, 3);
+    assert.deepEqual(battle.currentEnemy.effects, { burnTurns: 2, weakenTurns: 1 });
+    assert.equal(battle.turn, 'enemy');
+
+    const restored = Storage.load().player.dungeonProgress.dragon_lair.activeEncounter;
+    assert.equal(restored.enemy.intent, 'cataclysm');
+    assert.equal(restored.enemy.phase, 3);
+    assert.equal(restored.enemy.health, 777);
+    assert.equal(restored.relicEffects.phoenixRebirthUsed, true);
+});
+
 test('phoenix revival health and one-use flag remain spent after a full save reload', (t) => {
     const { player, battle } = setup(t);
     const previousDocument = globalThis.document;

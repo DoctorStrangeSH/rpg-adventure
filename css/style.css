@@ -2496,3 +2496,77 @@ button,
         font-size: 22px;
     }
 }
+
+
+/* Elemental combat affinity sigils: readable at a glance, no balance impact. */
+.damage-affinity-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.damage-affinity-chip {
+    --affinity-tone: var(--gold);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--affinity-tone) 44%, var(--border));
+    border-radius: 10px 10px 7px 7px;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--affinity-tone) 12%, #292633), rgba(13, 18, 29, 0.96));
+    box-shadow: inset 0 1px 0 rgba(255, 236, 194, 0.08);
+}
+
+.damage-affinity-chip.weakness { --affinity-tone: #e0bc79; }
+.damage-affinity-chip.resistance { --affinity-tone: #91a9bd; }
+.damage-affinity-chip.damage-type-physical { --affinity-tone: #c4a27e; }
+.damage-affinity-chip.damage-type-fire { --affinity-tone: #f18458; }
+.damage-affinity-chip.damage-type-ice { --affinity-tone: #83cce4; }
+.damage-affinity-chip.damage-type-poison { --affinity-tone: #9ac77f; }
+
+.damage-affinity-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border: 1px solid color-mix(in srgb, var(--affinity-tone) 48%, transparent);
+    border-radius: 8px 8px 5px 5px;
+    background: color-mix(in srgb, var(--affinity-tone) 16%, #101622);
+    font-size: 17px;
+}
+
+.damage-affinity-copy {
+    display: grid;
+    gap: 1px;
+    min-width: 0;
+}
+
+.damage-affinity-type {
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.damage-affinity-relation {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.damage-affinity-chip > strong {
+    margin-left: 3px;
+    color: var(--affinity-tone);
+    font-size: 13px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 375px) {
+    .damage-affinity-list { gap: 6px; }
+    .damage-affinity-chip { flex: 1 1 138px; padding: 6px 8px; gap: 6px; }
+    .damage-affinity-icon { flex-basis: 27px; width: 27px; height: 27px; }
+}

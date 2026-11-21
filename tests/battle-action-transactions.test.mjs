@@ -274,7 +274,8 @@ test('expedition combat resource and relic ownership changes survive a real save
         setItem(key, value) { values.set(key, String(value)); },
         removeItem(key) { values.delete(key); }
     };
-    globalThis.setTimeout = () => 1;
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
     t.after(() => {
         if (previousStorage === undefined) delete globalThis.localStorage;
         else globalThis.localStorage = previousStorage;
@@ -398,7 +399,8 @@ for (const scenario of [
             setItem(key, value) { values.set(key, String(value)); },
             removeItem(key) { values.delete(key); }
         };
-        globalThis.setTimeout = () => 1;
+        const callbacks = [];
+        globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
         t.after(() => {
             if (previousStorage === undefined) delete globalThis.localStorage;
             else globalThis.localStorage = previousStorage;
@@ -427,6 +429,8 @@ for (const scenario of [
         assert.equal(saved.turn, 'enemy');
         assert.equal(saved.isBossBattle, false);
         assert.equal(player.mana, manaBefore - CLASSES[scenario.classId].skills.find(skill => skill.id === scenario.skillId).manaCost);
+        let safety = 0;
+        while (callbacks.length && safety++ < 5) callbacks.shift()();
     });
 }
 
@@ -440,7 +444,8 @@ test('successful expedition basic attack saves enemy damage, weapon state and en
         setItem(key, value) { values.set(key, String(value)); },
         removeItem(key) { values.delete(key); }
     };
-    globalThis.setTimeout = () => 1;
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
     t.after(() => {
         if (previousStorage === undefined) delete globalThis.localStorage;
         else globalThis.localStorage = previousStorage;
@@ -464,6 +469,8 @@ test('successful expedition basic attack saves enemy damage, weapon state and en
     const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
     assert.ok(saved.enemy.health < 2000);
     assert.equal(saved.turn, 'enemy');
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
 });
 
 test('successful expedition potion use saves restored resources, inventory and enemy turn', (t) => {
@@ -505,4 +512,6 @@ test('successful expedition potion use saves restored resources, inventory and e
     assert.equal(savedPlayer.inventory.find(item => item.id === 'health_potion').quantity, beforeQuantity - 1);
     assert.equal(saved.enemy.health, 2000);
     assert.equal(saved.turn, 'enemy');
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
 });

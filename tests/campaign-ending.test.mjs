@@ -69,6 +69,57 @@ test('World Eater victory completes the campaign, saves it and opens the ending'
 });
 
 
+
+
+test('all three classes complete the real World Eater victory pipeline and restore the ending after reload', (t) => {
+    const screens = installBrowserStubs(t);
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => {
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+    });
+
+    for (const classId of ['warrior', 'mage', 'archer']) {
+        resetLocationState();
+        LOCATIONS.forEach(location => { location.unlocked = location.type === 'safe' || location.id === 'dragon_lair'; });
+        const player = gameState.createPlayer(classId);
+        player.level = 100;
+        player.unlockedLocations = ['forest', 'mountains', 'ruins', 'dragon_lair'];
+        const location = getLocation('dragon_lair');
+        const run = getLocationState();
+        run.currentLocation = location;
+        run.currentStage = location.stages.length - 1;
+        run.enemiesDefeated = location.stages.at(-1).enemiesCount;
+        run.inLocation = true;
+        run.finalBossDefeated = false;
+
+        const battle = getBattleState();
+        battle.isActive = false;
+        battle.currentEnemy = null;
+        battle.isBossBattle = true;
+
+        assert.equal(handleBossVictory(), true, classId + ' must complete the real World Eater victory callback');
+        assert.equal(player.campaignCompleted, true);
+        assert.equal(player.newGamePlusUnlocked, true);
+        assert.equal(player.completedCampaignCycles, 1);
+        assert.equal(player.lastCompletedCampaignCycle, 1);
+        assert.equal(player.locationRewardCycles.dragon_lair, 1);
+        assert.equal(player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity, 1);
+        assert.ok(screens.includes('ending-screen'));
+
+        const rewardCount = player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity;
+        assert.equal(handleBossVictory(), false, classId + ' duplicate victory callback must be rejected');
+        assert.equal(player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity, rewardCount);
+
+        assert.equal(gameState.load(), true);
+        assert.equal(gameState.player.class, classId);
+        assert.equal(gameState.player.campaignCompleted, true);
+        assert.equal(gameState.player.newGamePlusUnlocked, true);
+        assert.equal(gameState.player.completedCampaignCycles, 1);
+        assert.equal(gameState.player.locationRewardCycles.dragon_lair, 1);
+        assert.equal(gameState.player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity, 1);
+    }
+});
+
 test('region completion pipeline grants each guaranteed rune exactly once per campaign cycle', (t) => {
     installBrowserStubs(t);
     const previousPlayer = gameState.player;

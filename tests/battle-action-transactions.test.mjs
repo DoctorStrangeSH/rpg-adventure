@@ -1002,3 +1002,43 @@ test('mage cannot cast a skill without its full mana cost or mutate the encounte
     assert.equal(battle.turn, 'player');
     assert.equal(battle.currentEnemy.health, beforeHealth);
 });
+
+
+test('failed expedition victory commit restores all rewards and retries the same encounter without advancing', (t) => {
+    const { player, battle, notifications } = setup(t);
+    prepareBattle(battle, player, {
+        health: 0,
+        expReward: 40,
+        goldReward: 35,
+        elite: true
+    });
+    battle.isLocationBattle = true;
+    battle.isDungeonBattle = true;
+    const beforePlayer = structuredClone(player);
+    const scheduled = [];
+    const locationState = { inLocation: true };
+    let commitAttempts = 0;
+    let restartCalls = 0;
+    window.getLocationState = () => locationState;
+    window.handleVictory = snapshot => {
+        assert.deepEqual(snapshot, beforePlayer);
+        commitAttempts++;
+        return false;
+    };
+    window.startStageBattle = () => { restartCalls++; };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0;
+
+    battleVictory();
+
+    assert.deepEqual(player, beforePlayer, 'failed persistence must roll back EXP, gold, stats and loot');
+    assert.equal(battle.isActive, false, 'the unsaved result must not be shown as a committed victory');
+    assert.equal(commitAttempts, 1);
+    assert.equal(scheduled.length, 1, 'a retry of the current encounter must be scheduled');
+    assert.match(notifications.at(-1)?.message || '', /не удалось сохранить награду боя/i);
+
+    scheduled.shift()();
+    assert.equal(restartCalls, 1, 'retry must restart the current stage encounter');
+    assert.equal(player.stats.wins, beforePlayer.stats.wins);
+    assert.equal(player.stats.kills, beforePlayer.stats.kills);
+});

@@ -102,7 +102,7 @@ test('shop permits a purchase once the required level and currency are available
         buyItem('dragon_sword');
         assert.equal(player.gold, 500);
         assert.deepEqual(player.inventory, [{ id: 'dragon_sword', quantity: 1 }]);
-        assert.deepEqual(player.discoveredItems, ['dragon_sword']);
+        assert.deepEqual(player.discoveredItems, ['dragon_scale', 'dragon_sword']);
         assert.equal(saved, true);
         assert.equal(notifications.length, 1);
         assert.match(notifications[0].message, /Драконий меч/);
@@ -118,7 +118,7 @@ test('shop purchase restores gold and inventory when the save fails', () => {
         level: 8,
         gold: 1500,
         inventory: [],
-        discoveredItems: []
+        discoveredItems: ['dragon_scale']
     };
     const previousSave = gameState.save;
     const previousDocument = globalThis.document;
@@ -129,7 +129,7 @@ test('shop purchase restores gold and inventory when the save fails', () => {
         buyItem('dragon_sword');
         assert.equal(player.gold, 1500);
         assert.deepEqual(player.inventory, []);
-        assert.deepEqual(player.discoveredItems, []);
+        assert.deepEqual(player.discoveredItems, ['dragon_scale']);
         assert.equal(notifications.length, 1);
         assert.match(notifications[0].message, /сохранить покупку/);
     });

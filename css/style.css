@@ -1917,3 +1917,23 @@ button,
         padding-right: 3px;
     }
 }
+
+
+/* Map location details stay usable on short and narrow viewports. */
+.map-overlay {
+    min-width: min(200px, calc(100% - 24px));
+    max-width: min(300px, calc(100% - 24px));
+    max-height: min(60dvh, 520px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.map-overlay .location-description,
+.map-overlay .location-name {
+    overflow-wrap: anywhere;
+}
+
+.map-overlay .map-btn {
+    min-height: 44px;
+}

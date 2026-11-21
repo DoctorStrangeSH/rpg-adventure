@@ -160,6 +160,8 @@
 - [x] Добавлены руны пламени, стужи, крови и грозы с разными боевыми бонусами.
 - [x] Руны требуют редкие материалы; установка атомарна и сохраняется отдельно для каждого оружия.
 - [x] Элементальный тип урона и статусные эффекты подключены к боевой системе.
+- [x] Rune preview now follows real installation constraints: equipped weapon, available socket, no duplicate rune; material shortages remain a clearly marked hypothetical preview instead of a false install approval (`tests/rune-upgrade-preview.test.mjs`).
+- [x] Rune hit effects and each synergy component respect enemy status resistance and full immunity, matching class-skill status rules (`tests/rune-upgrade-preview.test.mjs`).
 
 ## Синергии рун
 - [x] Пара пламя + кровь открывает «Алый пожар»: совместное горение и кровотечение.

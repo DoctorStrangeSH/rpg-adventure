@@ -4,6 +4,7 @@ import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { QUESTS } from '../js/data/quests.js';
 import { ACHIEVEMENTS } from '../js/data/achievements.js';
+import { LOCATIONS } from '../js/data/locations.js';
 
 function installStorage(t) {
     const previous = globalThis.localStorage;
@@ -194,4 +195,102 @@ test('migration replaces malformed equipment progression containers with empty s
     assert.equal(gameState.load(), true);
     assert.deepEqual(gameState.player.itemUpgrades, {});
     assert.deepEqual(gameState.player.weaponRunes, {});
+});
+
+
+test('version-one historical profile keeps NG+, claims, equipment and a resumable expedition through migrate-save-reload', (t) => {
+    const values = installStorage(t);
+    const previousData = gameState.data;
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => {
+        gameState.data = previousData;
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+    });
+
+    const historicalProfile = {
+        id: 84, username: 'Legacy Hero', class: 'warrior',
+        level: 18, experience: 35, maxExperience: 500,
+        health: 180, maxHealth: 240, mana: 70, maxMana: 90, gold: 1250,
+        inventory: [{ id: 'health_potion', quantity: 4 }, { id: 'mana_potion', quantity: 2 }],
+        equipment: { weapon: 'iron_sword', armor: 'leather_armor' },
+        itemUpgrades: { iron_sword: 3, leather_armor: 2 },
+        weaponRunes: { iron_sword: ['flame'] },
+        unlockedLocations: ['forest', 'mountains', 'ruins', 'dragon_lair'],
+        talents: ['warrior_force'], relics: ['ember_crown'], activeRelics: ['ember_crown'],
+        discoveredItems: ['iron_sword'],
+        quests: [{ id: 'first_blood', progress: 1, completed: true, rewardClaimed: true }],
+        achievements: [{ id: 'first_kill', progress: 1, completed: true, claimed: true }],
+        stats: { kills: 300, battles: 400, wins: 350, losses: 5, dungeonsCompleted: 4, bossesKilled: 18 },
+        campaignCycle: 2, completedCampaignCycles: 1, lastCompletedCampaignCycle: 1,
+        campaignCompleted: false, newGamePlusUnlocked: true,
+        locationRewardCycles: { forest: 2, mountains: 2 },
+        deepChestRewardCycles: { 'forest:20': 2 },
+        dungeonCheckpoints: { forest: 2 },
+        dungeonProgress: {
+            forest: {
+                campaignCycle: 2, stage: 1, enemiesDefeated: 1,
+                visitedEventStages: [0], visitedRouteStages: [1],
+                routeChoices: { 1: 'danger' }, checkedSecretStages: [0],
+                visitedCheckpointStages: [0], claimedDeepChestStages: [0],
+                claimedUnbrokenBonusStages: [0], resumedFromCheckpoint: true,
+                travelerFavorFights: 2, travelerReturnPending: true,
+                bloodPursuerPending: false, finalBossDefeated: false,
+                pendingAdventureEventId: 'cache', pendingSecretRoomId: 'armory',
+                activeEncounter: {
+                    enemy: {
+                        id: 'wolf', name: 'Старый волк', health: 137, maxHealth: 180,
+                        attack: 24, defense: 8, effects: { burnTurns: 1 },
+                        intent: 'heavy', phase: 1
+                    },
+                    isBossBattle: false, turn: 'enemy', guardReduction: 0.35,
+                    relicEffects: { phoenixRebirthUsed: true }
+                }
+            }
+        }
+    };
+    values.set('rpg_adventure_save', JSON.stringify({
+        schemaVersion: 1, player: historicalProfile, screen: 'battle'
+    }));
+
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.level, 18);
+    assert.equal(gameState.player.gold, 1250);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.completedCampaignCycles, 1);
+    assert.equal(gameState.player.newGamePlusUnlocked, true);
+    assert.deepEqual(gameState.player.equipment, historicalProfile.equipment);
+    assert.deepEqual(gameState.player.itemUpgrades, historicalProfile.itemUpgrades);
+    assert.deepEqual(gameState.player.weaponRunes, historicalProfile.weaponRunes);
+    assert.equal(gameState.player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(gameState.player.achievements.find(entry => entry.id === 'first_kill').claimed, true);
+    assert.deepEqual(gameState.player.locationRewardCycles, { forest: 2, mountains: 2 });
+    assert.deepEqual(gameState.player.deepChestRewardCycles, { 'forest:20': 2 });
+
+    const progress = gameState.player.dungeonProgress.forest;
+    assert.equal(progress.stage, 1);
+    assert.equal(progress.enemiesDefeated, 1);
+    assert.deepEqual(progress.routeChoices, { 1: 'danger' });
+    assert.equal(progress.pendingAdventureEventId, 'cache');
+    assert.equal(progress.pendingSecretRoomId, 'armory');
+    assert.equal(progress.activeEncounter.enemy.health, 137);
+    assert.equal(progress.activeEncounter.enemy.intent, 'heavy');
+    assert.equal(progress.activeEncounter.guardReduction, 0.35);
+    assert.equal(progress.travelerReturnPending, true);
+
+    assert.equal(gameState.save(), true);
+    const upgraded = JSON.parse(values.get('rpg_adventure_save'));
+    assert.equal(upgraded.schemaVersion, 2);
+    assert.equal(upgraded.player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(upgraded.player.achievements.find(entry => entry.id === 'first_kill').claimed, true);
+
+    gameState.data = { player: null, screen: 'main-menu' };
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.gold, 1250);
+    assert.equal(gameState.player.inventory.find(item => item.id === 'health_potion').quantity, 4);
+    assert.equal(gameState.player.dungeonProgress.forest.activeEncounter.enemy.health, 137);
+    assert.equal(gameState.player.dungeonProgress.forest.pendingAdventureEventId, 'cache');
+    assert.equal(gameState.player.dungeonProgress.forest.pendingSecretRoomId, 'armory');
+    assert.equal(gameState.player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(gameState.player.achievements.find(entry => entry.id === 'first_kill').claimed, true);
 });

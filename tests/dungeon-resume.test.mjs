@@ -1037,6 +1037,19 @@ test('a saved boss telegraph survives reload without rerolling or losing the pre
 
 test('final World Eater cataclysm telegraph and phase survive a full expedition reload', (t) => {
     const { player, battle } = setup(t);
+    const previousDocument = globalThis.document;
+    const ui = { innerHTML: '' };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? ui : null; },
+        querySelectorAll() { return []; }
+    };
+    window.animateBattle = () => {};
+    window.updateBattleUI = () => {};
+    window.showBattleMessage = () => {};
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
     const location = getLocation('dragon_lair');
     const previousUnlocks = LOCATIONS.map(entry => entry.unlocked);
     location.unlocked = true;

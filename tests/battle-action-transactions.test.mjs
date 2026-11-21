@@ -1042,3 +1042,41 @@ test('failed expedition victory commit restores all rewards and retries the same
     assert.equal(player.stats.wins, beforePlayer.stats.wins);
     assert.equal(player.stats.kills, beforePlayer.stats.kills);
 });
+
+
+test('duplicate expedition victory callbacks commit rewards and stage transition exactly once', (t) => {
+    const { player, battle } = setup(t);
+    prepareBattle(battle, player, {
+        health: 0,
+        expReward: 40,
+        goldReward: 35
+    });
+    battle.isLocationBattle = true;
+    battle.isDungeonBattle = true;
+    const before = structuredClone(player);
+    const locationState = { inLocation: true };
+    let commitCount = 0;
+    window.getLocationState = () => locationState;
+    window.handleVictory = () => {
+        commitCount++;
+        player.dungeonProgress.forest = {
+            campaignCycle: 1,
+            stage: 4,
+            enemiesDefeated: 0
+        };
+        return true;
+    };
+    Math.random = () => 0;
+
+    battleVictory();
+    const afterFirstVictory = structuredClone(player);
+    battleVictory();
+
+    assert.equal(commitCount, 1, 'the durable progress commit must happen only once');
+    assert.equal(player.experience, before.experience + 40);
+    assert.equal(player.gold, before.gold + 35);
+    assert.equal(player.stats.wins, before.stats.wins + 1);
+    assert.equal(player.stats.kills, before.stats.kills + 1);
+    assert.deepEqual(player.dungeonProgress, afterFirstVictory.dungeonProgress);
+    assert.equal(battle.isActive, false);
+});

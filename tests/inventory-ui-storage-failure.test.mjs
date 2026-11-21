@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
 import {
-    craftInventoryItem, salvageInventoryItem, upgradeInventoryItem,
-    inscribeInventoryRune, extractInventoryRune
+    useInventoryItem, unequipItem, craftInventoryItem, salvageInventoryItem,
+    upgradeInventoryItem, inscribeInventoryRune, extractInventoryRune
 } from '../js/ui/inventory.js';
 
 function installFailingBrowser(t) {
@@ -62,20 +62,26 @@ test('inventory UI rolls back every item operation when localStorage rejects the
     t.after(() => { gameState.player = previousPlayer; });
 
     const scenarios = [
-        ['crafting', (player) => craftInventoryItem('iron_sword'), (player) => {
+        ['equipment', () => useInventoryItem(0), (player) => { player.equipment.weapon = null; }],
+        ['consumable use', () => useInventoryItem(0), (player) => {
+            player.inventory = [{ id: 'health_potion', quantity: 1 }];
+            player.health = Math.max(1, player.maxHealth - 30);
+        }],
+        ['unequip', () => unequipItem('weapon'), () => {}],
+        ['crafting', () => craftInventoryItem('iron_sword'), (player) => {
             player.inventory = [{ id: 'iron_ore', quantity: 20 }];
             player.equipment.weapon = null;
             player.itemUpgrades = {};
             player.weaponRunes = {};
         }],
-        ['salvage', (player) => salvageInventoryItem(1), () => {}],
-        ['upgrade', (player) => upgradeInventoryItem('iron_sword'), () => {}],
-        ['rune inscription', (player) => inscribeInventoryRune('iron_sword', 'blood'), () => {
+        ['salvage', () => salvageInventoryItem(1), () => {}],
+        ['upgrade', () => upgradeInventoryItem('iron_sword'), () => {}],
+        ['rune inscription', () => inscribeInventoryRune('iron_sword', 'blood'), () => {
             player.itemUpgrades.iron_sword = 4;
             player.weaponRunes.iron_sword = ['flame'];
             player.inventory.push({ id: 'blood_essence', quantity: 2 });
         }],
-        ['rune extraction', (player) => extractInventoryRune('iron_sword', 0), () => {
+        ['rune extraction', () => extractInventoryRune('iron_sword', 0), () => {
             player.gold = 500;
             player.weaponRunes.iron_sword = ['flame'];
         }]
@@ -88,7 +94,7 @@ test('inventory UI rolls back every item operation when localStorage rejects the
         const before = structuredClone(player);
         const notificationCount = notifications.length;
 
-        action(player);
+        action();
 
         assert.deepEqual(player, before, name + ' must restore the complete player snapshot');
         assert.equal(notifications.length, notificationCount + 1, name + ' must report the failed save');

@@ -160,3 +160,23 @@ test('failed regional item batch does not consume the once-per-cycle reward clai
     assert.equal(player.experience, initialExperience + location.rewards.exp);
     assert.equal(player.gold, initialGold + location.rewards.gold);
 });
+
+
+test('malformed regional reward claim state cannot silently skip the guaranteed reward', (t) => {
+    installBrowserStubs(t);
+    const player = gameState.createPlayer('warrior');
+    const location = getLocation('forest');
+    const run = getLocationState();
+    player.locationRewardCycles = [];
+    const beforePlayer = structuredClone(player);
+
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.inLocation = true;
+
+    assert.equal(completeLocation(), false);
+    assert.deepEqual(player, beforePlayer);
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentLocation.id, 'forest');
+    assert.equal(player.inventory.find(item => item.id === 'rune_verdant_heart'), undefined);
+});

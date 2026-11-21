@@ -11,6 +11,34 @@ import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
 import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD, getRuneLoadoutPreview } from '../systems/enchanting.js';
 import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 
+export function getEquipmentUpgradeStatPreview(player, itemId) {
+    const item = getItem(itemId);
+    if (!player || !item || !['weapon', 'armor'].includes(item.type) ||
+        !['weapon', 'armor'].some(slot => player.equipment?.[slot] === itemId)) return null;
+    const level = getItemUpgradeLevel(player, itemId);
+    if (level >= 10) return null;
+    let simulated;
+    try { simulated = structuredClone(player); }
+    catch {
+        try { simulated = JSON.parse(JSON.stringify(player)); }
+        catch { return null; }
+    }
+    const before = getEffectiveCombatStats(player);
+    simulated.itemUpgrades ||= {};
+    simulated.itemUpgrades[itemId] = level + 1;
+    const after = getEffectiveCombatStats(simulated);
+    const currentSockets = getRuneSocketCount(player, itemId);
+    const nextSockets = getRuneSocketCount(simulated, itemId);
+    return {
+        attack: after.attack - before.attack,
+        defense: after.defense - before.defense,
+        critChance: after.critChance - before.critChance,
+        currentSockets,
+        nextSockets,
+        unlockedSockets: nextSockets - currentSockets
+    };
+}
+
 export function getFullEquipmentPreview(player, inventoryIndex) {
     const entry = player?.inventory?.[inventoryIndex];
     const item = entry ? getItem(entry.id) : null;
@@ -100,11 +128,13 @@ export function updateInventoryScreen() {
             const item = getItem(id);
             const level = getItemUpgradeLevel(player, id);
             const preview = getUpgradePreview(player, id);
+            const statPreview = getEquipmentUpgradeStatPreview(player, id);
             const detail = preview.reason === 'max_level' ? 'Максимальный уровень' :
                 preview.available ? `Следующий уровень +${preview.next} · ${preview.gold} золота` :
                 preview.reason === 'gold' ? 'Не хватает золота' :
                 preview.reason === 'materials' ? `Не хватает: ${preview.missing.map(x => `${getItem(x.id)?.name || x.id} ×${x.missing}`).join(', ')}` : '';
-            return `<div class="upgrade-row"><div><b>${item?.icon || '⚒️'} ${item?.name || id} · +${level}</b><small>${detail}</small></div><button class="upgrade-button" ${preview.available ? '' : 'disabled'} onclick="window.upgradeInventoryItem('${id}')">${preview.available ? 'Улучшить' : 'Недоступно'}</button></div>`;
+            const projected = statPreview ? `<small class="upgrade-stat-preview">После заточки: ⚔️ ${statPreview.attack > 0 ? '+' : ''}${statPreview.attack} · 🛡️ ${statPreview.defense > 0 ? '+' : ''}${statPreview.defense} · Гнёзда ${statPreview.currentSockets} → ${statPreview.nextSockets}${statPreview.unlockedSockets ? ' · +${statPreview.unlockedSockets} новое' : ''}</small>` : '';
+            return `<div class="upgrade-row"><div><b>${item?.icon || '⚒️'} ${item?.name || id} · +${level}</b><small>${detail}</small>${projected}</div><button class="upgrade-button" ${preview.available ? '' : 'disabled'} onclick="window.upgradeInventoryItem('${id}')">${preview.available ? 'Улучшить' : 'Недоступно'}</button></div>`;
         }).join('')}
         </div>
         

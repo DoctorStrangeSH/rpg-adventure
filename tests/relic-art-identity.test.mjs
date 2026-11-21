@@ -51,3 +51,17 @@ test('equipped relic state remains readable on narrow mobile screens', () => {
     assert.match(css, /\.relic-toggle-button\[aria-pressed="true"\]/);
     assert.match(css, /@media\s*\(max-width:\s*375px\)[\s\S]*?\.relic-card \.skill-info\s*\{[^}]*overflow-wrap:\s*anywhere/s);
 });
+
+
+test('relic collection explains the two-slot capacity and remaining space', () => {
+    assert.match(character, /const activeRelicCount = \[\.\.\.new Set\(player\.activeRelics \|\| \[\]\)\]\.filter\(id => ownedRelics\.has\(id\)\)\.slice\(0, MAX_ACTIVE_RELICS\)\.length/);
+    assert.match(character, /Реликвии • активных: \$\{activeRelicCount\}\/\$\{MAX_ACTIVE_RELICS\}/);
+    assert.match(character, /Можно экипировать ещё \$\{MAX_ACTIVE_RELICS - activeRelicCount\} реликвию\./);
+    assert.match(character, /Оба слота заняты\. Снимите реликвию, чтобы надеть другую\./);
+});
+
+test('disabled relic actions explain how to free a slot and have accessible labels', () => {
+    assert.match(character, /title="\$\{!player\.activeRelics\?\.includes\(id\) && activeRelicCount >= MAX_ACTIVE_RELICS \? 'Сначала снимите одну из экипированных реликвий' : ''\}"/);
+    assert.match(character, /aria-label="\$\{player\.activeRelics\?\.includes\(id\) \? 'Снять реликвию ' : 'Надеть реликвию '\}\$\{RELICS\[id\]\.name\}"/);
+    assert.match(css, /\.relic-card \.relic-toggle-button:disabled\s*\{[^}]*cursor:\s*not-allowed/s);
+});

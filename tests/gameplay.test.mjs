@@ -591,8 +591,14 @@ test('battle interface shows both class skills and combat resources', () => {
         assert.match(panel.innerHTML, /Мана: 15/);
         assert.match(panel.innerHTML, /Горение: 2/);
         assert.match(panel.innerHTML, /Здоровье врага/);
-        assert.match(panel.innerHTML, /Уязвим: огонь \(\+25%\)/);
-        assert.match(panel.innerHTML, /лёд \(−20%\)/);
+        assert.match(panel.innerHTML, /damage-affinity-chip weakness damage-type-fire/);
+        assert.match(panel.innerHTML, /Огонь/);
+        assert.match(panel.innerHTML, /Уязвимость/);
+        assert.match(panel.innerHTML, /\+25%/);
+        assert.match(panel.innerHTML, /damage-affinity-chip resistance damage-type-ice/);
+        assert.match(panel.innerHTML, /Лёд/);
+        assert.match(panel.innerHTML, /Сопротивление/);
+        assert.match(panel.innerHTML, /−20%/);
     } finally {
         document.getElementById = previous;
         battle.currentEnemy = null;

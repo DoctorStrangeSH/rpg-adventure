@@ -371,3 +371,63 @@ test('NG+ save failure restores the completed campaign and region unlocks', (t) 
         gameState.save = save;
     }
 });
+
+
+test('World Eater victory completes NG+ cycle two without duplicating cycle-one rewards', (t) => {
+    const screens = installBrowserStubs(t);
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => {
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+    });
+    LOCATIONS.forEach(location => { location.unlocked = location.type === 'safe' || location.id === 'dragon_lair'; });
+
+    const player = gameState.createPlayer('archer');
+    player.level = 58;
+    player.campaignCycle = 2;
+    player.completedCampaignCycles = 1;
+    player.lastCompletedCampaignCycle = 1;
+    player.newGamePlusUnlocked = true;
+    player.unlockedLocations = ['forest', 'mountains', 'ruins', 'dragon_lair'];
+    player.locationRewardCycles = {
+        forest: 1,
+        mountains: 1,
+        ruins: 1,
+        dragon_lair: 1
+    };
+    player.inventory = [{ id: 'rune_world_fragment', quantity: 1 }];
+
+    const location = getLocation('dragon_lair');
+    const run = getLocationState();
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.enemiesDefeated = location.stages.at(-1).enemiesCount;
+    run.inLocation = true;
+    run.finalBossDefeated = false;
+    const battle = getBattleState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.isBossBattle = true;
+
+    assert.equal(handleBossVictory(), true);
+    assert.equal(player.campaignCompleted, true);
+    assert.equal(player.newGamePlusUnlocked, true);
+    assert.equal(player.campaignCycle, 2);
+    assert.equal(player.completedCampaignCycles, 2);
+    assert.equal(player.lastCompletedCampaignCycle, 2);
+    assert.equal(player.locationRewardCycles.dragon_lair, 2);
+    assert.equal(player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity, 2);
+    assert.ok(screens.includes('ending-screen'));
+
+    const rewardQuantity = player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity;
+    assert.equal(handleBossVictory(), false, 'the second-cycle final reward must also be idempotent');
+    assert.equal(player.completedCampaignCycles, 2);
+    assert.equal(player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity, rewardQuantity);
+
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.completedCampaignCycles, 2);
+    assert.equal(gameState.player.campaignCompleted, true);
+    assert.equal(gameState.player.newGamePlusUnlocked, true);
+    assert.equal(gameState.player.locationRewardCycles.dragon_lair, 2);
+    assert.equal(gameState.player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity, 2);
+});

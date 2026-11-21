@@ -358,14 +358,30 @@ export function updateBattleUI() {
     const canAct = battleState.turn === 'player' && !isProcessing;
     const tacticHint = getEnemyTacticHint(enemy);
     const damageProfile = getEnemyDamageProfile(enemy);
-    const damageProfileHint = [
-        damageProfile.weaknesses.length
-            ? '🎯 Уязвим: ' + damageProfile.weaknesses.map(entry => entry.label + ' (+' + entry.percent + '%)').join(', ')
-            : null,
-        damageProfile.resistances.length
-            ? '🛡️ Сопротивление: ' + damageProfile.resistances.map(entry => entry.label + ' (−' + entry.percent + '%)').join(', ')
-            : null
-    ].filter(Boolean).join(' · ');
+    const damageTypePresentation = {
+        physical: { icon: '⚔️', tone: 'physical', label: 'Физический урон' },
+        fire: { icon: '🔥', tone: 'fire', label: 'Огонь' },
+        ice: { icon: '❄️', tone: 'ice', label: 'Лёд' },
+        poison: { icon: '☠️', tone: 'poison', label: 'Яд' }
+    };
+    const damageProfileChips = [
+        ...damageProfile.weaknesses.map(entry => ({ ...entry, relation: 'weakness' })),
+        ...damageProfile.resistances.map(entry => ({ ...entry, relation: 'resistance' }))
+    ].map(entry => {
+        const presentation = damageTypePresentation[entry.type] || {
+            icon: '✦', tone: 'arcane', label: entry.label
+        };
+        const relationLabel = entry.relation === 'weakness' ? 'Уязвимость' : 'Сопротивление';
+        const sign = entry.relation === 'weakness' ? '+' : '−';
+        return `<span class="damage-affinity-chip ${entry.relation} damage-type-${presentation.tone}" title="${relationLabel}: ${presentation.label}">
+            <span class="damage-affinity-icon" aria-hidden="true">${presentation.icon}</span>
+            <span class="damage-affinity-copy"><span class="damage-affinity-type">${presentation.label}</span><span class="damage-affinity-relation">${relationLabel}</span></span>
+            <strong>${sign}${entry.percent}%</strong>
+        </span>`;
+    }).join('');
+    const damageProfileHint = damageProfileChips
+        ? `<div class="damage-affinity-list" role="list" aria-label="Стихийные уязвимости и сопротивления">${damageProfileChips}</div>`
+        : '';
     const synergies = getActiveRelicSynergies(player);
     const equippedRelicNames = (player.activeRelics || []).filter(id => player.relics?.includes(id) && RELICS[id])
         .slice(0, 2).map(id => RELICS[id].name);
@@ -428,7 +444,7 @@ export function updateBattleUI() {
         ${stageInfo}
         <div class="battle-turn" role="status" aria-live="polite">${canAct ? '🟢 Ваш ход — выберите действие' : '⏳ Ход противника — ожидайте'}</div>
         ${tacticHint ? `<div class="battle-tactic" aria-label="Подсказка о враге">${tacticHint}</div>` : ''}
-        ${damageProfileHint ? `<div class="battle-tactic elemental-profile" aria-label="Стихийные уязвимости и сопротивления">${damageProfileHint}</div>` : ''}
+        ${damageProfileHint}
         ${enemy.intent && player.class === 'warrior' ? '<div class="battle-tactic">🛡️ Воин: защита блокирует 75% следующего удара.</div>' : ''}
         ${enemy.intent && player.class === 'archer' ? '<div class="battle-tactic">🏹 Лучник: обычная атака наносит на 30% больше урона по готовящемуся врагу.</div>' : ''}
         ${enemy.intent && player.class === 'mage' ? '<div class="battle-tactic">❄️ Маг: ледяная нова может сорвать подготовку врага.</div>' : ''}

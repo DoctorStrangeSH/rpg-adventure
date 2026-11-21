@@ -1173,3 +1173,22 @@ test('final boss victory unlocks NG+ and the new campaign cycle survives reload'
     assert.equal(gameState.player.newGamePlusUnlocked, true);
     assert.deepEqual(gameState.player.dungeonProgress, {});
 });
+
+
+test('boss victory is rejected before the regular encounters on its stage are cleared', async (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 9;
+    run.enemiesDefeated = getLocation('forest').stages[9].enemiesCount - 1;
+    const beforePlayer = structuredClone(player);
+    const beforeProgress = structuredClone(player.dungeonProgress);
+    const { handleBossVictory } = await import('../js/systems/dungeon.js');
+
+    assert.ok(getLocation('forest').stages[9].boss);
+    assert.equal(handleBossVictory(), false);
+    assert.equal(run.currentStage, 9);
+    assert.equal(run.enemiesDefeated, getLocation('forest').stages[9].enemiesCount - 1);
+    assert.deepEqual(player, beforePlayer);
+    assert.deepEqual(player.dungeonProgress, beforeProgress);
+});

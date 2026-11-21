@@ -663,6 +663,7 @@ function enemyTurn() {
     const isDungeonBattle = Boolean(locationState?.inLocation);
     
     if (!battleState.isActive || !enemy) return;
+    const enemyTurnSnapshot = cloneBattleEntity(enemy);
     const effects = tickEnemyEffects(enemy);
     if (effects.poisonDamage) {
         showBattleMessage(`Яд наносит ${effects.poisonDamage} урона!`);
@@ -725,7 +726,7 @@ function enemyTurn() {
         SoundSystem.playSound('hit');
         
         const playerSnapshot = createPlayerSnapshot(player);
-        const enemySnapshot = cloneBattleEntity(enemy);
+        const enemySnapshot = enemyTurnSnapshot;
         const previousGuardReduction = battleState.guardReduction;
         const previousRelicEffects = { ...battleState.relicEffects };
         if (!playerSnapshot || !enemySnapshot) {

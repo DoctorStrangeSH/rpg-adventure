@@ -2427,3 +2427,72 @@ button,
     .shop-item .item-icon { width: 52px; height: 52px; }
     .skill-icon.relic-icon { flex-basis: 42px; width: 42px; height: 42px; font-size: 22px; }
 }
+
+
+/* Combat skill sigils: one shared frame, class-specific elemental materials. */
+.skill-icon.skill-art-icon {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    flex: 0 0 48px;
+    width: 48px;
+    height: 48px;
+    border: 1px solid color-mix(in srgb, var(--skill-tone, var(--gold)) 72%, #17121a);
+    border-radius: 13px 13px 8px 8px;
+    background:
+        radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--skill-tone) 26%, transparent), transparent 68%),
+        linear-gradient(145deg, color-mix(in srgb, var(--skill-tone) 16%, #292633), #101622);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 236, 194, 0.14),
+        inset 0 -8px 14px rgba(0, 0, 0, 0.25),
+        0 0 14px color-mix(in srgb, var(--skill-tone) 18%, transparent);
+    font-size: 25px;
+    line-height: 1;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.skill-icon.skill-art-icon::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    z-index: -1;
+    border: 1px solid color-mix(in srgb, var(--skill-tone) 28%, transparent);
+    border-radius: 9px 9px 5px 5px;
+    pointer-events: none;
+}
+
+.skill-icon.skill-art-icon::after {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 50%;
+    width: 12px;
+    height: 2px;
+    transform: translateX(-50%);
+    border-radius: 2px;
+    background: var(--skill-tone);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--skill-tone) 60%, transparent);
+    pointer-events: none;
+}
+
+/* Warrior: forged steel and old bronze. */
+.skill-art-power_strike { --skill-tone: #d99a61; }
+.skill-art-shield_wall { --skill-tone: #9bb5c8; }
+
+/* Mage: living flame and glacial crystal. */
+.skill-art-fireball { --skill-tone: #ff784f; }
+.skill-art-frost_nova { --skill-tone: #83d9f2; }
+
+/* Archer: emerald poison and blood-marked precision. */
+.skill-art-rapid_shot { --skill-tone: #c8a4e9; }
+.skill-art-poison_arrow { --skill-tone: #91cf86; }
+
+@media (max-width: 375px) {
+    .skill-icon.skill-art-icon {
+        flex-basis: 42px;
+        width: 42px;
+        height: 42px;
+        font-size: 22px;
+    }
+}

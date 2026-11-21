@@ -570,8 +570,14 @@ export function applyEnemyAction(enemy, player, action, variance = 0, reduction 
     // Defensive enchantments react only to an actual damaging hit. Reuse the
     // enemy's normal status resistance rules so bosses are not hard-locked.
     const retaliation = getItem(player?.equipment?.armor)?.onDamaged;
+    const armor = getItem(player?.equipment?.armor);
+    const armorSetActive = armor?.setId &&
+        getEquipmentSetBonuses(player).activeSets.some(set => set.id === armor.setId);
+    const retaliationChance = retaliation
+        ? Math.min(1, retaliation.chance + (armorSetActive && retaliation.type === 'freeze' ? 0.1 : 0))
+        : 0;
     const armorTriggered = damage > 0 && player.health > 0 && enemy.health > 0 && retaliation &&
-        Number.isFinite(reactionRoll) && reactionRoll >= 0 && reactionRoll < retaliation.chance;
+        Number.isFinite(reactionRoll) && reactionRoll >= 0 && reactionRoll < retaliationChance;
     const armorEffect = armorTriggered && retaliation.type === 'freeze' &&
         applyStatusEffect(enemy, retaliation.type, retaliation.turns) ? retaliation.type : null;
     // Bloodhunter armor returns a little HP after surviving a hit; healing is

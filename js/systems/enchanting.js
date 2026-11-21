@@ -118,20 +118,33 @@ export function getRuneLoadoutPreview(player,weaponId,runeId){
  const rune=RUNE_CATALOG[runeId];
  if(!player||!rune)return {available:false,reason:'invalid'};
  const current=getWeaponRuneBonuses(player,weaponId);
+ const currentSynergy=getRuneSynergy(player,weaponId);
+ const currentRunes=getWeaponRunes(player,weaponId);
  const simulated={
   ...player,
-  weaponRunes:{...(player.weaponRunes||{}),[weaponId]:[...getWeaponRunes(player,weaponId),runeId]}
+  weaponRunes:{...(player.weaponRunes||{}),[weaponId]:[...currentRunes,runeId]}
  };
  const projected=getWeaponRuneBonuses(simulated,weaponId);
+ const projectedSynergy=getRuneSynergy(simulated,weaponId);
+ const getDamageType=runes=>[...runes].reverse().map(id=>RUNE_CATALOG[id]?.damageType).find(type=>type&&type!=='physical')||'physical';
+ const effectsFor=runes=>[...new Set(runes.map(id=>RUNE_CATALOG[id]?.effect).filter(Boolean))];
  return {
   available:true,
   current,
   projected,
+  currentSynergy,
+  projectedSynergy,
+  currentDamageType:getDamageType(currentRunes),
+  projectedDamageType:getDamageType([...currentRunes,runeId]),
+  currentEffects:effectsFor(currentRunes),
+  projectedEffects:effectsFor([...currentRunes,runeId]),
   delta:{
    attack:projected.attack-current.attack,
    defense:projected.defense-current.defense,
    critChance:projected.critChance-current.critChance
-  }
+  },
+  synergyActivated:!currentSynergy&&!!projectedSynergy,
+  synergyChanged:currentSynergy?.id!==projectedSynergy?.id
  };
 }
 export function getWeaponRuneBonuses(player,weaponId=player?.equipment?.weapon){

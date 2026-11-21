@@ -110,7 +110,7 @@ export function restoreDungeonEncounter(snapshot) {
     const player = gameState.player;
     if (!snapshot?.enemy || !player) return false;
     const enemy = cloneBattleEntity(snapshot.enemy);
-    if (!enemy || enemy.health <= 0 || enemy.health > enemy.maxHealth) return false;
+    if (!enemy || enemy.health < 0 || enemy.health > enemy.maxHealth) return false;
     resetBattlePresentation();
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
@@ -133,6 +133,11 @@ export function restoreDungeonEncounter(snapshot) {
     updateBattleUI();
     animateBattle();
     window.showBattleMessage?.('⚔️ Экспедиция восстановлена. Продолжайте с сохранённого хода.');
+    if (enemy.health <= 0) {
+        battleState.turn = 'player';
+        battleVictory();
+        return true;
+    }
     if (battleState.turn === 'enemy') {
         setTimeout(() => {
             if (battleState.isActive && battleState.turn === 'enemy') enemyTurn();
@@ -759,6 +764,8 @@ function enemyTurn() {
     
     if (!battleState.isActive || !enemy) return;
     const enemyTurnSnapshot = cloneBattleEntity(enemy);
+    const playerTurnSnapshot = createPlayerSnapshot(player);
+    if (!enemyTurnSnapshot || !playerTurnSnapshot) return;
     const effects = tickEnemyEffects(enemy);
     if (effects.poisonDamage) {
         showBattleMessage(`Яд наносит ${effects.poisonDamage} урона!`);
@@ -777,6 +784,13 @@ function enemyTurn() {
         const interrupted = interruptEnemyWindup(enemy);
         battleState.guardReduction = 0;
         battleState.turn = 'player';
+        if (!commitBattleMutation(player, playerTurnSnapshot, enemy, enemyTurnSnapshot,
+            'Не удалось сохранить пропуск хода замороженного противника.')) {
+            battleState.turn = 'enemy';
+            isProcessing = false;
+            updateBattleUI();
+            return;
+        }
         isProcessing = false;
         showBattleMessage(`${enemy.name} пропускает ход из-за заморозки!${interrupted ? ' Подготовка опасного удара сорвана!' : ''}`);
         updateBattleUI();
@@ -787,6 +801,13 @@ function enemyTurn() {
     if (plan.phaseChanged) showBattleMessage(`⚡ ${enemy.name} переходит в фазу ${plan.phase}!`);
     if (plan.warned) {
         battleState.turn = 'player';
+        if (!commitBattleMutation(player, playerTurnSnapshot, enemy, enemyTurnSnapshot,
+            'Не удалось сохранить подготовку особого удара.')) {
+            battleState.turn = 'enemy';
+            isProcessing = false;
+            updateBattleUI();
+            return;
+        }
         isProcessing = false;
         showBattleMessage(getEnemyTacticHint(enemy) || `⚠️ ${enemy.name} готовит особый удар! Защищайтесь или прервите подготовку!`);
         updateBattleUI();
@@ -796,6 +817,13 @@ function enemyTurn() {
     if (action === 'adapt') {
         const result = applyEnemyAction(enemy, player, 'adapt');
         battleState.turn = 'player';
+        if (!commitBattleMutation(player, playerTurnSnapshot, enemy, enemyTurnSnapshot,
+            'Не удалось сохранить адаптацию противника.')) {
+            battleState.turn = 'enemy';
+            isProcessing = false;
+            updateBattleUI();
+            return;
+        }
         isProcessing = false;
         const label = { physical: 'физическим атакам', fire: 'огню', ice: 'льду', poison: 'яду' }[result.adapted] || result.adapted;
         showBattleMessage(`🛡️ ${enemy.name} анализирует ваши действия и адаптируется к ${label}! Сопротивление продержится два ваших хода.`);

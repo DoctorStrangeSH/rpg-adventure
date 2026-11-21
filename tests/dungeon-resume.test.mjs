@@ -803,3 +803,84 @@ test('failed expedition boss startup rolls back battle counters and never opens 
     assert.equal(run.inLocation, true);
     assert.equal(run.currentStage, 9);
 });
+
+
+test('an active expedition encounter restores the same enemy, effects, turn and relic runtime after reload', (t) => {
+    const { player, battle } = setup(t);
+    const previousDocument = globalThis.document;
+    const previousRaf = globalThis.requestAnimationFrame;
+    const ui = { innerHTML: '' };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? ui : null; }
+    };
+    globalThis.requestAnimationFrame = () => 1;
+    window.getLocationState = getLocationState;
+    window.animateBattle = () => {};
+    window.updateBattleUI = () => {};
+    window.showBattleMessage = () => {};
+    window.showScreen = () => {};
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        if (previousRaf === undefined) delete globalThis.requestAnimationFrame;
+        else globalThis.requestAnimationFrame = previousRaf;
+    });
+
+    const savedEnemy = {
+        id: 'wolf',
+        name: 'Вожак лесных волков',
+        icon: '🐺',
+        behavior: 'elite',
+        health: 137,
+        maxHealth: 240,
+        attack: 31,
+        defense: 12,
+        expReward: 80,
+        goldReward: 45,
+        elite: true,
+        effects: { poisonTurns: 2, burnTurns: 1, freezeTurns: 0, weakenTurns: 1 },
+        intent: 'heavy',
+        phase: 2,
+        archerMarks: 1,
+        damageModifiers: { fire: 1.2 },
+        resistances: { ice: 0.8 }
+    };
+    player.health = player.maxHealth - 23;
+    player.mana = player.maxMana - 11;
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 3,
+            enemiesDefeated: 1,
+            activeEncounter: {
+                enemy: savedEnemy,
+                isBossBattle: false,
+                turn: 'enemy',
+                guardReduction: 0.35,
+                relicEffects: { phoenixRebirthUsed: true, lastStandTriggered: 1 }
+            }
+        }
+    };
+    assert.equal(gameState.save(), true);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isDungeonBattle, true);
+    assert.equal(battle.currentEnemy.id, 'wolf');
+    assert.equal(battle.currentEnemy.health, 137);
+    assert.deepEqual(battle.currentEnemy.effects, savedEnemy.effects);
+    assert.equal(battle.currentEnemy.intent, 'heavy');
+    assert.equal(battle.currentEnemy.phase, 2);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(battle.guardReduction, 0.35);
+    assert.deepEqual(battle.relicEffects, {
+        phoenixRebirthUsed: true,
+        lastStandTriggered: 1
+    });
+});

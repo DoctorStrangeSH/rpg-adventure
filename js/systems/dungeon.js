@@ -1023,6 +1023,11 @@ export function handleBossVictory(playerBeforeBattle = null) {
     const location = locationState.currentLocation;
     const player = gameState.player;
     if (!player) return false;
+    const currentStage = location.stages[locationState.currentStage];
+    // A boss result may only be committed while the run is still on a boss
+    // stage whose regular encounters have all been cleared. This makes a
+    // repeated victory callback harmless after the stage has advanced.
+    if (!currentStage?.boss || locationState.enemiesDefeated < currentStage.enemiesCount) return false;
 
     // The snapshot comes from battleVictory before EXP, gold, loot, relics,
     // quests and statistics were changed. A failed commit must replay the boss.

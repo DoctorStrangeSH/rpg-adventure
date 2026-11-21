@@ -1190,7 +1190,8 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
 
         startLocation(regionId);
         assert.ok(getLocationState().inLocation, regionId + ' expedition must start');
-        assert.ok(getLocationState().activeEncounter, regionId + ' snapshot must attach to the run');
+        assert.equal(getLocationState().currentStage, finalStageIndex, regionId + ' resume stage must match the saved boss stage');
+        assert.ok(getLocationState().activeEncounter, regionId + ' snapshot must attach to the run; saved cycle=' + persisted.campaignCycle + ', active cycle=' + gameState.player.campaignCycle + ', saved stage=' + persisted.stage + ', resumed stage=' + getLocationState().currentStage);
         startStageBattle();
 
         assert.equal(battle.isActive, true, regionId + ' encounter must resume');

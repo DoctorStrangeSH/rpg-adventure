@@ -16,6 +16,8 @@ export function updateCharacterScreen() {
     const content = document.getElementById('character-content');
     const classData = CLASSES[player.class];
     const combatStats = getEffectiveCombatStats(player);
+    const ownedRelics = new Set((player.relics || []).filter(id => Object.hasOwn(RELICS, id)));
+    const activeRelicCount = [...new Set(player.activeRelics || [])].filter(id => ownedRelics.has(id)).slice(0, MAX_ACTIVE_RELICS).length;
     
     content.innerHTML = `
         <div class="character-header">
@@ -57,7 +59,8 @@ export function updateCharacterScreen() {
             `).join('')}
         </div>
 
-        <div class="section-title">💎 Реликвии • активных: ${player.activeRelics?.length || 0}/${MAX_ACTIVE_RELICS}</div>
+        <div class="section-title">💎 Реликвии • активных: ${activeRelicCount}/${MAX_ACTIVE_RELICS}</div>
+        <p class="relic-capacity-hint">${activeRelicCount >= MAX_ACTIVE_RELICS ? 'Оба слота заняты. Снимите реликвию, чтобы надеть другую.' : `Можно экипировать ещё ${MAX_ACTIVE_RELICS - activeRelicCount} реликвию.`}</p>
         <div class="skills-section">
             ${(player.relics || []).length ? player.relics.filter(id => RELICS[id]).map(id => `
                 <div class="skill-card talent-card relic-card ${player.activeRelics?.includes(id) ? 'relic-card-active' : ''}">
@@ -67,7 +70,7 @@ export function updateCharacterScreen() {
                         <div class="skill-description">${RELICS[id].description}</div>
                         ${player.activeRelics?.includes(id) ? '<span class="relic-active-label">Экипирована</span>' : ''}
                     </div>
-                    <button class="talent-button relic-toggle-button" aria-pressed="${player.activeRelics?.includes(id) ? 'true' : 'false'}" onclick="window.toggleCharacterRelic('${id}')" ${!player.activeRelics?.includes(id) && (player.activeRelics?.length || 0) >= MAX_ACTIVE_RELICS ? 'disabled' : ''}>
+                    <button class="talent-button relic-toggle-button" aria-pressed="${player.activeRelics?.includes(id) ? 'true' : 'false'}" aria-label="${player.activeRelics?.includes(id) ? 'Снять реликвию ' : 'Надеть реликвию '}${RELICS[id].name}" title="${!player.activeRelics?.includes(id) && activeRelicCount >= MAX_ACTIVE_RELICS ? 'Сначала снимите одну из экипированных реликвий' : ''}" onclick="window.toggleCharacterRelic('${id}')" ${!player.activeRelics?.includes(id) && activeRelicCount >= MAX_ACTIVE_RELICS ? 'disabled' : ''}>
                         ${player.activeRelics?.includes(id) ? 'Снять' : 'Надеть'}
                     </button>
                 </div>

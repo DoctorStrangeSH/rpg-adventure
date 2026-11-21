@@ -71,10 +71,74 @@ function restoreBattleEntity(entity, snapshot) {
 }
 
 function commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot, failureMessage) {
+    const location = window.getLocationState?.();
+    const previousTurn = battleState.turn;
+    const previousEncounter = location?.activeEncounter ? cloneBattleEntity(location.activeEncounter) : null;
+    const nextTurn = previousTurn === 'player' ? 'enemy' : 'player';
+    if (location?.inLocation && location.currentLocation?.id) {
+        const progress = player.dungeonProgress?.[location.currentLocation.id];
+        if (!progress) return false;
+        battleState.turn = nextTurn;
+        const encounter = {
+            enemy: cloneBattleEntity(enemy),
+            isBossBattle: battleState.isBossBattle === true,
+            turn: nextTurn,
+            guardReduction: battleState.guardReduction,
+            relicEffects: { ...battleState.relicEffects }
+        };
+        location.activeEncounter = encounter;
+        progress.activeEncounter = cloneBattleEntity(encounter);
+    }
     if (commitPlayerMutation(player, playerSnapshot, () => gameState.save())) return true;
     restoreBattleEntity(enemy, enemySnapshot);
+    if (location?.inLocation) {
+        location.activeEncounter = previousEncounter;
+        const progress = player.dungeonProgress?.[location.currentLocation?.id];
+        if (progress) progress.activeEncounter = previousEncounter;
+    }
+    battleState.turn = previousTurn;
     window.showNotification?.(failureMessage, 'error');
     return false;
+}
+
+function commitCurrentBattleState(player, playerSnapshot, failureMessage) {
+    return commitBattleMutation(player, playerSnapshot, battleState.currentEnemy,
+        cloneBattleEntity(battleState.currentEnemy), failureMessage);
+}
+
+export function restoreDungeonEncounter(snapshot) {
+    const player = gameState.player;
+    if (!snapshot?.enemy || !player) return false;
+    const enemy = cloneBattleEntity(snapshot.enemy);
+    if (!enemy || enemy.health <= 0 || enemy.health > enemy.maxHealth) return false;
+    resetBattlePresentation();
+    battleState.currentEnemy = enemy;
+    battleState.isActive = true;
+    battleState.animationFrame = 0;
+    battleState.deathAnimationEndFrame = null;
+    battleState.turn = snapshot.turn === 'enemy' ? 'enemy' : 'player';
+    battleState.isBossBattle = snapshot.isBossBattle === true;
+    battleState.isLocationBattle = true;
+    battleState.isDungeonBattle = true;
+    battleState.guardReduction = Number.isFinite(snapshot.guardReduction) ? snapshot.guardReduction : 0;
+    battleState.relicEffects = snapshot.relicEffects && typeof snapshot.relicEffects === 'object'
+        ? { ...snapshot.relicEffects } : { phoenixRebirthUsed: false };
+    battleState.pendingVictorySave = false;
+    battleState.pendingDefeatSave = false;
+    const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height,
+        battleState.isBossBattle);
+    battleState.playerSprite = new Sprite(player.class, positions.player.x, positions.player.y);
+    battleState.enemySprite = new Sprite(enemy.id, positions.enemy.x, positions.enemy.y);
+    window.showScreen?.('battle-screen');
+    updateBattleUI();
+    animateBattle();
+    window.showBattleMessage?.('⚔️ Экспедиция восстановлена. Продолжайте с сохранённого хода.');
+    if (battleState.turn === 'enemy') {
+        setTimeout(() => {
+            if (battleState.isActive && battleState.turn === 'enemy') enemyTurn();
+        }, 250);
+    }
+    return true;
 }
 
 export function initBattle() {
@@ -454,8 +518,8 @@ export function playerAttack() {
     const rangerBleed = triggerRangerEffect(player, enemy);
     const dragonEcho = triggerDragonSwordEcho(player, enemy, damage, isCrit);
     const moonMana = triggerMoonbladeMana(player, damage, isCrit);
-    if (moonMana && !commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
-        'Не удалось сохранить эффект оружия. Урон и восстановление маны отменены.')) {
+    if (!commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
+        'Не удалось сохранить ход. Урон и эффекты боя отменены.')) {
         isProcessing = false;
         updateBattleUI();
         return;
@@ -619,8 +683,9 @@ export function playerUseItem(potionId = 'health_potion') {
         return;
     }
 
-    if (!commitPlayerMutation(player, playerSnapshot, () => gameState.save())) {
-        window.showNotification?.('Не удалось сохранить использование зелья. Зелье и ресурсы восстановлены.', 'error');
+    if (!commitCurrentBattleState(player, playerSnapshot,
+        'Не удалось сохранить использование зелья. Зелье и ресурсы восстановлены.')) {
+        restorePlayerSnapshot(player, playerSnapshot);
         updateBattleUI();
         return;
     }

@@ -515,3 +515,49 @@ test('successful expedition potion use saves restored resources, inventory and e
     let safety = 0;
     while (callbacks.length && safety++ < 5) callbacks.shift()();
 });
+
+
+test('successful expedition enemy action saves player damage and returns the turn to the hero', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 1, enemiesDefeated: 0 }
+    };
+    prepareBattle(battle, player, {
+        health: 2000,
+        maxHealth: 2000,
+        attack: 35,
+        behavior: 'aggressive'
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+    const beforeHealth = player.health;
+
+    playerDefend();
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.ok(Storage.load().player.health < beforeHealth);
+    assert.equal(saved.turn, 'player');
+    assert.equal(battle.turn, 'player');
+});

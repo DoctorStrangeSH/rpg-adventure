@@ -440,6 +440,12 @@ test('World Eater victory completes NG+ cycle two without duplicating cycle-one 
 test('final region completion updates and notifies dungeon achievements in the same saved transaction', (t) => {
     const screens = installBrowserStubs(t);
     const notifications = [];
+    const previousDocument = globalThis.document;
+    globalThis.document = { getElementById() { return { innerHTML: '' }; } };
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
     globalThis.window.updateAchievements = updateAchievements;
     globalThis.window.updateQuestProgress = updateQuestProgress;
     globalThis.window.levelUp = levelUp;

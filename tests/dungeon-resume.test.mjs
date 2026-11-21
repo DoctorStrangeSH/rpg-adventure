@@ -1194,3 +1194,91 @@ test('boss victory is rejected before the regular encounters on its stage are cl
     assert.deepEqual(player, beforePlayer);
     assert.deepEqual(player.dungeonProgress, beforeProgress);
 });
+
+
+test('rescued traveler reward and both delayed expedition effects survive a real reload', (t) => {
+    const { player, battle } = setup(t);
+    const previousRandom = Math.random;
+    Math.random = () => 0.1;
+    t.after(() => { Math.random = previousRandom; });
+    player.mana = 40;
+
+    startLocation('forest');
+    let run = getLocationState();
+    run.currentStage = 4;
+    run.pendingEvent = { id: 'wounded_traveler', stage: 4, runId: run.runId };
+
+    assert.equal(chooseAdventureEvent('risk'), true);
+    assert.equal(player.gold, 70);
+    assert.equal(run.travelerFavorFights, 3);
+    assert.equal(run.travelerReturnPending, true);
+
+    let saved = Storage.load().player.dungeonProgress.forest;
+    assert.equal(saved.travelerFavorFights, 3);
+    assert.equal(saved.travelerReturnPending, true);
+    assert.equal(saved.pendingAdventureEventId, null);
+    assert.deepEqual(saved.visitedEventStages, [4]);
+
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    run = getLocationState();
+    assert.equal(run.travelerFavorFights, 3);
+    assert.equal(run.travelerReturnPending, true);
+    assert.equal(run.visitedEventStages.has(4), true);
+
+    run.currentStage = 5;
+    run.pendingEvent = { id: 'blood_contract', stage: 5, runId: run.runId };
+    assert.equal(chooseAdventureEvent('risk'), true);
+    assert.equal(run.bloodPursuerPending, true);
+    saved = Storage.load().player.dungeonProgress.forest;
+    assert.equal(saved.bloodPursuerPending, true);
+    assert.equal(saved.travelerReturnPending, true);
+
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    run = getLocationState();
+    assert.equal(run.bloodPursuerPending, true);
+    assert.equal(run.travelerReturnPending, true);
+    assert.equal(run.travelerFavorFights, 3);
+    assert.equal(run.visitedEventStages.has(4), true);
+    assert.equal(run.visitedEventStages.has(5), true);
+});
+
+test('a resolved secret-room reward is saved once and its discovery marker survives reload', (t) => {
+    const { player, battle } = setup(t);
+    const previousRandom = Math.random;
+    Math.random = () => 0.1;
+    t.after(() => { Math.random = previousRandom; });
+
+    startLocation('forest');
+    let run = getLocationState();
+    run.currentStage = 6;
+    run.checkedSecretStages.add(6);
+    run.pendingSecretRoom = { id: 'armory', stage: 6, runId: run.runId };
+
+    assert.equal(chooseSecretRoom('explore'), true);
+    const awarded = player.inventory.find(item => item.id === 'big_health_potion');
+    assert.equal(awarded?.quantity, 1);
+    let saved = Storage.load().player.dungeonProgress.forest;
+    assert.equal(saved.pendingSecretRoomId, null);
+    assert.deepEqual(saved.checkedSecretStages, [6]);
+
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.inventory.find(item => item.id === 'big_health_potion')?.quantity, 1);
+    startLocation('forest');
+    run = getLocationState();
+    assert.equal(run.checkedSecretStages.has(6), true);
+    assert.equal(run.pendingSecretRoom, null);
+    saved = Storage.load().player.dungeonProgress.forest;
+    assert.equal(saved.pendingSecretRoomId, null);
+    assert.deepEqual(saved.checkedSecretStages, [6]);
+});

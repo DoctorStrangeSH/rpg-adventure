@@ -187,7 +187,10 @@ test('recovery restores NG+ progression, equipment upgrades, runes, claims and e
         travelerFavorFights: 2,
         travelerReturnPending: false,
         bloodPursuerPending: true,
-        finalBossDefeated: false
+        finalBossDefeated: false,
+        pendingAdventureEventId: null,
+        pendingSecretRoomId: null,
+        activeEncounter: null
     });
     assert.equal(restored.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
     assert.equal(restored.achievements.find(entry => entry.id === 'first_kill').claimed, true);

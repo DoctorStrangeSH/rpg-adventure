@@ -346,3 +346,35 @@ test('salvage rejects malformed duplicate material stacks atomically', async () 
  assert.equal(result.reason, 'invalid_inventory');
  assert.deepEqual(p, snapshot);
 });
+
+
+test('craft-and-salvage round trips are strictly resource-negative for every recipe', async () => {
+ const { CRAFTING_RECIPES, craftItem: craft } = await import('../js/systems/crafting.js');
+ const { salvageEquipment: salvage, getSalvagePreview } = await import('../js/systems/salvage.js');
+ const { getItem } = await import('../js/data/items.js');
+ const materialValue = entries => entries.reduce((sum, entry) => {
+  const item = getItem(entry.id);
+  return sum + (item?.price || 0) * entry.quantity;
+ }, 0);
+
+ for (const recipe of CRAFTING_RECIPES) {
+  const inventory = Object.entries(recipe.materials).map(([id, quantity]) => ({ id, quantity }));
+  if (recipe.requiresDiscovery) inventory.push({ id: recipe.requiresDiscovery, quantity: recipe.materials[recipe.requiresDiscovery] || 3 });
+  const p = {
+   level: 20, gold: recipe.gold + 100,
+   discoveredItems: recipe.requiresDiscovery ? [recipe.requiresDiscovery] : [],
+   equipment: {}, inventory
+  };
+  const beforeValue = p.gold + materialValue(p.inventory);
+  const result = craft(p, recipe.id);
+  assert.equal(result.ok, true, recipe.id);
+  const craftedIndex = p.inventory.findIndex(entry => entry.id === recipe.output);
+  assert.notEqual(craftedIndex, -1, recipe.id);
+  const preview = getSalvagePreview(recipe.output);
+  const recoveredValue = materialValue(preview.map(entry => ({ id: entry.id, quantity: entry.quantity })));
+  assert.ok(recoveredValue < recipe.gold + materialValue(inventory),
+   recipe.id + ' must not create value through crafting and salvage');
+  assert.equal(salvage(p, craftedIndex).ok, true, recipe.id);
+  assert.ok(p.gold <= beforeValue, recipe.id);
+ }
+});

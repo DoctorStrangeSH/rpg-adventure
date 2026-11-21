@@ -184,7 +184,8 @@ export function triggerRuneEffect(player,enemy,roll=Math.random()){
  if(!enemy||enemy.health<=0||!Number.isFinite(roll)||roll<0||roll>=1)return null;
  const synergy=getRuneSynergy(player);
  if(synergy&&roll<0.15){
-  const applied=synergy.effects.some(effect=>applyRuneStatusEffect(enemy,effect,synergy.turns));
+  let applied=false;
+  for(const effect of synergy.effects) applied=applyRuneStatusEffect(enemy,effect,synergy.turns)||applied;
   return applied?synergy.id:null;
  }
  const runes=getWeaponRunes(player),rune=runes.length?RUNE_CATALOG[runes[runes.length-1]]:null;

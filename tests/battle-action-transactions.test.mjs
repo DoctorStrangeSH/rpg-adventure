@@ -59,7 +59,7 @@ function prepareBattle(battle, player, enemy = {}) {
         isDungeonBattle: false,
         guardReduction: 0,
         relicEffects: { phoenixRebirthUsed: false },
-        playerSprite: { x: 0, y: 0, isAttacking: false, beginDeath() { this.deathStartFrame = 0; }, startParry() { this.parryStarted = true; }, receiveHit() { this.hitCount = (this.hitCount || 0) + 1; } },
+        playerSprite: { x: 0, y: 0, isAttacking: false, beginDeath() { this.deathStartFrame = 0; }, startParry() { this.parryStarted = true; }, startCounter() { this.counterStarted = true; }, receiveHit() { this.hitCount = (this.hitCount || 0) + 1; } },
         enemySprite: { x: 100, y: 0, receiveHit() { this.hitCount = (this.hitCount || 0) + 1; } }
     });
 }

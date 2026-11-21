@@ -654,7 +654,7 @@ export function playerFlee() {
             const locationState = window.getLocationState?.();
             if (locationState && locationState.inLocation) {
                 const fled = window.fleeLocation?.();
-                if (fled === false) {
+                if (fled !== true) {
                     isProcessing = false;
                     battleState.turn = 'player';
                     updateBattleUI();
@@ -929,7 +929,7 @@ export function battleDefeat() {
     const defeatCommitted = typeof window.handleDefeat === 'function'
         ? window.handleDefeat(playerBeforeDefeat)
         : commitPlayerMutation(player, playerBeforeDefeat, () => gameState.save());
-    if (defeatCommitted === false) {
+    if (defeatCommitted !== true) {
         restorePlayerSnapshot(player, playerBeforeDefeat);
         battleState.isActive = true;
         battleState.pendingDefeatSave = true;

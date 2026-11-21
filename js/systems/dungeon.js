@@ -678,6 +678,34 @@ export function startBossFight(bossData) {
         goldReward: bossData.goldReward
     };
     
+    const player = gameState.player;
+    const playerBeforeStart = createPlayerSnapshot(player);
+    if (!playerBeforeStart) {
+        window.showNotification?.('Не удалось подготовить начало боя с боссом. Экспедиция не изменена.', 'error');
+        return;
+    }
+    const previousProgress = player.dungeonProgress?.[locationState.currentLocation.id]
+        ? structuredClone(player.dungeonProgress[locationState.currentLocation.id]) : null;
+    const hadProgress = Boolean(player.dungeonProgress &&
+        Object.hasOwn(player.dungeonProgress, locationState.currentLocation.id));
+    player.stats.battles++;
+    persistDungeonProgress();
+    if (!commitPlayerMutation(player, playerBeforeStart, () => gameState.save())) {
+        if (hadProgress) player.dungeonProgress[locationState.currentLocation.id] = previousProgress;
+        else clearDungeonProgress(player, locationState.currentLocation.id);
+        window.showNotification?.('Не удалось сохранить начало боя с боссом. Счётчик боёв восстановлен — повторите запуск.', 'error');
+        const ui = typeof document !== 'undefined' ? document.getElementById('battle-ui') : null;
+        if (ui) {
+            ui.innerHTML = `<section class="adventure-event" aria-label="Повтор запуска боя с боссом">
+                <div class="adventure-event-icon">⚠️</div>
+                <h3>Бой с боссом не сохранён</h3>
+                <p>Прогресс экспедиции сохранён. Повторите запуск, когда хранилище будет доступно.</p>
+                <button class="battle-btn" onclick="window.startStageBattle()">🔄 Повторить запуск</button>
+            </section>`;
+        }
+        return;
+    }
+
     const battleState = getBattleState();
     resetBattlePresentation();
     battleState.currentEnemy = enemy;
@@ -686,10 +714,9 @@ export function startBossFight(bossData) {
     battleState.turn = 'player';
     battleState.isBossBattle = true;
     battleState.isLocationBattle = true;
+    battleState.isDungeonBattle = true;
     battleState.guardReduction = 0;
     battleState.relicEffects = { phoenixRebirthUsed: false };
-    gameState.player.stats.battles++;
-    gameState.save();
     
     const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height, true);
     

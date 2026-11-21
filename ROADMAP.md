@@ -145,7 +145,7 @@
 - [ ] Подтвердить надёжность текущей архитектуры localStorage и задокументировать её ограничения.
 - [ ] Все MUST и Definition of Done из ТЗ выполнены.
 - [ ] [Release checklist](docs/RELEASE_CHECKLIST.md) заполнен.
-- [x] Gameplay tests run #??? — 467/467 passed, 0 failed на commit `4bdb234f`; ручные браузерные прогоны остаются отдельной приёмкой.
+- [x] Gameplay tests run #718 — 467/467 passed, 0 failed на commit `4bdb234f`; ручные браузерные прогоны остаются отдельной приёмкой.
 - [ ] Версия, README и release notes обновлены.
 - [ ] Выпуск RPG Adventure 1.0.
 

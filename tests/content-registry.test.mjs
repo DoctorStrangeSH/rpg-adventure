@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createContentRegistry } from '../js/core/contentRegistry.js';
 import { ENEMY_REGISTRY } from '../js/data/enemies.js';
-import { ITEM_REGISTRY, getItem, getItemsByType } from '../js/data/items.js';
+import { ITEM_REGISTRY, getItem, getItemsByType, validateItemDefinition } from '../js/data/items.js';
 import { QUEST_REGISTRY } from '../js/data/quests.js';
 import { ACHIEVEMENT_REGISTRY } from '../js/data/achievements.js';
 import { LOCATION_REGISTRY } from '../js/data/locations.js';
@@ -38,4 +38,36 @@ test('built-in content is registered without changing legacy lookup APIs', () =>
     assert.ok(LOCATION_REGISTRY.size >= 5);
     assert.equal(getItem('health_potion').id, 'health_potion');
     assert.ok(getItemsByType('weapon').every(item => item.type === 'weapon'));
+});
+
+
+test('all shipped items satisfy progression, rarity and combat-effect contracts', () => {
+    for (const item of ITEM_REGISTRY.list()) {
+        assert.equal(validateItemDefinition(item), true, item.id);
+        if (item.type === 'weapon') assert.ok(Number.isFinite(item.attackBonus) && item.attackBonus >= 0, item.id);
+        if (item.type === 'armor') assert.ok(Number.isFinite(item.defenseBonus) && item.defenseBonus >= 0, item.id);
+        if (item.requiredLevel !== undefined) assert.ok(Number.isSafeInteger(item.requiredLevel) && item.requiredLevel >= 1, item.id);
+    }
+});
+
+test('item registry rejects malformed progression values and effect probabilities', () => {
+    const base = { id: 'test_blade', name: 'Test Blade', type: 'weapon', rarity: 'rare', attackBonus: 10, price: 100 };
+    assert.match(validateItemDefinition({ ...base, requiredLevel: 0 }), /requiredLevel/);
+    assert.match(validateItemDefinition({ ...base, attackBonus: -1 }), /attackBonus/);
+    assert.match(validateItemDefinition({ ...base, rarity: 'mythic' }), /rarity/);
+    assert.match(validateItemDefinition({ ...base, onHit: { type: 'burn', chance: 1.5, turns: 2 } }), /chance/);
+    assert.match(validateItemDefinition({ ...base, onHit: { type: 'burn', chance: 0.2, turns: 0 } }), /duration/);
+});
+
+test('valid bounded healing armor and critical weapon effects remain accepted', () => {
+    assert.equal(validateItemDefinition({
+        id: 'test_armor', name: 'Test Armor', type: 'armor', rarity: 'rare',
+        defenseBonus: 10, price: 100,
+        onDamaged: { type: 'heal', chance: 0.25, fraction: 0.2, maxHealthFraction: 0.1 }
+    }), true);
+    assert.equal(validateItemDefinition({
+        id: 'test_blade', name: 'Test Blade', type: 'weapon', rarity: 'legendary',
+        attackBonus: 40, price: 100,
+        onCrit: { type: 'echo', fraction: 0.25, maxTargetHealthFraction: 0.08 }
+    }), true);
 });

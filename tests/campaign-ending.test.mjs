@@ -142,19 +142,18 @@ test('failed regional item batch does not consume the once-per-cycle reward clai
     run.currentLocation = location;
     run.currentStage = location.stages.length - 1;
     run.inLocation = true;
-    completeLocation();
+    assert.equal(completeLocation(), false);
 
     assert.equal(player.locationRewardCycles?.forest, undefined);
     assert.equal(player.experience, initialExperience);
     assert.equal(player.gold, initialGold);
     assert.equal(player.inventory.find(item => item.id === 'rune_verdant_heart'), undefined);
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentLocation.id, 'forest');
 
-    // Repair the damaged stack and retry the completion claim in the same cycle.
+    // Repair the damaged stack and retry without leaving or restarting the expedition.
     player.inventory = player.inventory.filter(item => item.id !== 'iron_sword');
-    run.currentLocation = location;
-    run.currentStage = location.stages.length - 1;
-    run.inLocation = true;
-    completeLocation();
+    assert.equal(completeLocation(), true);
 
     assert.equal(player.locationRewardCycles.forest, 1);
     assert.equal(player.inventory.find(item => item.id === 'rune_verdant_heart')?.quantity, 1);

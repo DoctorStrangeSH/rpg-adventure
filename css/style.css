@@ -2828,3 +2828,67 @@ button,
     .relic-synergy-icon { width: 26px; height: 26px; }
     .relic-synergy-state { grid-column: 2; text-align: left; }
 }
+
+
+/* Full effective-stat preview when comparing a candidate equipment item. */
+.item-comparison.equipment-preview {
+    display: grid;
+    justify-content: stretch;
+    gap: 7px;
+    width: 100%;
+    margin-top: 8px;
+    padding: 9px;
+    border: 1px solid rgba(201, 164, 101, 0.28);
+    border-radius: 9px;
+    background: linear-gradient(145deg, rgba(201, 164, 101, 0.08), rgba(10, 15, 24, 0.72));
+    text-align: left;
+}
+
+.equipment-preview-heading {
+    color: var(--gold);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.equipment-preview-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+}
+
+.equipment-preview-stats > span {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    padding: 6px;
+    border: 1px solid rgba(214, 190, 145, 0.1);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 9px;
+}
+
+.equipment-preview-stats .comparison-delta {
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.equipment-set-change {
+    display: block;
+    font-size: 9px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.equipment-set-change.set-activated { color: #d8bd83; }
+.equipment-set-change.set-deactivated { color: var(--text-muted, var(--text-secondary)); }
+
+@media (max-width: 375px) {
+    .item-comparison.equipment-preview { padding: 7px; gap: 6px; }
+    .equipment-preview-stats { gap: 4px; }
+    .equipment-preview-stats > span { padding: 5px 4px; font-size: 8px; }
+    .equipment-preview-stats .comparison-delta { font-size: 11px; }
+}

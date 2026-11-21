@@ -561,3 +561,94 @@ test('successful expedition enemy action saves player damage and returns the tur
     assert.equal(saved.turn, 'player');
     assert.equal(battle.turn, 'player');
 });
+
+
+test('a frozen expedition enemy saves the decremented effect and interrupted wind-up', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 1, enemiesDefeated: 0 }
+    };
+    prepareBattle(battle, player, {
+        health: 2000,
+        maxHealth: 2000,
+        intent: 'heavy',
+        effects: { freezeTurns: 2 }
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+
+    playerDefend();
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.enemy.effects.freezeTurns, 1);
+    assert.equal(saved.enemy.intent, null);
+    assert.equal(saved.turn, 'player');
+    assert.equal(battle.turn, 'player');
+    assert.equal(saved.guardReduction, 0);
+});
+
+test('an expedition enemy adaptation is persisted before the next player turn', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 1, enemiesDefeated: 0 }
+    };
+    prepareBattle(battle, player, {
+        health: 2000,
+        maxHealth: 2000,
+        pendingAdaptation: 'fire'
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+
+    playerDefend();
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.deepEqual(saved.enemy.adaptiveResistance, { type: 'fire', turns: 2 });
+    assert.equal(saved.enemy.pendingAdaptation, null);
+    assert.equal(saved.turn, 'player');
+    assert.equal(battle.turn, 'player');
+});

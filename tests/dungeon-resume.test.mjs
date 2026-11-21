@@ -908,3 +908,63 @@ test('malformed active encounter snapshots are discarded without invalidating th
     assert.equal(saved.enemiesDefeated, 1);
     assert.equal(saved.activeEncounter, null);
 });
+
+
+test('a saved regional boss encounter resumes with boss rules instead of a regular enemy', (t) => {
+    const { player, battle } = setup(t);
+    const previousDocument = globalThis.document;
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    window.getLocationState = getLocationState;
+    window.animateBattle = () => {};
+    window.showBattleMessage = () => {};
+    window.showScreen = () => {};
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    const stage = getLocation('forest').stages[4];
+    const boss = {
+        id: stage.boss.id,
+        name: stage.boss.name,
+        health: 321,
+        maxHealth: 500,
+        attack: 42,
+        defense: 18,
+        expReward: stage.boss.expReward,
+        goldReward: stage.boss.goldReward,
+        miniBoss: true,
+        behavior: 'mini_boss',
+        effects: { burnTurns: 2 },
+        phase: 1
+    };
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 4,
+            enemiesDefeated: stage.enemiesCount,
+            activeEncounter: {
+                enemy: boss,
+                isBossBattle: true,
+                turn: 'player',
+                guardReduction: 0,
+                relicEffects: { phoenixRebirthUsed: false }
+            }
+        }
+    };
+    assert.equal(gameState.save(), true);
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    assert.equal(battle.isDungeonBattle, true);
+    assert.equal(battle.currentEnemy.id, boss.id);
+    assert.equal(battle.currentEnemy.health, 321);
+    assert.deepEqual(battle.currentEnemy.effects, { burnTurns: 2 });
+});

@@ -45,6 +45,7 @@ test('World Eater victory completes the campaign, saves it and opens the ending'
     const finalLocation = getLocation('dragon_lair');
     run.currentLocation = finalLocation;
     run.currentStage = finalLocation.stages.length - 1;
+    run.enemiesDefeated = finalLocation.stages.at(-1).enemiesCount;
     run.inLocation = true;
     run.finalBossDefeated = false;
     const battle = getBattleState();

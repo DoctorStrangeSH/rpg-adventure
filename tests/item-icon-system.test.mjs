@@ -32,3 +32,20 @@ test('narrow screens keep icon frames compact without removing their visual hier
     assert.match(iconStyles, /@media\s*\(max-width:\s*375px\)[\s\S]*?\.inventory-item \.item-icon\s*\{[^}]*width:\s*52px/s);
     assert.match(iconStyles, /@media\s*\(max-width:\s*375px\)[\s\S]*?\.equipment-slot \.slot-icon\s*\{[^}]*width:\s*58px/s);
 });
+
+
+test('shop cards use semantic item types and rarity-colored icon frames', () => {
+    const shop = readFileSync(new URL('../js/ui/shop.js', import.meta.url), 'utf8');
+    assert.match(shop, /class="item-icon icon-\$\{item\.type\}"/);
+    assert.match(shop, /--item-rarity:\$\{RARITIES\[item\.rarity\]/);
+    assert.match(iconStyles, /\.shop-item \.item-icon\s*\{[^}]*width:\s*58px/s);
+});
+
+test('relic cards distinguish all four rarity tiers with dedicated icon frames', () => {
+    const character = readFileSync(new URL('../js/ui/character.js', import.meta.url), 'utf8');
+    assert.match(character, /class="skill-icon relic-icon relic-rarity-\$\{RELICS\[id\]\.rarity\}"/);
+    for (const rarity of ['common', 'rare', 'epic', 'legendary']) {
+        assert.match(css, new RegExp('\\.relic-icon\\.relic-rarity-' + rarity));
+    }
+    assert.match(css, /\.skill-icon\.relic-icon\s*\{[^}]*flex:\s*0 0 46px/s);
+});

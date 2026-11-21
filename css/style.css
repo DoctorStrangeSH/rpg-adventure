@@ -2379,3 +2379,51 @@ button,
     .inventory-item .item-icon { width: 52px; height: 52px; font-size: 26px; }
     .equipment-slot .slot-icon { width: 58px; height: 58px; font-size: 31px; }
 }
+
+
+/* Relic and shop glyphs inherit the same rarity language as equipment. */
+.shop-item .item-icon {
+    width: 58px;
+    height: 58px;
+    margin: 2px auto 12px;
+}
+
+.skill-icon.relic-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 46px;
+    width: 46px;
+    height: 46px;
+    border: 1px solid var(--relic-tone, var(--border));
+    border-radius: 12px 12px 8px 8px;
+    background:
+        radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--relic-tone) 22%, transparent), transparent 68%),
+        linear-gradient(145deg, #302a38, #121824);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 236, 194, 0.12),
+        0 0 14px color-mix(in srgb, var(--relic-tone) 16%, transparent);
+    font-size: 25px;
+    line-height: 1;
+}
+
+.relic-icon.relic-rarity-common { --relic-tone: #b8b3aa; }
+.relic-icon.relic-rarity-rare { --relic-tone: #82b9e8; }
+.relic-icon.relic-rarity-epic { --relic-tone: #c29be8; }
+.relic-icon.relic-rarity-legendary { --relic-tone: #e0bc79; }
+
+.shop-item .item-icon.icon-consumable {
+    --item-rarity: #b99bdc;
+}
+
+.shop-item .item-icon.icon-weapon {
+    --item-rarity: #c58d62;
+}
+
+.shop-item .item-icon.icon-armor {
+    --item-rarity: #8eb4cc;
+}
+
+@media (max-width: 375px) {
+    .shop-item .item-icon { width: 52px; height: 52px; }
+    .skill-icon.relic-icon { flex-basis: 42px; width: 42px; height: 42px; font-size: 22px; }
+}

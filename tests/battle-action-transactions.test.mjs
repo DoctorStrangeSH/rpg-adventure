@@ -353,3 +353,32 @@ test('a committed expedition guard action saves the exact enemy and next turn fo
     assert.equal(saved.turn, 'enemy');
     assert.ok(saved.guardReduction > 0);
 });
+
+
+test('failed expedition guard snapshot restores guard, turn and previous encounter save', (t) => {
+    const { player, battle } = setup(t);
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 2, enemiesDefeated: 1 }
+    };
+    prepareBattle(battle, player);
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+    const beforeGuard = battle.guardReduction;
+    const beforePlayer = structuredClone(player);
+    gameState.save = () => false;
+
+    playerDefend();
+
+    assert.deepEqual(player, beforePlayer);
+    assert.equal(battle.guardReduction, beforeGuard);
+    assert.equal(battle.turn, 'player');
+    assert.equal(location.activeEncounter, null);
+    assert.equal(player.dungeonProgress.forest.activeEncounter, undefined);
+});

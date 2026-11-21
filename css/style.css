@@ -2689,3 +2689,27 @@ button,
     .relic-card .skill-info { min-width: 0; overflow-wrap: anywhere; }
     .relic-card .relic-toggle-button { flex: 0 0 auto; min-width: 64px; padding-inline: 9px; }
 }
+
+
+/* Explain the two-slot relic limit before players encounter disabled actions. */
+.relic-capacity-hint {
+    margin: -4px 0 12px;
+    color: var(--text-muted, var(--text-secondary));
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.relic-card .relic-toggle-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+    filter: saturate(0.55);
+}
+
+.relic-card .relic-toggle-button:disabled:hover {
+    transform: none;
+    border-color: var(--border);
+}
+
+@media (max-width: 375px) {
+    .relic-capacity-hint { margin-bottom: 9px; font-size: 10px; }
+}

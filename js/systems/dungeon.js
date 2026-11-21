@@ -906,6 +906,7 @@ export function fleeLocation() {
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.finalBossDefeated = false;
+    locationState.activeEncounter = null;
 
     window.showNotification?.('Вы покинули локацию. Прогресс сброшен.', 'info');
     window.exitBattle();
@@ -923,6 +924,7 @@ export function resetLocationState() {
     locationState.currentStage = 0;
     locationState.enemiesDefeated = 0;
     locationState.finalBossDefeated = false;
+    locationState.activeEncounter = null;
 }
 
 export function getLocationState() {
@@ -936,6 +938,8 @@ export function handleVictory(playerBeforeBattle = null) {
     const previousDefeated = locationState.enemiesDefeated;
     const previousProgress = gameState.player?.dungeonProgress
         ? structuredClone(gameState.player.dungeonProgress) : null;
+    const previousActiveEncounter = locationState.activeEncounter;
+    locationState.activeEncounter = null;
     locationState.enemiesDefeated++;
     persistDungeonProgress();
     let saved = false;
@@ -947,6 +951,7 @@ export function handleVictory(playerBeforeBattle = null) {
     if (!saved) {
         locationState.currentStage = previousStage;
         locationState.enemiesDefeated = previousDefeated;
+        locationState.activeEncounter = previousActiveEncounter;
         if (gameState.player) {
             if (previousProgress) gameState.player.dungeonProgress = previousProgress;
             else delete gameState.player.dungeonProgress;
@@ -1016,6 +1021,8 @@ export function handleBossVictory(playerBeforeBattle = null) {
     const previousDeepChestStages = new Set(locationState.claimedDeepChestStages);
     const previousBonusStages = new Set(locationState.claimedUnbrokenBonusStages);
     const previousFinalBossDefeated = locationState.finalBossDefeated;
+    const previousActiveEncounter = locationState.activeEncounter;
+    locationState.activeEncounter = null;
     const stageNumber = previousStage + 1;
     let deepChestRewardId = null;
 
@@ -1024,12 +1031,14 @@ export function handleBossVictory(playerBeforeBattle = null) {
         const itemId = rollDeepChest(stageNumber);
         deepChestRewardId = itemId;
         if (itemId && !canGrantItems(player, [{ id: itemId, quantity: 1 }])) {
+            locationState.activeEncounter = previousActiveEncounter;
             if (rollbackPlayer) restorePlayer(rollbackPlayer);
             window.showNotification?.('Недостаточно места или повреждён инвентарь для награды босса. Победа не засчитана — освободите место и повторите бой.', 'error');
             return false;
         }
         if (claimDeepChestAttempt(player, location.id, stageNumber)) {
             if (itemId && !grantItemsAtomically(player, [{ id: itemId, quantity: 1 }])) {
+                locationState.activeEncounter = previousActiveEncounter;
                 if (rollbackPlayer) restorePlayer(rollbackPlayer);
                 return false;
             }
@@ -1044,6 +1053,7 @@ export function handleBossVictory(playerBeforeBattle = null) {
             if (!Number.isSafeInteger(player.experience) || !Number.isSafeInteger(player.gold) ||
                 player.experience > Number.MAX_SAFE_INTEGER - bonus.exp ||
                 player.gold > Number.MAX_SAFE_INTEGER - bonus.gold) {
+                locationState.activeEncounter = previousActiveEncounter;
                 if (rollbackPlayer) restorePlayer(rollbackPlayer);
                 locationState.claimedDeepChestStages = previousDeepChestStages;
                 return false;
@@ -1067,6 +1077,7 @@ export function handleBossVictory(playerBeforeBattle = null) {
             locationState.claimedDeepChestStages = previousDeepChestStages;
             locationState.claimedUnbrokenBonusStages = previousBonusStages;
             locationState.finalBossDefeated = previousFinalBossDefeated;
+            locationState.activeEncounter = previousActiveEncounter;
             return false;
         }
         if (deepChestRewardId) {
@@ -1090,6 +1101,7 @@ export function handleBossVictory(playerBeforeBattle = null) {
         locationState.claimedDeepChestStages = previousDeepChestStages;
         locationState.claimedUnbrokenBonusStages = previousBonusStages;
         locationState.finalBossDefeated = previousFinalBossDefeated;
+        locationState.activeEncounter = previousActiveEncounter;
         if (rollbackPlayer) restorePlayer(rollbackPlayer);
         window.showNotification?.('Не удалось сохранить победу над боссом. Награды отменены, бой можно повторить.', 'error');
         return false;
@@ -1141,6 +1153,7 @@ export function handleDefeat(playerBeforeDefeat = null) {
     locationState.pendingCheckpoint = null;
     locationState.currentLocation = null;
     locationState.finalBossDefeated = false;
+    locationState.activeEncounter = null;
 
     window.showNotification?.('Вы погибли! Прогресс локации сброшен. Начните заново.', 'error');
     return true;

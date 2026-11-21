@@ -148,13 +148,19 @@ test('failed enemy-turn save restores player and enemy state and returns the tur
 test('field victory rolls back rewards on save failure and exposes an explicit retry', (t) => {
     const { player, battle, notifications } = setup(t);
     prepareBattle(battle, player, { health: 0, expReward: 20, goldReward: 15 });
+    player.experience = player.maxExperience - 1;
     const beforePlayer = structuredClone(player);
+    const progressSaveFlags = [];
+    window.updateQuestProgress = (_type, _amount, options) => progressSaveFlags.push(options?.save);
+    window.updateAchievements = options => progressSaveFlags.push(options?.save);
+    window.levelUp = options => progressSaveFlags.push(options?.save);
     globalThis.setTimeout = () => 1;
     gameState.save = () => false;
 
     battleVictory();
 
     assert.deepEqual(player, beforePlayer);
+    assert.deepEqual(progressSaveFlags, [false, false, false, false, false, false]);
     assert.equal(battle.isActive, true);
     assert.equal(battle.pendingVictorySave, true);
     assert.match(notifications[0]?.message || '', /Победа не сохранена/);
@@ -212,4 +218,23 @@ test('failed expedition flee save keeps the battle open and restores available a
     assert.equal(battle.turn, 'player');
     assert.equal(battle.pendingVictorySave, false);
     assert.equal(battle.pendingDefeatSave, false);
+});
+
+test('failed field boss victory rolls back trophy and boss loot before offering a retry', (t) => {
+    const { player, battle } = setup(t);
+    prepareBattle(battle, player, {
+        id: 'world_eater', name: 'Пожиратель миров', health: 0,
+        expReward: 50, goldReward: 50
+    });
+    battle.isBossBattle = true;
+    const beforePlayer = structuredClone(player);
+    Math.random = () => 0.01;
+    globalThis.setTimeout = () => 1;
+    gameState.save = () => false;
+
+    battleVictory();
+
+    assert.deepEqual(player, beforePlayer);
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.pendingVictorySave, true);
 });

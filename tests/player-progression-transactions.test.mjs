@@ -97,7 +97,10 @@ test('quest and achievement rewards commit once and only then show success', (t)
     assert.equal(quest.rewardClaimed, true);
     assert.equal(achievement.claimed, true);
     assert.equal(player.gold, 300);
-    assert.equal(saves, 2);
+    assert.equal(claimQuestReward('first_blood'), false);
+    assert.equal(claimAchievement('first_kill'), false);
+    assert.equal(player.gold, 300, 'a repeated claim must not grant currency twice');
+    assert.equal(saves, 2, 'a repeated claim must not write another reward transaction');
     assert.equal(notifications.filter(entry => entry.type === 'success').length, 2);
 });
 

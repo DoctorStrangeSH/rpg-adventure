@@ -1602,6 +1602,7 @@ test('active boss status effects and one-use relic flags remain identical across
         lastStandTriggered: 1,
         guardianWardUsed: true
     };
+    assert.equal(gameState.save(), true, 'initial active boss snapshot');
 
     for (let cycle = 0; cycle < 3; cycle++) {
         resetLocationState();

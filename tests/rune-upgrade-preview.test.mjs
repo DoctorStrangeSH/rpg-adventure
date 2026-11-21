@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getRuneLoadoutPreview } from '../js/systems/enchanting.js';
+import { getRuneLoadoutPreview, triggerRuneEffect } from '../js/systems/enchanting.js';
 import { getEquipmentUpgradeStatPreview } from '../js/ui/inventory.js';
 import { readFileSync } from 'node:fs';
 
@@ -86,4 +86,27 @@ test('rune UI explains blocked previews instead of showing fictitious stat gains
     assert.ok(source.includes('Предпросмотр недоступен:'));
     assert.ok(source.includes('Все рунические гнёзда заняты'));
     assert.ok(source.includes('Эта руна уже установлена'));
+});
+
+
+test('rune effects respect full and partial enemy status resistance', () => {
+    const player = runePlayer(['flame']);
+    const immune = { health: 100, effects: {}, resistances: { burn: 1 } };
+    assert.equal(triggerRuneEffect(player, immune, 0.1), null);
+    assert.equal(immune.effects.burnTurns, undefined);
+    const resistant = { health: 100, effects: {}, resistances: { burn: 0.5 } };
+    assert.equal(triggerRuneEffect(player, resistant, 0.1), 'burn');
+    assert.equal(resistant.effects.burnTurns, 1);
+});
+
+test('rune synergies apply each effect independently through enemy resistances', () => {
+    const player = runePlayer(['flame', 'blood']);
+    player.itemUpgrades.iron_sword = 8;
+    const enemy = { health: 100, effects: {}, resistances: { burn: 1, bleed: 0 } };
+    assert.equal(triggerRuneEffect(player, enemy, 0.1), 'crimson_flare');
+    assert.equal(enemy.effects.burnTurns, undefined);
+    assert.equal(enemy.effects.bleedTurns, 2);
+    const immune = { health: 100, effects: {}, resistances: { burn: 1, bleed: 1 } };
+    assert.equal(triggerRuneEffect(player, immune, 0.1), null);
+    assert.deepEqual(immune.effects, {});
 });

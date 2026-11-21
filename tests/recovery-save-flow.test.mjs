@@ -198,3 +198,23 @@ test('recovery restores NG+ progression, equipment upgrades, runes, claims and e
     assert.equal(values.get(RECOVERY_SAVE_KEY), recovery,
         'restoration and subsequent save must not consume or rewrite the recovery copy');
 });
+
+
+test('a malformed primary save never replaces the active in-memory profile during reload', (t) => {
+    const values = setup(t);
+    const activePlayer = gameState.createPlayer('archer');
+    Object.assign(activePlayer, {
+        username: 'Current Hero',
+        level: 23,
+        gold: 1840,
+        campaignCycle: 2,
+        newGamePlusUnlocked: true
+    });
+    const activeBefore = structuredClone(activePlayer);
+    const damagedPrimary = '{truncated-after-browser-crash';
+    values.set(GAME_CONFIG.saveKey, damagedPrimary);
+
+    assert.equal(gameState.load(), false);
+    assert.deepEqual(gameState.player, activeBefore);
+    assert.equal(values.get(GAME_CONFIG.saveKey), damagedPrimary);
+});

@@ -562,6 +562,7 @@ test('successful expedition enemy action saves player damage and returns the tur
     battle.isDungeonBattle = true;
     battle.isLocationBattle = true;
     const beforeHealth = player.health;
+    Math.random = () => 0.99; // deterministic basic attack, not a telegraph
 
     playerDefend();
     let safety = 0;

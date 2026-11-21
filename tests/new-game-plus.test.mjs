@@ -7,6 +7,7 @@ import {
 import { LOCATIONS } from '../js/data/locations.js';
 import { gameState } from '../js/core/state.js';
 import { claimDeepChestAttempt } from '../js/systems/loot.js';
+import { startNewGamePlusFromEnding } from '../js/ui/ending.js';
 
 function makeCompletedPlayer() {
     return {
@@ -148,6 +149,68 @@ test('NG+ cycle survives a real localStorage save and reload', (t) => {
     assert.equal(restored.achievements.find(entry => entry.id === 'first_kill').claimed, true);
     assert.deepEqual(LOCATIONS.filter(location => location.unlocked).map(location => location.id)
         .sort(), ['forest', 'village']);
+});
+
+
+
+test('ending screen NG+ action starts the next cycle, persists retained progression and returns to the menu', (t) => {
+    const previousStorage = globalThis.localStorage;
+    const previousWindow = globalThis.window;
+    const previousPlayer = gameState.player;
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    const values = new Map();
+    const screens = [];
+    const notifications = [];
+    const uiCalls = [];
+    globalThis.localStorage = {
+        setItem(key, value) { values.set(key, String(value)); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    };
+    globalThis.window = {
+        initUI() { uiCalls.push('init'); },
+        showScreen(screen) { screens.push(screen); },
+        updateMainMenu() { uiCalls.push('menu'); },
+        showNotification(message, type) { notifications.push({ message, type }); }
+    };
+
+    t.after(() => {
+        gameState.player = previousPlayer;
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+    });
+
+    gameState.player = makeCompletedPlayer();
+    gameState.player.dungeonProgress = { forest: { stage: 12, enemiesDefeated: 4 } };
+    gameState.player.dungeonCheckpoints = { forest: 10 };
+    gameState.player.health = 12;
+    gameState.player.mana = 3;
+
+    assert.equal(startNewGamePlusFromEnding(), true);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.campaignCompleted, false);
+    assert.equal(gameState.player.newGamePlusUnlocked, true);
+    assert.equal(gameState.player.level, 18);
+    assert.equal(gameState.player.itemUpgrades.dragon_sword, 8);
+    assert.deepEqual(gameState.player.weaponRunes.dragon_sword, ['flame', 'blood']);
+    assert.deepEqual(gameState.player.dungeonProgress, {});
+    assert.deepEqual(gameState.player.dungeonCheckpoints, {});
+    assert.equal(gameState.player.health, gameState.player.maxHealth);
+    assert.equal(gameState.player.mana, gameState.player.maxMana);
+    assert.deepEqual(screens, ['main-menu']);
+    assert.deepEqual(uiCalls, ['init', 'menu']);
+    assert.equal(notifications.at(-1)?.type, 'success');
+
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.campaignCompleted, false);
+    assert.equal(gameState.player.itemUpgrades.dragon_sword, 8);
+    assert.deepEqual(gameState.player.weaponRunes.dragon_sword, ['flame', 'blood']);
+    assert.deepEqual(gameState.player.dungeonProgress, {});
+    assert.deepEqual(gameState.player.dungeonCheckpoints, {});
 });
 
 test('location reward eligibility can be checked without consuming its campaign claim', () => {

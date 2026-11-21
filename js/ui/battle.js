@@ -15,7 +15,7 @@ import { BossSpellFx } from '../systems/bossSpellFx.js';
 import { calculateDamage, applyDamage, consumeHealingPotion, consumeManaPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, hasBossTrophy, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
-import { createPlayerSnapshot, restorePlayerSnapshot } from '../systems/playerTransactions.js';
+import { createPlayerSnapshot, restorePlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 
 const particleSystem = new ParticleSystem();
 const projectileFx = new ProjectileFx();
@@ -45,6 +45,35 @@ let battleState = {
     guardReduction: 0,
     relicEffects: { phoenixRebirthUsed: false }
 };
+
+
+function cloneBattleEntity(entity) {
+    if (!entity || typeof entity !== 'object') return null;
+    try {
+        return JSON.parse(JSON.stringify(entity));
+    } catch {
+        return null;
+    }
+}
+
+function restoreBattleEntity(entity, snapshot) {
+    if (!entity || !snapshot || typeof snapshot !== 'object') return false;
+    try {
+        const restored = JSON.parse(JSON.stringify(snapshot));
+        Object.keys(entity).forEach(key => delete entity[key]);
+        Object.assign(entity, restored);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot, failureMessage) {
+    if (commitPlayerMutation(player, playerSnapshot, () => gameState.save())) return true;
+    restoreBattleEntity(enemy, enemySnapshot);
+    window.showNotification?.(failureMessage, 'error');
+    return false;
+}
 
 export function initBattle() {
     battleState.canvas = document.getElementById('battle-canvas');
@@ -103,6 +132,14 @@ export function startBattle(location) {
         defense: enemyData.defense * (1 + player.level * 0.1)
     };
     
+    const playerSnapshot = createPlayerSnapshot(player);
+    if (!playerSnapshot) return;
+    player.stats.battles++;
+    if (!commitPlayerMutation(player, playerSnapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить начало боя. Попробуйте ещё раз.', 'error');
+        return;
+    }
+
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
     battleState.animationFrame = 0;
@@ -113,8 +150,6 @@ export function startBattle(location) {
     battleState.isLocationBattle = false;
     battleState.guardReduction = 0;
     battleState.relicEffects = { phoenixRebirthUsed: false };
-    player.stats.battles++;
-    gameState.save();
     
     const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height);
     battleState.playerSprite = new Sprite(player.class, positions.player.x, positions.player.y);
@@ -483,19 +518,29 @@ export function playerSkill(skillId) {
         return;
     }
     
+    const playerSnapshot = createPlayerSnapshot(player);
+    const enemySnapshot = cloneBattleEntity(enemy);
+    const previousGuardReduction = battleState.guardReduction;
+    if (!playerSnapshot || !enemySnapshot) return;
+
     isProcessing = true;
     disableBattleButtons();
-    
     player.mana -= skill.manaCost;
-    
-    battleState.playerSprite.isAttacking = true;
-    launchPlayerProjectile(skill.id);
-    
+
     const result = useSkillEffect(player, enemy, skill);
-    if (result.damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);
     const weaponEffect = result.damage > 0 ? triggerWeaponEffect(player, enemy) : null;
     if (result.guardReduction) battleState.guardReduction = result.guardReduction;
-    gameState.save();
+    if (!commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
+        'Не удалось сохранить применение навыка. Мана и состояние противника восстановлены.')) {
+        battleState.guardReduction = previousGuardReduction;
+        isProcessing = false;
+        updateBattleUI();
+        return;
+    }
+
+    battleState.playerSprite.isAttacking = true;
+    launchPlayerProjectile(skill.id);
+    if (result.damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);
     
     const statuses = [weaponEffect && WEAPON_EFFECT_NAMES[weaponEffect], skill.freeze && enemy.effects?.freezeTurns && 'заморозка',
         skill.poison && enemy.effects?.poisonTurns && 'яд',
@@ -541,6 +586,8 @@ export function playerUseItem(potionId = 'health_potion') {
     }
 
     const potionData = getItem(potion.id);
+    const playerSnapshot = createPlayerSnapshot(player);
+    if (!playerSnapshot) return;
     const restored = potionId === 'mana_potion'
         ? consumeManaPotion(player, potion, potionData)
         : consumeHealingPotion(player, potion, potionData);
@@ -551,11 +598,16 @@ export function playerUseItem(potionId = 'health_potion') {
         return;
     }
 
+    if (!commitPlayerMutation(player, playerSnapshot, () => gameState.save())) {
+        window.showNotification?.('Не удалось сохранить использование зелья. Зелье и ресурсы восстановлены.', 'error');
+        updateBattleUI();
+        return;
+    }
+
     isProcessing = true;
     disableBattleButtons();
     const resourceLabel = potionId === 'mana_potion' ? 'MP' : 'HP';
     showBattleMessage(`Вы использовали ${potionData.name}! +${restored} ${resourceLabel}`);
-    gameState.save();
     battleState.turn = 'enemy';
     setTimeout(() => {
         if (!battleState.isActive) return;
@@ -661,15 +713,36 @@ function enemyTurn() {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         SoundSystem.playSound('hit');
         
+        const playerSnapshot = createPlayerSnapshot(player);
+        const enemySnapshot = cloneBattleEntity(enemy);
+        const previousGuardReduction = battleState.guardReduction;
+        const previousRelicEffects = { ...battleState.relicEffects };
+        if (!playerSnapshot || !enemySnapshot) {
+            isProcessing = false;
+            battleState.turn = 'player';
+            window.showNotification?.('Не удалось подготовить сохранение результата хода противника.', 'error');
+            updateBattleUI();
+            return;
+        }
+
         const result = applyEnemyAction(enemy, player, action, Math.floor(Math.random() * 5), battleState.guardReduction);
         const damage = result.damage;
-        if (damage > 0) battleState.playerSprite?.receiveHit(battleState.animationFrame);
         const parried = resolveWarriorParry(player, enemy, guardedWindup, battleState.guardReduction);
-        if (parried) battleState.playerSprite?.startParry(battleState.animationFrame);
-        if (parried) battleState.playerSprite?.startCounter(battleState.animationFrame);
         const reborn = tryPhoenixRebirth(player, battleState.relicEffects);
         battleState.guardReduction = 0;
-        gameState.save();
+        if (!commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
+            'Не удалось сохранить ход противника. Здоровье и эффекты боя восстановлены.')) {
+            battleState.guardReduction = previousGuardReduction;
+            battleState.relicEffects = previousRelicEffects;
+            isProcessing = false;
+            battleState.turn = 'player';
+            updateBattleUI();
+            return;
+        }
+
+        if (damage > 0) battleState.playerSprite?.receiveHit(battleState.animationFrame);
+        if (parried) battleState.playerSprite?.startParry(battleState.animationFrame);
+        if (parried) battleState.playerSprite?.startCounter(battleState.animationFrame);
         
         if (damage) addDamageText(battleState.playerSprite.x, battleState.playerSprite.y - 50, damage);
         

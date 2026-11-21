@@ -974,3 +974,31 @@ test('phoenix crown revival is saved exactly once with the surviving expedition 
     assert.equal(savedPlayer.health, Math.ceil(player.maxHealth * 0.2));
     assert.equal(battle.relicEffects.phoenixRebirthUsed, true);
 });
+
+
+test('mage cannot cast a skill without its full mana cost or mutate the encounter', (t) => {
+    const { player, battle, notifications } = setup(t, 'mage');
+    prepareBattle(battle, player, {
+        id: 'world_eater',
+        behavior: 'boss',
+        health: 2000,
+        maxHealth: 2000,
+        effects: {},
+        intent: 'cataclysm'
+    });
+    const skill = CLASSES.mage.skills.find(entry => entry.id === 'fireball');
+    assert.ok(skill);
+    player.mana = skill.manaCost - 1;
+    const beforeHealth = battle.currentEnemy.health;
+    const beforeEffects = structuredClone(battle.currentEnemy.effects);
+    const beforeMana = player.mana;
+
+    playerSkill(skill.id);
+
+    assert.equal(player.mana, beforeMana);
+    assert.equal(battle.currentEnemy.health, beforeHealth);
+    assert.deepEqual(battle.currentEnemy.effects, beforeEffects);
+    assert.equal(battle.currentEnemy.intent, 'cataclysm');
+    assert.equal(battle.turn, 'player');
+    assert.match(notifications[0]?.message || '', /Недостаточно маны/);
+});

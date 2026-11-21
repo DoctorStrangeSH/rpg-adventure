@@ -36,3 +36,18 @@ test('relic art remains presentation-only and leaves relic effects untouched', (
     }
     assert.match(character, /RELICS\[id\]\.description/);
 });
+
+
+test('equipped relics are visibly marked and expose pressed state to assistive technology', () => {
+    assert.match(character, /relic-card-active/);
+    assert.match(character, /class="relic-active-label">Экипирована/);
+    assert.match(character, /aria-pressed="\$\{player\.activeRelics\?\.includes\(id\) \? 'true' : 'false'\}"/);
+    assert.match(character, /player\.activeRelics\?\.includes\(id\) \? 'Снять' : 'Надеть'/);
+});
+
+test('equipped relic state remains readable on narrow mobile screens', () => {
+    assert.match(css, /\.relic-card\.relic-card-active\s*\{[^}]*border-color:/s);
+    assert.match(css, /\.relic-active-label::before/);
+    assert.match(css, /\.relic-toggle-button\[aria-pressed="true"\]/);
+    assert.match(css, /@media\s*\(max-width:\s*375px\)[\s\S]*?\.relic-card \.skill-info\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+});

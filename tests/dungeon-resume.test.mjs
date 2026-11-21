@@ -1574,6 +1574,7 @@ test('active boss status effects and one-use relic flags remain identical across
         damageModifiers: { fire: 1.2 },
         resistances: { ice: 0.75 }
     };
+    player.level = 100;
     player.health = player.maxHealth - 37;
     player.mana = Math.max(0, player.maxMana - 19);
     player.dungeonProgress = {
@@ -1581,6 +1582,8 @@ test('active boss status effects and one-use relic flags remain identical across
             campaignCycle: player.campaignCycle,
             stage: 29,
             enemiesDefeated: getLocation('forest').stages[29].enemiesCount,
+            visitedCheckpointStages: [29],
+            visitedEventStages: [29],
             activeEncounter: {
                 enemy: boss,
                 isBossBattle: true,

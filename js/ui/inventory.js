@@ -385,12 +385,16 @@ function createRuneEnchantPanel(player) {
         const changes = [
             projected.delta.attack ? (projected.delta.attack > 0 ? '+' : '') + projected.delta.attack + ' атаки' : '',
             projected.delta.defense ? (projected.delta.defense > 0 ? '+' : '') + projected.delta.defense + ' защиты' : '',
-            projected.delta.critChance ? (projected.delta.critChance > 0 ? '+' : '') + (projected.delta.critChance * 100).toFixed(0) + '% крит. шанса' : ''
-        ].filter(Boolean).join(' · ') || 'Без изменения характеристик';
+            projected.delta.critChance ? (projected.delta.critChance > 0 ? '+' : '') + (projected.delta.critChance * 100).toFixed(0) + '% крит. шанса' : '',
+            projected.currentDamageType !== projected.projectedDamageType ? 'Стихия: ' + projected.currentDamageType + ' → ' + projected.projectedDamageType : '',
+            projected.synergyActivated ? 'Активируется синергия: ' + projected.projectedSynergy.name : '',
+            projected.currentSynergy && !projected.projectedSynergy ? 'Текущая синергия перестанет действовать' : '',
+            projected.projectedEffects.filter(effect => !projected.currentEffects.includes(effect)).map(effect => 'Новый эффект: ' + effect).join(', ')
+        ].filter(Boolean).join(' · ') || 'Без изменения характеристик и эффектов';
         return '<article class="forge-rune-card" style="--rune-color:' + rune.color + '"><div class="forge-rune-title"><b>' +
             rune.icon + ' ' + rune.name + '</b>' + (rune.bossRune ? '<span>БОСС</span>' : '') +
             '</div><small>' + (rune.effect ? 'Эффект при попадании · ' + rune.turns + ' ход.' : 'Пассивный эффект') +
-            '</small><small>Цена: ' + cost + '</small><div class="forge-preview">После установки: ' + changes + '</div><button class="rune-button" ' +
+            '</small><small>Цена: ' + cost + '</small><div class="forge-preview">После установки (если доступно): ' + changes + '</div>' + (projected.projectedSynergy ? '<small class="forge-synergy-preview">✦ Синергия: ' + projected.projectedSynergy.name + '</small>' : '') + '<button class="rune-button" ' +
             (preview.available ? '' : 'disabled') + ' onclick="window.inscribeInventoryRune(\'' + weaponId + '\',\'' + rune.id + '\')">' +
             label + '</button></article>';
     }).join('');

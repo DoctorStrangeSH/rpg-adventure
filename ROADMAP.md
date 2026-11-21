@@ -66,6 +66,7 @@
 - [x] Проверить отказ сохранения активного encounter: защита/guard, ход и ранее сохранённый snapshot откатываются без изменения ресурсов и позиции боя (`tests/battle-action-transactions.test.mjs`).
 - [x] Добавить сквозной save → reload сценарий Воина против регионального босса: сильная защита сохраняет тот же boss ID/HP/phase/телеграф, 75% guard и ход противника; после загрузки состояние не пересоздаётся (`tests/battle-action-transactions.test.mjs`).
 - [x] Добавить сквозное восстановление финального World Eater: телеграф `cataclysm`, третья фаза, HP, статусные эффекты и флаг Phoenix runtime сохраняются без reroll/сброса при загрузке финальной экспедиции (`tests/dungeon-resume.test.mjs`).
+- [x] Добавить матрицу save → reload для четырёх главных боссов регионов: forest guardian, mountain dragon, lich king и World Eater сохраняют identity, HP, фазу, фирменный телеграф, эффекты, guard и relic runtime flags (`tests/dungeon-resume.test.mjs`).
 - [x] Добавить регрессии успешных действий экспедиционного боя: базовая атака, зелье здоровья, навыки всех трёх классов и ответный ход противника сохраняют точный snapshot, расход ресурсов/здоровья и следующий ход (`tests/battle-action-transactions.test.mjs`).
 - [x] Добавить отдельный сквозной save → reload сценарий Лучника: «Быстрый выстрел» расходует обе метки, сохраняет кровотечение, урон, ману и очередь следующего хода после восстановления экспедиции (`tests/battle-action-transactions.test.mjs`).
 - [x] Отдельно проверить сквозной save → reload успешного навыка экспедиции: Огненный шар сохраняет расход маны, урон врагу, наложенное горение и очередь следующего хода (`tests/battle-action-transactions.test.mjs`).
@@ -159,7 +160,7 @@
 - [ ] Подтвердить надёжность текущей архитектуры localStorage и задокументировать её ограничения.
 - [ ] Все MUST и Definition of Done из ТЗ выполнены.
 - [ ] [Release checklist](docs/RELEASE_CHECKLIST.md) заполнен.
-- [x] Gameplay tests run #750 — 490/490 passed, 0 failed на commit `8f28eca5`; ручные браузерные прогоны остаются отдельной приёмкой.
+- [x] Gameplay tests run #757 — 491/491 passed, 0 failed на commit `bc94cdf6`; ручные браузерные прогоны остаются отдельной приёмкой.
 - [ ] Версия, README и release notes обновлены.
 - [ ] Выпуск RPG Adventure 1.0.
 

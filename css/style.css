@@ -2713,3 +2713,118 @@ button,
 @media (max-width: 375px) {
     .relic-capacity-hint { margin-bottom: 9px; font-size: 10px; }
 }
+
+
+/* Relic power summary and discoverable pair synergies. */
+.relic-bonus-panel {
+    margin: 12px 0;
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--gold) 38%, var(--border));
+    border-radius: 12px;
+    background:
+        radial-gradient(ellipse at 8% 0%, rgba(201, 164, 101, 0.11), transparent 58%),
+        linear-gradient(145deg, rgba(42, 35, 32, 0.82), rgba(17, 22, 31, 0.94));
+}
+
+.relic-bonus-heading {
+    margin-bottom: 9px;
+    color: var(--gold);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.relic-bonus-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.relic-bonus-stat {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid rgba(214, 190, 145, 0.12);
+    border-radius: 8px;
+    background: rgba(8, 12, 19, 0.34);
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.relic-bonus-stat > span:first-child { font-size: 14px; }
+.relic-bonus-stat strong {
+    color: #d8bd83;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.relic-bonus-empty, .relic-bonus-note {
+    margin: 0;
+    color: var(--text-muted, var(--text-secondary));
+    font-size: 10px;
+    line-height: 1.45;
+}
+.relic-bonus-note { margin-top: 8px; }
+
+.relic-synergy-list {
+    display: grid;
+    gap: 7px;
+    margin: 10px 0 14px;
+}
+
+.relic-synergy-card {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(13, 18, 27, 0.72);
+}
+
+.relic-synergy-card.relic-synergy-active {
+    border-color: color-mix(in srgb, var(--gold) 62%, var(--border));
+    background:
+        linear-gradient(100deg, rgba(210, 169, 96, 0.13), transparent 72%),
+        rgba(20, 22, 28, 0.94);
+    box-shadow: inset 3px 0 0 var(--gold), 0 0 13px rgba(210, 169, 96, 0.08);
+}
+
+.relic-synergy-card.relic-synergy-locked { opacity: 0.72; }
+
+.relic-synergy-icon {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(190, 170, 130, 0.28);
+    border-radius: 8px;
+    color: var(--text-muted, var(--text-secondary));
+    background: rgba(8, 12, 19, 0.5);
+    font-size: 17px;
+}
+.relic-synergy-active .relic-synergy-icon {
+    color: var(--gold);
+    border-color: rgba(220, 185, 119, 0.55);
+    box-shadow: 0 0 10px rgba(220, 185, 119, 0.12);
+}
+.relic-synergy-info { min-width: 0; }
+.relic-synergy-name { color: var(--text-primary); font-size: 11px; font-weight: 800; }
+.relic-synergy-requirements { margin-top: 2px; color: var(--text-muted, var(--text-secondary)); font-size: 9px; }
+.relic-synergy-description { margin-top: 3px; color: var(--text-secondary); font-size: 10px; line-height: 1.35; }
+.relic-synergy-state { color: var(--text-muted, var(--text-secondary)); font-size: 9px; text-align: right; }
+.relic-synergy-active .relic-synergy-state { color: var(--gold); font-weight: 800; }
+
+@media (max-width: 375px) {
+    .relic-bonus-panel { padding: 9px; }
+    .relic-bonus-grid { gap: 5px; }
+    .relic-bonus-stat { grid-template-columns: 17px minmax(0, 1fr) auto; gap: 4px; padding: 7px 6px; font-size: 10px; }
+    .relic-synergy-card { grid-template-columns: 26px minmax(0, 1fr); gap: 7px; padding: 8px; }
+    .relic-synergy-icon { width: 26px; height: 26px; }
+    .relic-synergy-state { grid-column: 2; text-align: left; }
+}

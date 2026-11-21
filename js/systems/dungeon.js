@@ -9,7 +9,7 @@ import { getBattlePositions } from '../ui/battleLayout.js';
 import { canGrantItems, claimDeepChestAttempt, grantItemsAtomically, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
-import { rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
+import { SECRET_ROOMS, rollSecretRoom, resolveSecretRoom } from './secretRooms.js';
 import { awardTravelerFavor, consumeTravelerFavor } from './expeditionFavor.js';
 import { scheduleBloodPursuer, applyBloodPursuer } from './contractPursuit.js';
 import { completeCampaign, canClaimLocationReward, claimLocationReward } from './newGamePlus.js';
@@ -81,7 +81,9 @@ function persistDungeonProgress() {
         travelerFavorFights: locationState.travelerFavorFights,
         travelerReturnPending: locationState.travelerReturnPending,
         bloodPursuerPending: locationState.bloodPursuerPending,
-        finalBossDefeated: locationState.finalBossDefeated
+        finalBossDefeated: locationState.finalBossDefeated,
+        pendingAdventureEventId: locationState.pendingEvent?.id || null,
+        pendingSecretRoomId: locationState.pendingSecretRoom?.id || null
     };
     return true;
 }
@@ -188,6 +190,12 @@ export function startLocation(locationId) {
     const hadPreviousProgress = Boolean(savedProgress);
     const hadProgressContainer = Boolean(player.dungeonProgress);
     const runId = ++locationState.runId;
+    if (savedProgress?.pendingAdventureEventId && getAdventureEvent(savedProgress.pendingAdventureEventId)) {
+        locationState.pendingEvent = { id: savedProgress.pendingAdventureEventId, stage: resumeStage, runId };
+    }
+    if (savedProgress?.pendingSecretRoomId && SECRET_ROOMS.some(room => room.id === savedProgress.pendingSecretRoomId)) {
+        locationState.pendingSecretRoom = { id: savedProgress.pendingSecretRoomId, stage: resumeStage, runId };
+    }
     persistDungeonProgress();
     if (gameState.save() !== true) {
         if (hadPreviousProgress) player.dungeonProgress[locationId] = previousProgress;
@@ -211,7 +219,9 @@ export function startStageBattle() {
     if (!locationState.inLocation || getBattleState().isActive) return;
     // The stage must wait for the player's choice; duplicate callbacks must
     // never bypass an unresolved encounter or overwrite its buttons.
-    if (locationState.pendingEvent || locationState.pendingRoute || locationState.pendingSecretRoom || locationState.pendingCheckpoint) return;
+    if (locationState.pendingEvent) { presentAdventureEvent(locationState.pendingEvent.id); return; }
+    if (locationState.pendingSecretRoom) { presentSecretRoom(locationState.pendingSecretRoom.id); return; }
+    if (locationState.pendingRoute || locationState.pendingCheckpoint) return;
     const location = locationState.currentLocation;
     
     if (!location || !location.stages) {
@@ -515,13 +525,21 @@ export function chooseDungeonRoute(routeId) {
     return true;
 }
 
-function presentAdventureEvent() {
-    if (locationState.pendingEvent) return;
-    const event = locationState.travelerReturnPending
-        ? getAdventureEvent('traveler_return') : rollAdventureEvent();
-    if (locationState.travelerReturnPending) locationState.travelerReturnPending = false;
+function presentAdventureEvent(resumeEventId = null) {
     const stage = locationState.currentStage;
-    locationState.pendingEvent = { id: event.id, stage, runId: locationState.runId };
+    const resumed = Boolean(locationState.pendingEvent);
+    const event = resumed ? getAdventureEvent(resumeEventId || locationState.pendingEvent.id) :
+        (locationState.travelerReturnPending ? getAdventureEvent('traveler_return') : rollAdventureEvent());
+    if (!event) return;
+    const previousTravelerReturnPending = locationState.travelerReturnPending;
+    if (!resumed) {
+        if (locationState.travelerReturnPending) locationState.travelerReturnPending = false;
+        locationState.pendingEvent = { id: event.id, stage, runId: locationState.runId };
+        if (!commitDungeonProgress(() => {
+            locationState.pendingEvent = null;
+            locationState.travelerReturnPending = previousTravelerReturnPending;
+        })) return;
+    }
     const ui = document.getElementById('battle-ui');
     if (!ui) { // If no UI is mounted, consume the event and persist the fallback.
         const pending = locationState.pendingEvent;
@@ -584,11 +602,15 @@ export function chooseAdventureEvent(choiceId) {
     return true;
 }
 
-function presentSecretRoom() {
-    const room = rollSecretRoom();
+function presentSecretRoom(resumeRoomId = null) {
+    const resumed = Boolean(locationState.pendingSecretRoom);
+    const room = resumed ? SECRET_ROOMS.find(entry => entry.id === (resumeRoomId || locationState.pendingSecretRoom.id)) : rollSecretRoom();
     if (!room) return;
     const stage = locationState.currentStage;
-    locationState.pendingSecretRoom = { id: room.id, stage, runId: locationState.runId };
+    if (!resumed) {
+        locationState.pendingSecretRoom = { id: room.id, stage, runId: locationState.runId };
+        if (!commitDungeonProgress(() => { locationState.pendingSecretRoom = null; })) return;
+    }
     const ui = document.getElementById('battle-ui');
     if (!ui) {
         locationState.pendingSecretRoom = null;

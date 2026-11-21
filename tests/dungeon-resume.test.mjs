@@ -706,3 +706,76 @@ test('route decisions, one-time stage markers and expedition modifiers survive a
     assert.equal(run.pendingCheckpoint, null);
     assert.equal(getBattleState().isActive, false);
 });
+
+
+test('an unresolved adventure event keeps its exact identity and choice UI after reload', (t) => {
+    const { player } = setup(t);
+    const previousDocument = globalThis.document;
+    const previousRandom = Math.random;
+    const ui = { innerHTML: '' };
+    globalThis.document = { getElementById(id) { return id === 'battle-ui' ? ui : null; } };
+    Math.random = () => 0;
+    t.after(() => {
+        Math.random = previousRandom;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 4;
+    run.visitedCheckpointStages.add(4);
+    startStageBattle();
+
+    const pendingId = run.pendingEvent?.id;
+    assert.equal(pendingId, 'cache');
+    assert.equal(Storage.load().player.dungeonProgress.forest.pendingAdventureEventId, pendingId);
+    assert.match(ui.innerHTML, /Забытый тайник/);
+
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    const resumed = getLocationState();
+    assert.equal(resumed.pendingEvent?.id, pendingId);
+    assert.equal(resumed.pendingEvent?.stage, 4);
+    assert.match(ui.innerHTML, /Забытый тайник/);
+    assert.equal(Storage.load().player.dungeonProgress.forest.pendingAdventureEventId, pendingId);
+});
+
+test('an unresolved secret room keeps its exact discovery and choice UI after reload', (t) => {
+    const { player } = setup(t);
+    const previousDocument = globalThis.document;
+    const previousRandom = Math.random;
+    const ui = { innerHTML: '' };
+    globalThis.document = { getElementById(id) { return id === 'battle-ui' ? ui : null; } };
+    Math.random = () => 0;
+    t.after(() => {
+        Math.random = previousRandom;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 6;
+    startStageBattle();
+
+    assert.equal(run.checkedSecretStages.has(6), true);
+    assert.equal(run.pendingSecretRoom?.id, 'armory');
+    assert.equal(Storage.load().player.dungeonProgress.forest.pendingSecretRoomId, 'armory');
+    assert.match(ui.innerHTML, /Забытая оружейная/);
+
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    const resumed = getLocationState();
+    assert.equal(resumed.checkedSecretStages.has(6), true);
+    assert.equal(resumed.pendingSecretRoom?.id, 'armory');
+    assert.equal(resumed.pendingSecretRoom?.stage, 6);
+    assert.match(ui.innerHTML, /Забытая оружейная/);
+    assert.equal(Storage.load().player.dungeonProgress.forest.pendingSecretRoomId, 'armory');
+});

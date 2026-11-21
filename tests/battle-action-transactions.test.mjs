@@ -705,11 +705,13 @@ test('a boss wind-up is saved as a warning and resolves the same signature attac
     assert.equal(battle.currentEnemy.intent, 'heavy');
 
     const beforeHealth = player.health;
+    const beforeEnemyHealth = battle.currentEnemy.health;
     playerDefend();
     safety = 0;
     while (callbacks.length && safety++ < 5) callbacks.shift()();
 
     saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.ok(saved.enemy.health < beforeEnemyHealth, 'warrior parry must be included in the committed enemy snapshot');
     assert.equal(saved.enemy.intent, null);
     assert.equal(saved.turn, 'player');
     assert.equal(battle.currentEnemy.intent, null);

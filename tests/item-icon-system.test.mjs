@@ -43,7 +43,7 @@ test('shop cards use semantic item types and rarity-colored icon frames', () => 
 
 test('relic cards distinguish all four rarity tiers with dedicated icon frames', () => {
     const character = readFileSync(new URL('../js/ui/character.js', import.meta.url), 'utf8');
-    assert.match(character, /class="skill-icon relic-icon relic-rarity-\$\{RELICS\[id\]\.rarity\}"/);
+    assert.match(character, /class="skill-icon relic-icon relic-rarity-\$\{RELICS\[id\]\.rarity\} relic-art-\$\{id\}"/);
     for (const rarity of ['common', 'rare', 'epic', 'legendary']) {
         assert.match(css, new RegExp('\\.relic-icon\\.relic-rarity-' + rarity));
     }

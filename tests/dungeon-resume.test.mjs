@@ -1562,6 +1562,7 @@ test('active boss status effects and one-use relic flags remain identical across
     const boss = {
         ...structuredClone(getLocation('forest').stages[29].boss),
         health: 413,
+        maxHealth: getLocation('forest').stages[29].boss.health,
         behavior: 'boss',
         intent: 'thorn_burst',
         phase: 3,

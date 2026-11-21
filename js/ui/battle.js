@@ -646,8 +646,7 @@ export function playerFlee() {
     const enemy = battleState.currentEnemy;
     
     if (Math.random() < 0.7) {
-        showBattleMessage('Вы успешно сбежали!');
-        setTimeout(() => {
+            setTimeout(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
             isProcessing = false;
             
@@ -661,6 +660,7 @@ export function playerFlee() {
                     updateBattleUI();
                 }
             } else {
+                showBattleMessage('Вы успешно сбежали!');
                 exitBattle();
             }
         }, 1000);
@@ -840,12 +840,12 @@ export function battleVictory() {
         player.stats.bossesKilled = (player.stats.bossesKilled || 0) + 1;
     }
     
-    window.updateQuestProgress?.('kill', 1, { save: !isDungeonBattle });
-    window.updateQuestProgress?.('win', 1, { save: !isDungeonBattle });
-    window.updateQuestProgress?.('gold', goldGain, { save: !isDungeonBattle });
-    window.updateQuestProgress?.('level', player.level, { save: !isDungeonBattle });
+    window.updateQuestProgress?.('kill', 1, { save: false });
+    window.updateQuestProgress?.('win', 1, { save: false });
+    window.updateQuestProgress?.('gold', goldGain, { save: false });
+    window.updateQuestProgress?.('level', player.level, { save: false });
     
-    window.updateAchievements?.({ save: !isDungeonBattle });
+    window.updateAchievements?.({ save: false });
     
     const storyBossId = battleState.isBossBattle && !enemy.miniBoss ? enemy.id : null;
     const lootId = rollLoot(battleState.isBossBattle, Math.random, storyBossId,
@@ -854,10 +854,9 @@ export function battleVictory() {
     const lootText = lootQuantity ? ` 🎁 Добыча: ${getItem(lootId).name}!` : '';
     const relicId = awardRelic(player, enemy.elite === true || enemy.miniBoss === true, battleState.isBossBattle && !enemy.miniBoss);
     const relicText = relicId ? ` 🌟 Реликвия: ${RELICS[relicId].name}!` : '';
-    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}${relicText}`);
     
     if (player.experience >= player.maxExperience) {
-        window.levelUp?.({ save: !isDungeonBattle });
+        window.levelUp?.({ save: false });
     }
     
     if (isDungeonBattle) {
@@ -895,6 +894,7 @@ export function battleVictory() {
             exitBattle();
         }, 2000);
     }
+    showBattleMessage(`Победа! +${expGain} EXP, +${goldGain} золота!${lootText}${relicText}`);
     window.updateMainMenu?.();
 }
 
@@ -915,7 +915,6 @@ export function battleDefeat() {
     player.health = 1;
     player.stats.losses++;
     
-    showBattleMessage(`Вы погибли! Потеряно ${goldLoss} золота!`);
     
     // The dungeon handler owns the combined penalty + expedition reset save.
     // Pass the pre-penalty snapshot so a failed write can roll back everything.
@@ -934,6 +933,7 @@ export function battleDefeat() {
         return;
     }
     battleState.pendingDefeatSave = false;
+    showBattleMessage(`Вы погибли! Потеряно ${goldLoss} золота!`);
     window.updateMainMenu?.();
     
     setTimeout(() => {

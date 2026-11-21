@@ -1240,9 +1240,11 @@ test('rescued traveler reward and both delayed expedition effects survive a real
     run.currentStage = 5;
     run.pendingEvent = { id: 'blood_contract', stage: 5, runId: run.runId };
     assert.equal(chooseAdventureEvent('risk'), true);
-    assert.equal(run.bloodPursuerPending, true);
+    assert.match(battle.currentEnemy?.name || '', /Преследователь/);
+    assert.equal(run.bloodPursuerPending, false);
     saved = Storage.load().player.dungeonProgress.forest;
-    assert.equal(saved.bloodPursuerPending, true);
+    assert.equal(saved.bloodPursuerPending, false);
+    assert.match(saved.activeEncounter?.enemy?.name || '', /Преследователь/);
     assert.equal(saved.travelerReturnPending, true);
 
     battle.isActive = false;
@@ -1250,12 +1252,14 @@ test('rescued traveler reward and both delayed expedition effects survive a real
     resetLocationState();
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    startStageBattle();
     run = getLocationState();
-    assert.equal(run.bloodPursuerPending, true);
+    assert.equal(run.bloodPursuerPending, false);
     assert.equal(run.travelerReturnPending, true);
     assert.equal(run.travelerFavorFights, 3);
     assert.equal(run.visitedEventStages.has(4), true);
     assert.equal(run.visitedEventStages.has(5), true);
+    assert.match(battle.currentEnemy?.name || '', /Преследователь/);
 });
 
 test('a resolved secret-room reward is saved once and its discovery marker survives reload', (t) => {

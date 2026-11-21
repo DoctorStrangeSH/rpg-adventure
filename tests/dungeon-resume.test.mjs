@@ -1294,3 +1294,67 @@ test('a resolved secret-room reward is saved once and its discovery marker survi
     assert.equal(saved.pendingSecretRoomId, null);
     assert.deepEqual(saved.checkedSecretStages, [6]);
 });
+
+
+test('successful defeat commits the penalty and clears only the failed expedition across reload', (t) => {
+    const { player, battle } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 7;
+    run.enemiesDefeated = 2;
+    player.gold = 240;
+    player.stats.losses = 3;
+    player.dungeonCheckpoints = {
+        forest: { stage: 5, health: 80, mana: 25 }
+    };
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 7,
+            enemiesDefeated: 2,
+            visitedEventStages: [4],
+            visitedRouteStages: [6],
+            routeChoices: { 6: 'danger' },
+            activeEncounter: {
+                enemy: {
+                    id: 'wolf', name: 'Волк', health: 12, maxHealth: 80,
+                    attack: 10, defense: 2, effects: {}
+                },
+                isBossBattle: false,
+                turn: 'enemy',
+                guardReduction: 0,
+                relicEffects: {}
+            }
+        }
+    };
+    const beforePenalty = structuredClone(player);
+    player.health = 1;
+    player.gold -= 10;
+    player.stats.losses += 1;
+
+    assert.equal(handleDefeat(beforePenalty), true);
+    assert.equal(player.gold, 230);
+    assert.equal(player.stats.losses, 4);
+    assert.equal(player.dungeonProgress.forest, undefined);
+    assert.equal(player.dungeonCheckpoints.forest, undefined);
+    assert.equal(run.inLocation, false);
+    assert.equal(run.currentLocation, null);
+
+    const saved = Storage.load().player;
+    assert.equal(saved.gold, 230);
+    assert.equal(saved.stats.losses, 4);
+    assert.equal(saved.dungeonProgress.forest, undefined);
+    assert.equal(saved.dungeonCheckpoints.forest, undefined);
+
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.gold, 230);
+    assert.equal(gameState.player.stats.losses, 4);
+    assert.equal(gameState.player.dungeonProgress.forest, undefined);
+    assert.equal(gameState.player.dungeonCheckpoints.forest, undefined);
+    startLocation('forest');
+    assert.equal(getLocationState().currentStage, 0);
+    assert.equal(getLocationState().enemiesDefeated, 0);
+});

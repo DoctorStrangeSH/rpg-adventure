@@ -106,9 +106,44 @@ export const ITEMS = {
 
 };
 
+const ITEM_TYPES = Object.freeze(['consumable', 'weapon', 'armor', 'material']);
+const ITEM_RARITIES = Object.freeze(['common', 'uncommon', 'rare', 'epic', 'legendary']);
+const DAMAGE_TYPES = Object.freeze(['physical', 'fire', 'ice', 'poison']);
+
+export function validateItemDefinition(entry) {
+    if (typeof entry.name !== 'string' || !entry.name.trim()) return 'name is required';
+    if (!ITEM_TYPES.includes(entry.type)) return 'unsupported item type';
+    if (!ITEM_RARITIES.includes(entry.rarity)) return 'unsupported rarity';
+    if (!Number.isFinite(entry.price) || entry.price < 0) return 'price must be a non-negative finite number';
+    if (entry.requiredLevel !== undefined &&
+        (!Number.isSafeInteger(entry.requiredLevel) || entry.requiredLevel < 1)) return 'requiredLevel must be a positive integer';
+    if (entry.type === 'weapon' &&
+        (!Number.isFinite(entry.attackBonus) || entry.attackBonus < 0)) return 'weapon attackBonus must be non-negative';
+    if (entry.type === 'armor' &&
+        (!Number.isFinite(entry.defenseBonus) || entry.defenseBonus < 0)) return 'armor defenseBonus must be non-negative';
+    if (entry.type === 'consumable' &&
+        ![entry.heal, entry.manaHeal].some(value => Number.isFinite(value) && value > 0)) return 'consumable must restore health or mana';
+    if (entry.damageType !== undefined && !DAMAGE_TYPES.includes(entry.damageType)) return 'unsupported damageType';
+    for (const effect of [entry.onHit, entry.onDamaged]) {
+        if (!effect) continue;
+        if (typeof effect.type !== 'string' || !Number.isFinite(effect.chance) ||
+            effect.chance < 0 || effect.chance > 1 ||
+            !Number.isSafeInteger(effect.turns) || effect.turns < 1) return 'status effect requires a valid type, chance and duration';
+        if (effect.type === 'heal' &&
+            (!Number.isFinite(effect.fraction) || effect.fraction < 0 ||
+             !Number.isFinite(effect.maxHealthFraction) || effect.maxHealthFraction < 0)) return 'healing effect fractions must be non-negative';
+    }
+    if (entry.onCrit?.type === 'mana_restore' &&
+        (!Number.isSafeInteger(entry.onCrit.amount) || entry.onCrit.amount < 1)) return 'mana restore amount must be a positive integer';
+    if (entry.onCrit?.type === 'echo' &&
+        (!Number.isFinite(entry.onCrit.fraction) || entry.onCrit.fraction <= 0 ||
+         !Number.isFinite(entry.onCrit.maxTargetHealthFraction) || entry.onCrit.maxTargetHealthFraction <= 0)) return 'echo fractions must be positive';
+    return true;
+}
+
 export const ITEM_REGISTRY = createContentRegistry({
     kind: 'item',
-    validate: entry => typeof entry.name === 'string' && ['consumable', 'weapon', 'armor', 'material'].includes(entry.type) && typeof entry.rarity === 'string' && Number.isFinite(entry.price) && entry.price >= 0
+    validate: validateItemDefinition
 });
 ITEM_REGISTRY.registerMany(Object.values(ITEMS));
 

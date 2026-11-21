@@ -39,7 +39,7 @@ function createShopItem(item, player) {
     
     return `
         <div class="shop-item">
-            <div class="item-icon">${item.icon}</div>
+            <div class="item-icon icon-${item.type}" style="--item-rarity:${RARITIES[item.rarity]?.color || RARITIES.common.color}">${item.icon}</div>
             <div class="item-name">${item.name}</div>
             <div class="item-rarity" style="color:${RARITIES[item.rarity]?.color || RARITIES.common.color}">${RARITIES[item.rarity]?.name || RARITIES.common.name}</div>
             <div class="item-stats">

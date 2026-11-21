@@ -359,7 +359,6 @@ test('craft-and-salvage round trips are strictly resource-negative for every rec
 
  for (const recipe of CRAFTING_RECIPES) {
   const inventory = Object.entries(recipe.materials).map(([id, quantity]) => ({ id, quantity }));
-  if (recipe.requiresDiscovery) inventory.push({ id: recipe.requiresDiscovery, quantity: recipe.materials[recipe.requiresDiscovery] || 3 });
   const p = {
    level: 20, gold: recipe.gold + 100,
    discoveredItems: recipe.requiresDiscovery ? [recipe.requiresDiscovery] : [],

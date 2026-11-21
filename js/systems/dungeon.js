@@ -613,7 +613,9 @@ function presentSecretRoom(resumeRoomId = null) {
     }
     const ui = document.getElementById('battle-ui');
     if (!ui) {
+        const pending = locationState.pendingSecretRoom;
         locationState.pendingSecretRoom = null;
+        if (!commitDungeonProgress(() => { locationState.pendingSecretRoom = pending; })) return;
         startStageBattle();
         return;
     }

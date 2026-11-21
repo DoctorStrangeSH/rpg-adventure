@@ -222,8 +222,18 @@ export function startLocation(locationId) {
 export function startStageBattle() {
     if (!locationState.inLocation || getBattleState().isActive) return;
     if (locationState.activeEncounter) {
-        restoreDungeonEncounter(locationState.activeEncounter);
-        return;
+        if (restoreDungeonEncounter(locationState.activeEncounter)) return;
+        const invalidEncounter = locationState.activeEncounter;
+        locationState.activeEncounter = null;
+        persistDungeonProgress();
+        let cleared = false;
+        try { cleared = gameState.save() === true; } catch { cleared = false; }
+        if (!cleared) {
+            locationState.activeEncounter = invalidEncounter;
+            window.showNotification?.('Не удалось очистить повреждённый снимок боя. Экспедиция не изменена — повторите загрузку.', 'error');
+            return;
+        }
+        window.showNotification?.('Снимок предыдущего боя повреждён. Этап сохранён; противник будет создан заново.', 'error');
     }
     // The stage must wait for the player's choice; duplicate callbacks must
     // never bypass an unresolved encounter or overwrite its buttons.

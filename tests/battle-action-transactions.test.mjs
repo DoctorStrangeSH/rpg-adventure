@@ -238,3 +238,26 @@ test('failed field boss victory rolls back trophy and boss loot before offering 
     assert.equal(battle.isActive, true);
     assert.equal(battle.pendingVictorySave, true);
 });
+
+test('lethal enemy action never saves a zero-health profile before defeat penalties', (t) => {
+    const { player, battle } = setup(t, 'mage');
+    prepareBattle(battle, player, { behavior: 'aggressive', intent: 'attack', attack: 1000 });
+    player.health = 1;
+    globalThis.requestAnimationFrame = () => 1;
+    globalThis.setTimeout = callback => { callback(); return 1; };
+    let saveCalls = 0;
+    let healthAtSave = null;
+    gameState.save = () => {
+        saveCalls++;
+        healthAtSave = player.health;
+        return false;
+    };
+
+    playerDefend();
+
+    assert.equal(saveCalls, 1);
+    assert.equal(healthAtSave, 1, 'only the post-penalty health value is offered to persistence');
+    assert.equal(player.health, 0, 'failed commit restores the pre-penalty in-memory snapshot');
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.pendingDefeatSave, true);
+});

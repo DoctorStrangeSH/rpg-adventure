@@ -385,7 +385,7 @@ export function updateBattleUI() {
     
     if (locationState && locationState.inLocation && locationState.currentLocation) {
         const location = locationState.currentLocation;
-        const stage = location.stages[locationState.currentStage];
+        const stage = location.stages?.[locationState.currentStage];
         
         if (stage) {
             const isMiniBoss = stage.boss && stage.stage % 10 !== 0;

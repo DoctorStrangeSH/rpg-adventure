@@ -187,3 +187,59 @@ test('a newer recovery copy is never overwritten by a later damaged primary save
     assert.equal(values.get(RECOVERY_SAVE_KEY), firstRecovery);
     assert.deepEqual(Storage.load(), { schemaVersion: 2, player: { class: 'mage' } });
 });
+
+
+test('recovery backup survives a quota failure while writing the replacement save', (t) => {
+    const original = JSON.stringify({
+        schemaVersion: 99,
+        player: { class: 'warrior', level: 42, futureProgress: { chapter: 9 } }
+    });
+    const values = new Map([[GAME_CONFIG.saveKey, original]]);
+    installStorage(t, {
+        setItem(key, value) {
+            if (key === GAME_CONFIG.saveKey) throw new Error('QuotaExceededError');
+            values.set(key, value);
+        },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+    const originalError = console.error;
+    console.error = () => {};
+    t.after(() => { console.error = originalError; });
+
+    assert.equal(Storage.save({ schemaVersion: 2, player: { class: 'mage', level: 1 } }), false);
+    assert.equal(values.get(GAME_CONFIG.saveKey), original,
+        'the original primary save must remain untouched');
+    assert.equal(values.get(RECOVERY_SAVE_KEY), original,
+        'the byte-for-byte recovery copy must survive the failed replacement');
+    assert.equal(Storage.loadRecovery().player.futureProgress.chapter, 9);
+});
+
+test('repeated quota failures never replace the first recovery copy or primary save', (t) => {
+    const original = '{damaged-but-preserved';
+    const firstRecovery = '{"schemaVersion":77,"player":{"class":"archer","chapter":4}}';
+    const values = new Map([
+        [GAME_CONFIG.saveKey, original],
+        [RECOVERY_SAVE_KEY, firstRecovery]
+    ]);
+    installStorage(t, {
+        setItem(key, value) {
+            if (key === GAME_CONFIG.saveKey) throw new Error('QuotaExceededError');
+            values.set(key, value);
+        },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+    const originalError = console.error;
+    console.error = () => {};
+    t.after(() => { console.error = originalError; });
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+        assert.equal(Storage.save({
+            schemaVersion: 2,
+            player: { class: 'mage', level: attempt + 1 }
+        }), false);
+    }
+    assert.equal(values.get(GAME_CONFIG.saveKey), original);
+    assert.equal(values.get(RECOVERY_SAVE_KEY), firstRecovery);
+});

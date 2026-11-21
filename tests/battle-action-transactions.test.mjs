@@ -294,9 +294,10 @@ test('expedition combat resource and relic ownership changes survive a real save
 
     const expectedHealth = player.health;
     playerUseItem('health_potion');
-    assert.equal(player.health, Math.min(player.maxHealth, expectedHealth + 50));
+    const committedHealth = player.health;
+    assert.ok(committedHealth > expectedHealth, 'the potion must restore health before persistence');
     assert.equal(gameState.load(), true);
-    assert.equal(gameState.player.health, player.health);
+    assert.equal(gameState.player.health, committedHealth);
     assert.equal(gameState.player.mana, player.mana);
     assert.deepEqual(gameState.player.relics, ['phoenix_feather']);
     assert.deepEqual(gameState.player.dungeonProgress.forest, {

@@ -113,7 +113,13 @@ export function claimAchievement(achievementId) {
     const playerAchievement = player.achievements.find(entry => entry.id === achievementId);
     if (!playerAchievement || !playerAchievement.completed || playerAchievement.claimed) return false;
     const achievementData = getAchievement(achievementId);
-    if (!achievementData) return false;
+    if (!achievementData ||
+        !Number.isSafeInteger(player.experience) || player.experience < 0 ||
+        !Number.isSafeInteger(player.gold) || player.gold < 0 ||
+        !Number.isSafeInteger(achievementData.rewardExp) || achievementData.rewardExp < 0 ||
+        !Number.isSafeInteger(achievementData.rewardGold) || achievementData.rewardGold < 0 ||
+        player.experience > Number.MAX_SAFE_INTEGER - achievementData.rewardExp ||
+        player.gold > Number.MAX_SAFE_INTEGER - achievementData.rewardGold) return false;
 
     const snapshot = createPlayerSnapshot(player);
     if (!snapshot) return false;

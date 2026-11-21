@@ -25,7 +25,8 @@ test('rune preview identifies elemental damage type changes without mutating loa
 });
 
 test('rune preview reports a changed or lost synergy', () => {
-    const preview = getRuneLoadoutPreview(runePlayer(['frost', 'storm']), 'iron_sword', 'flame');
+    const player = runePlayer(['frost', 'storm']); player.itemUpgrades.iron_sword = 8;
+    const preview = getRuneLoadoutPreview(player, 'iron_sword', 'flame');
     assert.equal(preview.currentSynergy.id, 'frozen_tempest');
     assert.equal(preview.projectedSynergy, null);
     assert.equal(preview.synergyChanged, true);
@@ -44,4 +45,45 @@ test('inventory UI renders rune effects, synergy changes, and upgrade socket gai
     const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
     for (const text of ['Стихия: ', 'Активируется синергия:', 'Текущая синергия перестанет действовать', 'Новый эффект:', 'Гнёзда ']) assert.ok(source.includes(text), text);
     assert.ok(css.includes('.forge-synergy-preview')); assert.ok(css.includes('.upgrade-stat-preview'));
+});
+
+
+test('rune preview refuses duplicate runes and does not invent a new effect', () => {
+    const preview = getRuneLoadoutPreview(runePlayer(['flame']), 'iron_sword', 'flame');
+    assert.equal(preview.available, false);
+    assert.equal(preview.installable, false);
+    assert.equal(preview.reason, 'duplicate');
+    assert.equal(preview.delta.attack, 0);
+    assert.deepEqual(preview.projectedEffects, preview.currentEffects);
+});
+
+test('rune preview refuses installation when sockets are full', () => {
+    const player = runePlayer(['flame', 'frost']);
+    const preview = getRuneLoadoutPreview(player, 'iron_sword', 'blood');
+    assert.equal(preview.available, false);
+    assert.equal(preview.reason, 'sockets_full');
+    assert.equal(preview.delta.attack, 0);
+});
+
+test('rune preview distinguishes a hypothetical preview from material affordability', () => {
+    const preview = getRuneLoadoutPreview(runePlayer([]), 'iron_sword', 'frost');
+    assert.equal(preview.available, true);
+    assert.equal(preview.installable, false);
+    assert.equal(preview.reason, 'materials');
+    assert.equal(preview.projectedDamageType, 'ice');
+});
+
+test('rune preview blocks weapons that are not currently equipped', () => {
+    const player = runePlayer([]);
+    player.equipment.weapon = 'moonblade';
+    const preview = getRuneLoadoutPreview(player, 'iron_sword', 'frost');
+    assert.equal(preview.available, false);
+    assert.equal(preview.reason, 'not_equipped');
+});
+
+test('rune UI explains blocked previews instead of showing fictitious stat gains', () => {
+    const source = readFileSync(new URL('../js/ui/inventory.js', import.meta.url), 'utf8');
+    assert.ok(source.includes('Предпросмотр недоступен:'));
+    assert.ok(source.includes('Все рунические гнёзда заняты'));
+    assert.ok(source.includes('Эта руна уже установлена'));
 });

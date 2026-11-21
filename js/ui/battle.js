@@ -79,6 +79,7 @@ function commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot, fail
     if (location?.inLocation && location.currentLocation?.id) {
         const progress = player.dungeonProgress?.[location.currentLocation.id];
         if (!progress) {
+            restorePlayerSnapshot(player, playerSnapshot);
             restoreBattleEntity(enemy, enemySnapshot);
             window.showNotification?.('Не найдено сохранение текущей экспедиции. Боевое действие отменено.', 'error');
             return false;

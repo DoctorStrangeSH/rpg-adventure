@@ -76,7 +76,7 @@ test('inventory UI rolls back every item operation when localStorage rejects the
         }],
         ['salvage', () => salvageInventoryItem(1), () => {}],
         ['upgrade', () => upgradeInventoryItem('iron_sword'), () => {}],
-        ['rune inscription', () => inscribeInventoryRune('iron_sword', 'blood'), () => {
+        ['rune inscription', () => inscribeInventoryRune('iron_sword', 'blood'), (player) => {
             player.itemUpgrades.iron_sword = 4;
             player.weaponRunes.iron_sword = ['flame'];
             player.inventory.push({ id: 'blood_essence', quantity: 2 });

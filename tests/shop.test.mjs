@@ -54,7 +54,7 @@ test('shop blocks the legendary Dragon Sword until its story material is discove
         assert.equal(player.gold, 5000);
         assert.deepEqual(player.inventory, []);
         assert.equal(notifications.length, 1);
-        assert.match(notifications[0].message, /чешую дракона/);
+        assert.match(notifications[0].message, /чешуя дракона/i);
 
         updateShopScreen();
         const html = shopContent.innerHTML;

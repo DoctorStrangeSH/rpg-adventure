@@ -838,6 +838,11 @@ export function completeLocation(playerBeforeCompletion = null) {
         player.unlockedLocations.push(nextLocation.id);
     }
     player.stats.dungeonsCompleted = (player.stats.dungeonsCompleted || 0) + 1;
+    // Region completion happens after the final battle's normal achievement
+    // update. Re-evaluate lifetime achievements here so the fourth/final region
+    // can unlock its reward without requiring an unrelated fifth expedition.
+    const completionAchievementNotifications = [];
+    window.updateAchievements?.({ save: false, notifications: completionAchievementNotifications });
     if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];
     clearDungeonProgress(player, location.id);
     
@@ -888,6 +893,9 @@ export function completeLocation(playerBeforeCompletion = null) {
     }
 
     window.showNotification(`🎉 Локация пройдена! ${rewardSummary}${nextLocationText}`, 'success');
+    completionAchievementNotifications.forEach(({ name }) => {
+        window.showNotification?.(`🏆 Достижение получено: ${name}!`, 'success');
+    });
     window.updateMainMenu?.();
     window.updateMapScreen?.();
 

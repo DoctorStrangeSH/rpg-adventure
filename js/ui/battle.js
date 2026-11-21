@@ -140,7 +140,7 @@ export function restoreDungeonEncounter(snapshot) {
     battleState.enemySprite = new Sprite(enemy.id, positions.enemy.x, positions.enemy.y);
     window.showScreen?.('battle-screen');
     updateBattleUI();
-    animateBattle();
+    if (battleState.canvas) animateBattle();
     window.showBattleMessage?.('⚔️ Экспедиция восстановлена. Продолжайте с сохранённого хода.');
     if (enemy.health <= 0) {
         battleState.turn = 'player';

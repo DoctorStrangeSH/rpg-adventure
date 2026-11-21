@@ -24,3 +24,15 @@ test('world map observes container, orientation and visual viewport size changes
     assert.match(source, /visualViewport, 'resize', resizeMap/);
     assert.match(source, /scaleLocations\(width, height\)/);
 });
+
+
+test('map location overlays remain bounded, vertically scrollable and touch-friendly on mobile', () => {
+    const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
+    const overlay = css.slice(css.indexOf('/* Map location details stay usable on short and narrow viewports. */'));
+    assert.match(overlay, /\.map-overlay\s*\{[^}]*max-width:\s*min\(300px,\s*calc\(100%\s*-\s*24px\)\)/s);
+    assert.match(overlay, /\.map-overlay\s*\{[^}]*max-height:\s*min\(60dvh,\s*520px\)/s);
+    assert.match(overlay, /\.map-overlay\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(overlay, /\.map-overlay\s*\{[^}]*overscroll-behavior:\s*contain/s);
+    assert.match(overlay, /\.map-overlay \.map-btn\s*\{[^}]*min-height:\s*44px/s);
+    assert.match(overlay, /\.map-overlay \.location-description,[\s\S]*?\.location-name\s*\{[^}]*overflow-wrap:\s*anywhere/s);
+});

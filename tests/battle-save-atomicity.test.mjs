@@ -32,7 +32,7 @@ test('dungeon victory batches quest, achievement and level-up mutations into one
             player.dungeonProgress.forest = {
                 campaignCycle: 1, stage: 0, enemiesDefeated: 1
             };
-            gameState.save();
+            return gameState.save();
         },
         updateMainMenu() {},
         showNotification() {}

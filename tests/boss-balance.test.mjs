@@ -200,3 +200,51 @@ test('each regional mini-boss announces and resolves its configured signature', 
         assert.ok(player.health < beforeHealth, expected.id + ' signature must affect player health');
     }
 });
+
+
+test('all three classes survive every regional boss signature within the shared 80% damage ceiling', () => {
+    const signatures = [
+        ['forest', 'thorn_burst'],
+        ['mountains', 'flame_breath'],
+        ['ruins', 'siphon'],
+        ['dragon_lair', 'cataclysm']
+    ];
+
+    for (const [regionId, action] of signatures) {
+        const region = REGIONS.find(entry => entry.id === regionId);
+        const boss = region.stages.at(-1).boss;
+
+        for (const classId of Object.keys(CLASSES)) {
+            const classStats = CLASSES[classId].stats;
+            const player = gameState.createPlayer(classId);
+            player.maxHealth = classStats.health + 25 * 20;
+            player.health = player.maxHealth;
+            player.defense = classStats.defense + 25 * 3 + 19;
+            player.mana = player.maxMana;
+
+            const enemy = {
+                ...boss,
+                behavior: 'boss',
+                health: boss.health,
+                maxHealth: boss.health,
+                effects: {}
+            };
+            const result = applyEnemyAction(enemy, player, action, 0, 0, 0.99);
+            const ceiling = Math.floor(player.maxHealth * 0.8);
+
+            assert.ok(result.damage > 0, classId + ' must be threatened by ' + regionId + ' signature');
+            assert.ok(result.damage <= ceiling,
+                classId + ' takes more than 80% max HP from ' + regionId + ' signature');
+            assert.ok(player.health >= player.maxHealth - ceiling,
+                classId + ' must survive ' + regionId + ' signature');
+        }
+    }
+});
+
+test('archer tactical opening bonus is limited to announced enemy attacks', async () => {
+    const { getClassTacticalBonus } = await import('../js/systems/combat.js');
+    const archer = gameState.createPlayer('archer');
+    assert.equal(getClassTacticalBonus(archer, { intent: 'heavy' }).attackMultiplier, 1.3);
+    assert.equal(getClassTacticalBonus(archer, { intent: 'cataclysm' }).attackMultiplier, 1.3);
+    assert.equal(getClassTacticalBonus(archer, { intent: null }).attackMultiplier, 1);
+});

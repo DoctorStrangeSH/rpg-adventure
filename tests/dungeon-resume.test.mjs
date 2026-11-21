@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
 import { Storage } from '../js/core/storage.js';
-import { getLocation } from '../js/data/locations.js';
+import { getLocation, LOCATIONS } from '../js/data/locations.js';
+import { startNewGamePlus } from '../js/systems/newGamePlus.js';
 import { getBattleState } from '../js/ui/battle.js';
 import { handleVictory, handleDefeat, fleeLocation, getLocationState, resetLocationState, startLocation, startStageBattle, chooseDungeonRoute, chooseAdventureEvent, chooseSecretRoom } from '../js/systems/dungeon.js';
 
@@ -1122,4 +1123,53 @@ test('a duplicate boss victory callback cannot award rewards or advance the foll
     assert.equal(player.gold, afterFirstCommit.gold);
     assert.equal(player.stats.bossesKilled, afterFirstCommit.bossesKilled);
     assert.deepEqual(player.dungeonProgress.forest, afterFirstCommit.progress);
+});
+
+
+test('final boss victory unlocks NG+ and the new campaign cycle survives reload', async (t) => {
+    const { player } = setup(t);
+    const location = getLocation('dragon_lair');
+    const previousUnlocks = LOCATIONS.map(entry => entry.unlocked);
+    location.unlocked = true;
+    player.level = 100;
+    player.unlockedLocations = ['forest', 'mountains', 'ruins', 'dragon_lair'];
+    t.after(() => {
+        LOCATIONS.forEach((entry, index) => { entry.unlocked = previousUnlocks[index]; });
+    });
+
+    startLocation('dragon_lair');
+    const run = getLocationState();
+    const finalStageIndex = location.stages.length - 1;
+    run.currentStage = finalStageIndex;
+    run.enemiesDefeated = location.stages[finalStageIndex].enemiesCount;
+    run.claimedDeepChestStages = new Set();
+    run.claimedUnbrokenBonusStages = new Set();
+
+    const { handleBossVictory } = await import('../js/systems/dungeon.js');
+    assert.equal(handleBossVictory(), true);
+    assert.equal(run.inLocation, false);
+    assert.equal(player.campaignCompleted, true);
+    assert.equal(player.newGamePlusUnlocked, true);
+    assert.equal(player.lastCompletedCampaignCycle, 1);
+    assert.equal(player.completedCampaignCycles, 1);
+    assert.equal(player.dungeonProgress.dragon_lair, undefined);
+
+    const completedSave = Storage.load().player;
+    assert.equal(completedSave.campaignCompleted, true);
+    assert.equal(completedSave.newGamePlusUnlocked, true);
+    assert.equal(completedSave.lastCompletedCampaignCycle, 1);
+
+    assert.equal(startNewGamePlus(gameState), true);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.campaignCompleted, false);
+    assert.equal(gameState.player.newGamePlusUnlocked, true);
+    assert.deepEqual(gameState.player.dungeonProgress, {});
+    assert.deepEqual(gameState.player.unlockedLocations, ['forest']);
+
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.campaignCycle, 2);
+    assert.equal(gameState.player.completedCampaignCycles, 1);
+    assert.equal(gameState.player.campaignCompleted, false);
+    assert.equal(gameState.player.newGamePlusUnlocked, true);
+    assert.deepEqual(gameState.player.dungeonProgress, {});
 });

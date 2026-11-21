@@ -4,7 +4,7 @@ import { createPlayerSnapshot, commitPlayerMutation } from './playerTransactions
 import { LOCATIONS, getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
-import { getBattleState, resetBattlePresentation } from '../ui/battle.js';
+import { getBattleState, resetBattlePresentation, restoreDungeonEncounter } from '../ui/battle.js';
 import { getBattlePositions } from '../ui/battleLayout.js';
 import { canGrantItems, claimDeepChestAttempt, grantItemsAtomically, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
@@ -35,7 +35,8 @@ let locationState = {
     travelerFavorFights: 0,
     travelerReturnPending: false,
     bloodPursuerPending: false,
-    finalBossDefeated: false
+    finalBossDefeated: false,
+    activeEncounter: null
 };
 
 export function getUnbrokenExpeditionBonus(stageNumber, boss, resumed = false) {
@@ -83,7 +84,8 @@ function persistDungeonProgress() {
         bloodPursuerPending: locationState.bloodPursuerPending,
         finalBossDefeated: locationState.finalBossDefeated,
         pendingAdventureEventId: locationState.pendingEvent?.id || null,
-        pendingSecretRoomId: locationState.pendingSecretRoom?.id || null
+        pendingSecretRoomId: locationState.pendingSecretRoom?.id || null,
+        activeEncounter: locationState.activeEncounter ? structuredClone(locationState.activeEncounter) : null
     };
     return true;
 }
@@ -186,6 +188,8 @@ export function startLocation(locationId) {
     locationState.travelerReturnPending = savedProgress?.travelerReturnPending === true;
     locationState.bloodPursuerPending = savedProgress?.bloodPursuerPending === true;
     locationState.finalBossDefeated = savedProgress?.finalBossDefeated === true;
+    locationState.activeEncounter = savedProgress?.activeEncounter &&
+        savedProgress.stage === resumeStage ? structuredClone(savedProgress.activeEncounter) : null;
     const previousProgress = savedProgress ? JSON.parse(JSON.stringify(savedProgress)) : null;
     const hadPreviousProgress = Boolean(savedProgress);
     const hadProgressContainer = Boolean(player.dungeonProgress);
@@ -217,6 +221,10 @@ export function startLocation(locationId) {
 
 export function startStageBattle() {
     if (!locationState.inLocation || getBattleState().isActive) return;
+    if (locationState.activeEncounter) {
+        restoreDungeonEncounter(locationState.activeEncounter);
+        return;
+    }
     // The stage must wait for the player's choice; duplicate callbacks must
     // never bypass an unresolved encounter or overwrite its buttons.
     if (locationState.pendingEvent) { presentAdventureEvent(locationState.pendingEvent.id); return; }
@@ -332,6 +340,7 @@ export function startStageBattle() {
     }
     const previousFavorCharges = locationState.travelerFavorFights;
     const previousPursuerPending = locationState.bloodPursuerPending;
+    const previousActiveEncounter = locationState.activeEncounter;
     const routeId = locationState.routeChoices[locationState.currentStage];
     if (routeId) enemy = applyRouteToEnemy(enemy, routeId);
     const favor = consumeTravelerFavor(enemy, locationState.travelerFavorFights);
@@ -341,11 +350,19 @@ export function startStageBattle() {
     enemy = pursuer.enemy;
     if (pursuer.pursued) locationState.bloodPursuerPending = false;
 
+    locationState.activeEncounter = {
+        enemy: structuredClone(enemy),
+        isBossBattle: false,
+        turn: 'player',
+        guardReduction: 0,
+        relicEffects: { phoenixRebirthUsed: false }
+    };
     player.stats.battles++;
     persistDungeonProgress();
     if (!commitPlayerMutation(player, playerBeforeStart, () => gameState.save())) {
         locationState.travelerFavorFights = previousFavorCharges;
         locationState.bloodPursuerPending = previousPursuerPending;
+        locationState.activeEncounter = previousActiveEncounter;
         window.showNotification?.('Не удалось сохранить начало боя. Счётчик и бонусы восстановлены — повторите запуск.', 'error');
         const ui = typeof document !== 'undefined' ? document.getElementById('battle-ui') : null;
         if (ui) {
@@ -686,6 +703,14 @@ export function startBossFight(bossData) {
     }
     const previousProgress = player.dungeonProgress?.[locationState.currentLocation.id]
         ? structuredClone(player.dungeonProgress[locationState.currentLocation.id]) : null;
+    const previousActiveEncounter = locationState.activeEncounter;
+    locationState.activeEncounter = {
+        enemy: structuredClone(enemy),
+        isBossBattle: true,
+        turn: 'player',
+        guardReduction: 0,
+        relicEffects: { phoenixRebirthUsed: false }
+    };
     const hadProgress = Boolean(player.dungeonProgress &&
         Object.hasOwn(player.dungeonProgress, locationState.currentLocation.id));
     player.stats.battles++;
@@ -693,6 +718,7 @@ export function startBossFight(bossData) {
     if (!commitPlayerMutation(player, playerBeforeStart, () => gameState.save())) {
         if (hadProgress) player.dungeonProgress[locationState.currentLocation.id] = previousProgress;
         else clearDungeonProgress(player, locationState.currentLocation.id);
+        locationState.activeEncounter = previousActiveEncounter;
         window.showNotification?.('Не удалось сохранить начало боя с боссом. Счётчик боёв восстановлен — повторите запуск.', 'error');
         const ui = typeof document !== 'undefined' ? document.getElementById('battle-ui') : null;
         if (ui) {

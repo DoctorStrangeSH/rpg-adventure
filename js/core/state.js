@@ -204,7 +204,12 @@ function normalizePlayerSave(player) {
             travelerFavorFights: safeNonNegativeInteger(progress.travelerFavorFights, 0),
             travelerReturnPending: progress.travelerReturnPending === true,
             bloodPursuerPending: progress.bloodPursuerPending === true,
-            finalBossDefeated: progress.finalBossDefeated === true
+            finalBossDefeated: progress.finalBossDefeated === true,
+            pendingAdventureEventId: typeof progress.pendingAdventureEventId === 'string' &&
+                ['cache', 'moonwell', 'blood_contract', 'shrine', 'astral_study', 'campfire', 'vault', 'spark_altar', 'wounded_traveler', 'traveler_return', 'traveler'].includes(progress.pendingAdventureEventId)
+                ? progress.pendingAdventureEventId : null,
+            pendingSecretRoomId: ['armory', 'sanctuary', 'crypt'].includes(progress.pendingSecretRoomId)
+                ? progress.pendingSecretRoomId : null
         };
     }
 

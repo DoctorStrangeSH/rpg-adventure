@@ -811,7 +811,8 @@ test('an active expedition encounter restores the same enemy, effects, turn and 
     const previousRaf = globalThis.requestAnimationFrame;
     const ui = { innerHTML: '' };
     globalThis.document = {
-        getElementById(id) { return id === 'battle-ui' ? ui : null; }
+        getElementById(id) { return id === 'battle-ui' ? ui : null; },
+        querySelectorAll() { return []; }
     };
     globalThis.requestAnimationFrame = () => 1;
     window.getLocationState = getLocationState;

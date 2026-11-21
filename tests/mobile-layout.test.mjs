@@ -34,3 +34,22 @@ test('375px layout and primary touch controls have explicit compact sizing', () 
     assert.match(css, /\.battle-btn,\s*\.menu-btn,\s*\.shop-btn/s);
     assert.match(css, /min-height:\s*44px/);
 });
+
+
+test('375px gameplay surfaces keep battle, map and ending content independently scrollable', () => {
+    assert.match(css, /\.battle-ui\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(css, /\.battle-ui\s*\{[^}]*max-height:\s*min\(62%,\s*470px\)/s);
+    assert.match(css, /\.map-overlay\s*\{[^}]*max-width:\s*min\(300px,\s*calc\(100%\s*-\s*24px\)\)/s);
+    assert.match(css, /\.map-overlay\s*\{[^}]*max-height:\s*min\(60dvh,\s*520px\)/s);
+    assert.match(css, /\.map-overlay\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(css, /\.ending-content\s*\{[^}]*max-height:\s*100%/s);
+    assert.match(css, /\.ending-content\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(css, /\.ending-actions\s+\.menu-btn\s*\{[^}]*min-height:\s*52px/s);
+});
+
+test('inventory and forge controls can shrink and remain touch accessible on narrow screens', () => {
+    assert.match(css, /\.inventory-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s);
+    assert.match(css, /\.inventory-item,[\s\S]*?\.forge-rune-card\s*\{[^}]*min-width:\s*0/s);
+    assert.match(css, /\.salvage-button,[\s\S]*?\.rune-extract-button\s*\{[^}]*min-height:\s*44px/s);
+    assert.match(css, /\.forge-installed\s*\{[^}]*flex-wrap:\s*wrap/s);
+});

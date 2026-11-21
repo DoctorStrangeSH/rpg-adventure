@@ -294,3 +294,82 @@ test('version-one historical profile keeps NG+, claims, equipment and a resumabl
     assert.equal(gameState.player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
     assert.equal(gameState.player.achievements.find(entry => entry.id === 'first_kill').claimed, true);
 });
+
+
+test('unversioned legacy profile upgrades to v2 without duplicating claims or resetting expedition state', (t) => {
+    const values = installStorage(t);
+    const previousData = gameState.data;
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => {
+        gameState.data = previousData;
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+    });
+
+    const legacy = {
+        player: {
+            id: 91, username: 'Legacy Explorer', class: 'mage',
+            level: 11, experience: 24, maxExperience: 300,
+            health: 90, maxHealth: 140, mana: 65, maxMana: 100, gold: 640,
+            inventory: [{ id: 'health_potion', quantity: 3 }, { id: 'mana_potion', quantity: 5 }],
+            equipment: { weapon: 'iron_sword', armor: 'leather_armor' },
+            itemUpgrades: { iron_sword: 2 },
+            weaponRunes: { iron_sword: ['frost'] },
+            unlockedLocations: ['forest', 'mountains'],
+            quests: [{ id: 'first_blood', progress: 1, completed: true, rewardClaimed: true }],
+            achievements: [{ id: 'first_kill', progress: 1, completed: true, claimed: true }],
+            campaignCycle: 1, completedCampaignCycles: 0,
+            campaignCompleted: false, newGamePlusUnlocked: false,
+            locationRewardCycles: { forest: 1 },
+            dungeonCheckpoints: { forest: 1 },
+            dungeonProgress: {
+                forest: {
+                    campaignCycle: 1, stage: 2, enemiesDefeated: 1,
+                    visitedEventStages: [1], visitedRouteStages: [2],
+                    routeChoices: { 2: 'safe' },
+                    pendingAdventureEventId: 'campfire',
+                    activeEncounter: {
+                        enemy: {
+                            id: 'wolf', name: 'Лесной волк',
+                            health: 64, maxHealth: 100, attack: 16, defense: 4,
+                            effects: { poisonTurns: 1 }
+                        },
+                        isBossBattle: false, turn: 'player',
+                        guardReduction: 0.2, relicEffects: {}
+                    }
+                }
+            }
+        },
+        screen: 'battle'
+    };
+    values.set('rpg_adventure_save', JSON.stringify(legacy));
+
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.level, 11);
+    assert.equal(gameState.player.gold, 640);
+    assert.deepEqual(gameState.player.equipment, legacy.player.equipment);
+    assert.deepEqual(gameState.player.itemUpgrades, { iron_sword: 2 });
+    assert.deepEqual(gameState.player.weaponRunes, { iron_sword: ['frost'] });
+    assert.equal(gameState.player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(gameState.player.achievements.find(entry => entry.id === 'first_kill').claimed, true);
+    assert.deepEqual(gameState.player.locationRewardCycles, { forest: 1 });
+
+    const progress = gameState.player.dungeonProgress.forest;
+    assert.equal(progress.stage, 2);
+    assert.equal(progress.enemiesDefeated, 1);
+    assert.deepEqual(progress.routeChoices, { 2: 'safe' });
+    assert.equal(progress.pendingAdventureEventId, 'campfire');
+    assert.equal(progress.activeEncounter.enemy.health, 64);
+    assert.equal(progress.activeEncounter.turn, 'player');
+
+    assert.equal(gameState.save(), true);
+    assert.equal(JSON.parse(values.get('rpg_adventure_save')).schemaVersion, 2);
+    gameState.data = { player: null, screen: 'main-menu' };
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.level, 11);
+    assert.equal(gameState.player.gold, 640);
+    assert.equal(gameState.player.inventory.find(item => item.id === 'health_potion').quantity, 3);
+    assert.equal(gameState.player.dungeonProgress.forest.stage, 2);
+    assert.equal(gameState.player.dungeonProgress.forest.activeEncounter.enemy.health, 64);
+    assert.equal(gameState.player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(gameState.player.achievements.find(entry => entry.id === 'first_kill').claimed, true);
+});

@@ -653,3 +653,56 @@ test('headless expedition battle start returns safely to map when its save fails
     assert.ok(screens.includes('map-screen'));
     assert.equal(run.inLocation, true);
 });
+
+
+test('route decisions, one-time stage markers and expedition modifiers survive a real save/reload/resume', (t) => {
+    const { player } = setup(t);
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 2,
+            enemiesDefeated: 1,
+            visitedEventStages: [0],
+            visitedRouteStages: [2],
+            routeChoices: { 2: 'danger' },
+            checkedSecretStages: [6],
+            visitedCheckpointStages: [4],
+            claimedDeepChestStages: [19],
+            claimedUnbrokenBonusStages: [19],
+            resumedFromCheckpoint: true,
+            travelerFavorFights: 3,
+            travelerReturnPending: true,
+            bloodPursuerPending: true,
+            finalBossDefeated: false
+        }
+    };
+
+    assert.equal(gameState.save(), true);
+    resetLocationState();
+    assert.equal(gameState.load(), true);
+
+    const restoredPlayer = gameState.player;
+    assert.equal(restoredPlayer.dungeonProgress.forest.routeChoices['2'], 'danger');
+    startLocation('forest');
+
+    const run = getLocationState();
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentStage, 2);
+    assert.equal(run.enemiesDefeated, 1);
+    assert.equal(run.visitedEventStages.has(0), true);
+    assert.equal(run.visitedRouteStages.has(2), true);
+    assert.equal(run.routeChoices[2], 'danger');
+    assert.equal(run.checkedSecretStages.has(6), true);
+    assert.equal(run.visitedCheckpointStages.has(4), true);
+    assert.equal(run.claimedDeepChestStages.has(19), true);
+    assert.equal(run.claimedUnbrokenBonusStages.has(19), true);
+    assert.equal(run.resumedFromCheckpoint, true);
+    assert.equal(run.travelerFavorFights, 3);
+    assert.equal(run.travelerReturnPending, true);
+    assert.equal(run.bloodPursuerPending, true);
+    assert.equal(run.pendingRoute, null);
+    assert.equal(run.pendingEvent, null);
+    assert.equal(run.pendingSecretRoom, null);
+    assert.equal(run.pendingCheckpoint, null);
+    assert.equal(getBattleState().isActive, false);
+});

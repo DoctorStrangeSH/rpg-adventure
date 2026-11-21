@@ -438,7 +438,6 @@ export function playerAttack() {
     const damageFeedback = getDamageFeedback(enemy, damageType);
     
     applyDamage(enemy, damage);
-    if (damage > 0) battleState.enemySprite?.receiveHit(battleState.animationFrame);
     const archerMarks = addArcherMark(player, enemy, damage);
     recordEnemyDamageType(enemy, damageType, damage);
     const weaponEffect = triggerWeaponEffect(player, enemy);

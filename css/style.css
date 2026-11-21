@@ -2892,3 +2892,28 @@ button,
     .equipment-preview-stats > span { padding: 5px 4px; font-size: 8px; }
     .equipment-preview-stats .comparison-delta { font-size: 11px; }
 }
+
+
+/* Rune and upgrade previews explain elemental and build-level consequences. */
+.forge-synergy-preview {
+    display: block;
+    margin-top: 5px;
+    color: var(--gold);
+    font-size: 10px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.upgrade-stat-preview {
+    display: block;
+    margin-top: 5px;
+    color: var(--gold);
+    font-size: 10px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 375px) {
+    .forge-synergy-preview,
+    .upgrade-stat-preview { font-size: 9px; }
+}

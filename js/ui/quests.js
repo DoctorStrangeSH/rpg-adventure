@@ -74,7 +74,7 @@ function createQuestCard(quest, playerQuest, isCompleted) {
 
 export function updateQuestProgress(type, amount = 1, { save = true, notifications = null } = {}) {
     const player = gameState.player;
-    if (!player) return false;
+    if (!player || !Number.isSafeInteger(amount) || amount <= 0) return false;
     const snapshot = save ? createPlayerSnapshot(player) : null;
     if (save && !snapshot) return false;
     const newlyCompleted = [];
@@ -122,7 +122,26 @@ export function claimQuestReward(questId) {
     const playerQuest = player.quests.find(pq => pq.id === questId);
     if (!playerQuest || !playerQuest.completed || playerQuest.rewardClaimed) return false;
     const questData = getQuest(questId);
-    if (!questData) return false;
+    if (!questData || !Array.isArray(player.inventory) ||
+        !Number.isSafeInteger(player.experience) || player.experience < 0 ||
+        !Number.isSafeInteger(player.gold) || player.gold < 0 ||
+        !Number.isSafeInteger(questData.rewardExp) || questData.rewardExp < 0 ||
+        !Number.isSafeInteger(questData.rewardGold) || questData.rewardGold < 0 ||
+        player.experience > Number.MAX_SAFE_INTEGER - questData.rewardExp ||
+        player.gold > Number.MAX_SAFE_INTEGER - questData.rewardGold ||
+        !Array.isArray(questData.rewardItems)) return false;
+
+    // Validate every item stack before mutating anything; an invalid or overflowing
+    // reward must not be partially granted or persisted as an unusable inventory.
+    for (const rewardItem of questData.rewardItems) {
+        if (!rewardItem || typeof rewardItem.id !== 'string' ||
+            !Number.isSafeInteger(rewardItem.quantity) || rewardItem.quantity <= 0 ||
+            !getItem(rewardItem.id)) return false;
+        const existingItem = player.inventory.find(item => item.id === rewardItem.id);
+        if (existingItem && (!Number.isSafeInteger(existingItem.quantity) ||
+            existingItem.quantity <= 0 ||
+            existingItem.quantity > Number.MAX_SAFE_INTEGER - rewardItem.quantity)) return false;
+    }
 
     const snapshot = createPlayerSnapshot(player);
     if (!snapshot) return false;

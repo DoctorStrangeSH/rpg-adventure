@@ -793,17 +793,21 @@ export function completeLocation(playerBeforeCompletion = null) {
     // A region cannot be completed while its guaranteed reward is due but
     // cannot be granted. Keep the expedition active so the player can repair
     // inventory/currency and retry instead of silently losing the reward.
+    const rewardCyclesValid = player.locationRewardCycles === undefined ||
+        (player.locationRewardCycles !== null && typeof player.locationRewardCycles === 'object' &&
+            !Array.isArray(player.locationRewardCycles));
     const rewardDue = canClaimLocationReward(player, location.id);
     const rewardItems = Array.isArray(location.rewards?.items) ? location.rewards.items : [];
     const rewardExp = location.rewards?.exp;
     const rewardGold = location.rewards?.gold;
-    const canApplyReward = !rewardDue || (
+    const canApplyReward = rewardCyclesValid && (!rewardDue || (
+        Array.isArray(location.rewards?.items) &&
         Number.isSafeInteger(player.experience) && Number.isSafeInteger(rewardExp) && rewardExp >= 0 &&
         player.experience <= Number.MAX_SAFE_INTEGER - rewardExp &&
         Number.isSafeInteger(player.gold) && Number.isSafeInteger(rewardGold) && rewardGold >= 0 &&
         player.gold <= Number.MAX_SAFE_INTEGER - rewardGold &&
         canGrantItems(player, rewardItems)
-    );
+    ));
     if (!canApplyReward) {
         window.showNotification?.('Награда региона не помещается в инвентарь или содержит некорректные данные. Освободите место и повторите завершение — прогресс экспедиции сохранён.', 'error');
         return false;

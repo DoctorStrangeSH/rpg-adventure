@@ -1203,6 +1203,7 @@ test('rescued traveler reward and both delayed expedition effects survive a real
     const ui = { innerHTML: '' };
     globalThis.document = { getElementById(id) { return id === 'battle-ui' ? ui : null; } };
     Math.random = () => 0.1;
+    player.gold = 0;
     t.after(() => {
         Math.random = previousRandom;
         if (previousDocument === undefined) delete globalThis.document;

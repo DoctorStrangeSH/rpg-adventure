@@ -640,8 +640,10 @@ test('a completed battle pays rewards only once', () => {
     battle.currentEnemy = { health: 0, expReward: 20, goldReward: 10 };
     const previousQuery = document.querySelector;
     const previousLocation = window.getLocationState;
+    const previousHandleVictory = window.handleVictory;
     document.querySelector = () => null;
     window.getLocationState = () => ({ inLocation: true });
+    window.handleVictory = () => true;
     try {
         battleVictory();
         const exp = player.experience;
@@ -654,6 +656,8 @@ test('a completed battle pays rewards only once', () => {
     } finally {
         document.querySelector = previousQuery;
         window.getLocationState = previousLocation;
+        if (previousHandleVictory === undefined) delete window.handleVictory;
+        else window.handleVictory = previousHandleVictory;
         battle.currentEnemy = null;
         battle.isActive = false;
     }
@@ -753,9 +757,11 @@ test('defeated boss grants loot only once', () => {
     const originalRandom = Math.random;
     const originalQuery = document.querySelector;
     const originalLocation = window.getLocationState;
+    const originalBossVictory = window.handleBossVictory;
     Math.random = () => 0.01;
     document.querySelector = () => null;
     window.getLocationState = () => ({ inLocation: true });
+    window.handleBossVictory = () => true;
     battle.isActive = true;
     battle.isBossBattle = true;
     battle.currentEnemy = { health: 0, expReward: 10, goldReward: 10 };
@@ -767,6 +773,8 @@ test('defeated boss grants loot only once', () => {
         Math.random = originalRandom;
         document.querySelector = originalQuery;
         window.getLocationState = originalLocation;
+        if (originalBossVictory === undefined) delete window.handleBossVictory;
+        else window.handleBossVictory = originalBossVictory;
         battle.isActive = false;
         battle.isBossBattle = false;
         battle.currentEnemy = null;

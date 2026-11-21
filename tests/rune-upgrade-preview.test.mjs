@@ -43,5 +43,5 @@ test('inventory UI renders rune effects, synergy changes, and upgrade socket gai
     const source = readFileSync(new URL('../js/ui/inventory.js', import.meta.url), 'utf8');
     const css = readFileSync(new URL('../css/style.css', import.meta.url), 'utf8');
     for (const text of ['Стихия: ', 'Активируется синергия:', 'Текущая синергия перестанет действовать', 'Новый эффект:', 'Гнёзда ']) assert.ok(source.includes(text), text);
-    assert.match(css, /\\.forge-synergy-preview/); assert.match(css, /\\.upgrade-stat-preview/);
+    assert.ok(css.includes('.forge-synergy-preview')); assert.ok(css.includes('.upgrade-stat-preview'));
 });

@@ -127,11 +127,15 @@ export function validateItemDefinition(entry) {
     for (const effect of [entry.onHit, entry.onDamaged]) {
         if (!effect) continue;
         if (typeof effect.type !== 'string' || !Number.isFinite(effect.chance) ||
-            effect.chance < 0 || effect.chance > 1 ||
-            !Number.isSafeInteger(effect.turns) || effect.turns < 1) return 'status effect requires a valid type, chance and duration';
-        if (effect.type === 'heal' &&
-            (!Number.isFinite(effect.fraction) || effect.fraction < 0 ||
-             !Number.isFinite(effect.maxHealthFraction) || effect.maxHealthFraction < 0)) return 'healing effect fractions must be non-negative';
+            effect.chance < 0 || effect.chance > 1) return 'effect requires a valid type and chance';
+        if (effect.type === 'heal') {
+            if (!Number.isFinite(effect.fraction) || effect.fraction < 0 ||
+                !Number.isFinite(effect.maxHealthFraction) || effect.maxHealthFraction < 0) {
+                return 'healing effect fractions must be non-negative';
+            }
+        } else if (!Number.isSafeInteger(effect.turns) || effect.turns < 1) {
+            return 'status effect duration must be a positive integer';
+        }
     }
     if (entry.onCrit?.type === 'mana_restore' &&
         (!Number.isSafeInteger(entry.onCrit.amount) || entry.onCrit.amount < 1)) return 'mana restore amount must be a positive integer';

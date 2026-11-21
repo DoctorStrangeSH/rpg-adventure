@@ -2570,3 +2570,74 @@ button,
     .damage-affinity-chip { flex: 1 1 138px; padding: 6px 8px; gap: 6px; }
     .damage-affinity-icon { flex-basis: 27px; width: 27px; height: 27px; }
 }
+
+
+/* Seven named relic seals: rarity controls the metal, each artifact its own aura. */
+.skill-icon.relic-icon[class*="relic-art-"] {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border-width: 1px;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 236, 194, 0.16),
+        inset 0 -7px 12px rgba(0, 0, 0, 0.28),
+        0 0 13px color-mix(in srgb, var(--relic-art-tone, var(--relic-tone)) 22%, transparent);
+    text-shadow: 0 2px 7px rgba(0, 0, 0, 0.85);
+}
+
+.skill-icon.relic-icon[class*="relic-art-"]::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    z-index: -1;
+    border: 1px solid color-mix(in srgb, var(--relic-art-tone, var(--relic-tone)) 38%, transparent);
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+.skill-icon.relic-icon[class*="relic-art-"]::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 10px;
+    height: 2px;
+    transform: translateX(-50%);
+    border-radius: 2px;
+    background: var(--relic-art-tone, var(--relic-tone));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--relic-art-tone, var(--relic-tone)) 70%, transparent);
+    pointer-events: none;
+}
+
+.relic-art-ash_heart {
+    --relic-art-tone: #ef8051;
+    background: radial-gradient(ellipse at 50% 70%, rgba(239, 91, 47, 0.34), transparent 58%), linear-gradient(145deg, #46302d, #17151d) !important;
+}
+.relic-art-stone_oath {
+    --relic-art-tone: #a7b5b8;
+    background: radial-gradient(circle at 50% 50%, rgba(154, 177, 183, 0.28), transparent 58%), linear-gradient(145deg, #353b42, #171a20) !important;
+}
+.relic-art-eagle_eye {
+    --relic-art-tone: #81bce8;
+    background: radial-gradient(ellipse at 50% 42%, rgba(71, 155, 220, 0.34), transparent 55%), linear-gradient(145deg, #293c50, #141923) !important;
+}
+.relic-art-arcane_spark {
+    --relic-art-tone: #c49aff;
+    background: radial-gradient(circle at 50% 40%, rgba(170, 112, 255, 0.36), transparent 58%), linear-gradient(145deg, #3a2e4b, #171521) !important;
+}
+.relic-art-blood_moon {
+    --relic-art-tone: #d96a83;
+    background: radial-gradient(circle at 50% 42%, rgba(190, 47, 79, 0.38), transparent 58%), linear-gradient(145deg, #462735, #19151e) !important;
+}
+.relic-art-guardian_sigil {
+    --relic-art-tone: #c7b18a;
+    background: radial-gradient(circle at 50% 45%, rgba(190, 167, 117, 0.3), transparent 58%), linear-gradient(145deg, #403a31, #171821) !important;
+}
+.relic-art-phoenix_crown {
+    --relic-art-tone: #ffd078;
+    background: radial-gradient(ellipse at 50% 38%, rgba(255, 151, 51, 0.42), transparent 60%), linear-gradient(145deg, #58402b, #211820) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 245, 206, 0.22),
+        inset 0 -7px 12px rgba(0, 0, 0, 0.28),
+        0 0 18px rgba(255, 170, 72, 0.25) !important;
+}

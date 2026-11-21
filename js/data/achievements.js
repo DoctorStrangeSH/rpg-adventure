@@ -148,10 +148,10 @@ export const ACHIEVEMENTS = [
     {
         id: 'dungeon_master',
         name: '🗝️ Мастер подземелий',
-        description: 'Пройдите все подземелья',
+        description: 'Пройдите все четыре региона',
         category: 'dungeon',
         icon: '🗝️',
-        target: 3,
+        target: 4,
         stat: 'dungeons_completed',
         rewardExp: 1000,
         rewardGold: 2000

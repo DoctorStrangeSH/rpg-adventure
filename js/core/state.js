@@ -17,6 +17,37 @@ function safeNonNegativeInteger(value, fallback = 0) {
     return Number.isSafeInteger(value) && value >= 0 ? value : fallback;
 }
 
+function normalizeActiveEncounter(value) {
+    if (!isPlainRecord(value) || !isPlainRecord(value.enemy)) return null;
+    const enemy = value.enemy;
+    if (typeof enemy.id !== 'string' || enemy.id.length > 100 ||
+        typeof enemy.name !== 'string' || enemy.name.length > 200 ||
+        !Number.isFinite(enemy.health) || enemy.health < 0 ||
+        !Number.isFinite(enemy.maxHealth) || enemy.maxHealth <= 0 ||
+        !Number.isFinite(enemy.attack) || enemy.attack < 0 ||
+        !Number.isFinite(enemy.defense) || enemy.defense < 0) return null;
+    let serialized;
+    try {
+        serialized = JSON.stringify(enemy);
+        if (serialized.length > 16000) return null;
+        const safeEnemy = JSON.parse(serialized);
+        return {
+            enemy: safeEnemy,
+            isBossBattle: value.isBossBattle === true,
+            turn: value.turn === 'enemy' ? 'enemy' : 'player',
+            guardReduction: Number.isFinite(value.guardReduction)
+                ? Math.max(0, Math.min(0.95, value.guardReduction)) : 0,
+            relicEffects: isPlainRecord(value.relicEffects)
+                ? Object.fromEntries(Object.entries(value.relicEffects)
+                    .filter(([key, entry]) => /^[a-zA-Z0-9_]{1,60}$/.test(key) &&
+                        (typeof entry === 'boolean' || (Number.isFinite(entry) && Math.abs(entry) <= 100000))))
+                : { phoenixRebirthUsed: false }
+        };
+    } catch {
+        return null;
+    }
+}
+
 function migrateProgressEntries(savedEntries, definitions, completionField) {
     const existing = new Map(
         (Array.isArray(savedEntries) ? savedEntries : [])
@@ -209,7 +240,8 @@ function normalizePlayerSave(player) {
                 ['cache', 'moonwell', 'blood_contract', 'shrine', 'astral_study', 'campfire', 'vault', 'spark_altar', 'wounded_traveler', 'traveler_return', 'traveler'].includes(progress.pendingAdventureEventId)
                 ? progress.pendingAdventureEventId : null,
             pendingSecretRoomId: ['armory', 'sanctuary', 'crypt'].includes(progress.pendingSecretRoomId)
-                ? progress.pendingSecretRoomId : null
+                ? progress.pendingSecretRoomId : null,
+            activeEncounter: normalizeActiveEncounter(progress.activeEncounter)
         };
     }
 

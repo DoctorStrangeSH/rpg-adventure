@@ -6,6 +6,8 @@ import { getBattleState } from '../js/ui/battle.js';
 import { getLocationState, handleBossVictory, resetLocationState, completeLocation } from '../js/systems/dungeon.js';
 import { startNewGamePlus } from '../js/systems/newGamePlus.js';
 import { updateAchievements } from '../js/ui/achievements.js';
+import { updateQuestProgress } from '../js/ui/quests.js';
+import { levelUp } from '../js/ui/character.js';
 
 function installBrowserStubs(t) {
     const previousWindow = globalThis.window;
@@ -439,6 +441,8 @@ test('final region completion updates and notifies dungeon achievements in the s
     const screens = installBrowserStubs(t);
     const notifications = [];
     globalThis.window.updateAchievements = updateAchievements;
+    globalThis.window.updateQuestProgress = updateQuestProgress;
+    globalThis.window.levelUp = levelUp;
     globalThis.window.showNotification = (message, type) => notifications.push({ message, type });
     const player = gameState.createPlayer('warrior');
     player.stats.dungeonsCompleted = 3;

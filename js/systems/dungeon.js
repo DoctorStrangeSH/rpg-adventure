@@ -789,31 +789,40 @@ export function completeLocation(playerBeforeCompletion = null) {
         finalBossDefeated: locationState.finalBossDefeated
     };
     const previousUnlocks = LOCATIONS.map(entry => entry.unlocked);
-    const runId = ++locationState.runId;
-    
-    // Preflight the complete fixed reward before consuming its once-per-cycle claim.
-    // A damaged inventory or unsafe currency total must leave the reward claim available.
+
+    // A region cannot be completed while its guaranteed reward is due but
+    // cannot be granted. Keep the expedition active so the player can repair
+    // inventory/currency and retry instead of silently losing the reward.
+    const rewardDue = canClaimLocationReward(player, location.id);
     const rewardItems = Array.isArray(location.rewards?.items) ? location.rewards.items : [];
     const rewardExp = location.rewards?.exp;
     const rewardGold = location.rewards?.gold;
-    const canApplyReward = canClaimLocationReward(player, location.id) &&
+    const canApplyReward = !rewardDue || (
         Number.isSafeInteger(player.experience) && Number.isSafeInteger(rewardExp) && rewardExp >= 0 &&
         player.experience <= Number.MAX_SAFE_INTEGER - rewardExp &&
         Number.isSafeInteger(player.gold) && Number.isSafeInteger(rewardGold) && rewardGold >= 0 &&
         player.gold <= Number.MAX_SAFE_INTEGER - rewardGold &&
-        canGrantItems(player, rewardItems);
+        canGrantItems(player, rewardItems)
+    );
+    if (!canApplyReward) {
+        window.showNotification?.('Награда региона не помещается в инвентарь или содержит некорректные данные. Освободите место и повторите завершение — прогресс экспедиции сохранён.', 'error');
+        return false;
+    }
 
     let rewardGranted = false;
-    if (canApplyReward && claimLocationReward(player, location.id)) {
-        // The batch was fully validated above; no partial item award can consume
-        // the region claim or leave the player with only part of the reward.
-        if (grantItemsAtomically(player, rewardItems)) {
-            rewardGranted = true;
-            player.experience += rewardExp;
-            player.gold += rewardGold;
-            if (player.experience >= player.maxExperience) window.levelUp?.();
+    if (rewardDue) {
+        if (!claimLocationReward(player, location.id) || !grantItemsAtomically(player, rewardItems)) {
+            if (rollbackPlayer) restorePlayer(rollbackPlayer);
+            window.showNotification?.('Не удалось выдать награду региона. Экспедиция сохранена — попробуйте завершить её ещё раз.', 'error');
+            return false;
         }
+        rewardGranted = true;
+        player.experience += rewardExp;
+        player.gold += rewardGold;
+        if (player.experience >= player.maxExperience) window.levelUp?.();
     }
+
+    const runId = ++locationState.runId;
 
     const campaignEnded = location.id === 'dragon_lair' && locationState.finalBossDefeated;
     if (campaignEnded) completeCampaign(player);

@@ -442,7 +442,13 @@ test('final region completion updates and notifies dungeon achievements in the s
     globalThis.window.showNotification = (message, type) => notifications.push({ message, type });
     const player = gameState.createPlayer('warrior');
     player.stats.dungeonsCompleted = 3;
+    player.gold = 400;
+    player.level = 4;
+    player.experience = 90;
+    player.maxExperience = 100;
     const achievement = player.achievements.find(entry => entry.id === 'dungeon_master');
+    const wealthyQuest = player.quests.find(entry => entry.id === 'wealthy');
+    const levelQuest = player.quests.find(entry => entry.id === 'level_5');
     achievement.progress = 3;
     const location = getLocation('dragon_lair');
     const run = getLocationState();
@@ -455,6 +461,11 @@ test('final region completion updates and notifies dungeon achievements in the s
     assert.equal(player.stats.dungeonsCompleted, 4);
     assert.equal(achievement.progress, 4);
     assert.equal(achievement.completed, true);
+    assert.equal(wealthyQuest.progress, 500);
+    assert.equal(wealthyQuest.completed, true,
+        'region completion gold must update the gold quest before the final save');
+    assert.equal(levelQuest.completed, true,
+        'region reward level-ups must update level quests before the final save');
     assert.equal(notifications.some(entry => entry.message.includes('Мастер подземелий')), true,
         'the achievement should be announced immediately after the region completion save');
     assert.equal(gameState.load(), true);

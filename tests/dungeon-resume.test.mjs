@@ -1256,7 +1256,7 @@ test('rescued traveler reward and both delayed expedition effects survive a real
     run = getLocationState();
     assert.equal(run.bloodPursuerPending, false);
     assert.equal(run.travelerReturnPending, true);
-    assert.equal(run.travelerFavorFights, 3);
+    assert.equal(run.travelerFavorFights, 2); // One protection charge is consumed by the pursuer encounter.
     assert.equal(run.visitedEventStages.has(4), true);
     assert.equal(run.visitedEventStages.has(5), true);
     assert.match(battle.currentEnemy?.name || '', /Преследователь/);

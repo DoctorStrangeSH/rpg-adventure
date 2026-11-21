@@ -26,7 +26,8 @@ function makeCompletedPlayer() {
         stats: { kills: 300, battles: 400, wins: 350, losses: 5, dungeonsCompleted: 4, bossesKilled: 18 },
         quests: [
             { id: 'first_blood', progress: 1, completed: true, rewardClaimed: true },
-            { id: 'monster_hunter', progress: 2, completed: false, rewardClaimed: false }
+            { id: 'monster_hunter', progress: 2, completed: false, rewardClaimed: false },
+            { id: 'battle_veteran', progress: 3, completed: true, rewardClaimed: false }
         ],
         achievements: [{ id: 'first_kill', progress: 1, completed: true, claimed: true }]
     };
@@ -81,6 +82,9 @@ test('NG+ carries character progression and resets only campaign-run state', () 
     assert.equal(next.health, next.maxHealth);
     assert.equal(next.mana, next.maxMana);
     assert.equal(next.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.deepEqual(next.quests.find(entry => entry.id === 'battle_veteran'), {
+        id: 'battle_veteran', progress: 3, completed: true, rewardClaimed: false
+    }, 'completed but unclaimed quests remain claimable without replaying progress');
     assert.equal(next.quests.find(entry => entry.id === 'monster_hunter').progress, 0);
     assert.equal(player.campaignCycle, 1);
     assert.deepEqual(LOCATIONS.map(location => location.unlocked),

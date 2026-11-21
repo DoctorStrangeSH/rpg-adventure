@@ -58,7 +58,7 @@ function prepareBattle(battle, player, enemy = {}) {
         isDungeonBattle: false,
         guardReduction: 0,
         relicEffects: { phoenixRebirthUsed: false },
-        playerSprite: { x: 0, y: 0, isAttacking: false, receiveHit() { this.hitCount = (this.hitCount || 0) + 1; } },
+        playerSprite: { x: 0, y: 0, isAttacking: false, beginDeath() { this.deathStartFrame = 0; }, receiveHit() { this.hitCount = (this.hitCount || 0) + 1; } },
         enemySprite: { x: 100, y: 0, receiveHit() { this.hitCount = (this.hitCount || 0) + 1; } }
     });
 }
@@ -165,7 +165,7 @@ test('field victory rolls back rewards on save failure and exposes an explicit r
     assert.equal(battle.isActive, false);
     assert.equal(battle.pendingVictorySave, false);
     assert.equal(player.stats.wins, beforePlayer.stats.wins + 1);
-    assert.ok(player.experience > beforePlayer.experience);
+    assert.ok(player.gold > beforePlayer.gold);
 });
 
 test('defeat failure restores all penalties and keeps an explicit save retry available', (t) => {

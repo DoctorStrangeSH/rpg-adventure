@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
+import { Storage } from '../js/core/storage.js';
 import { CLASSES } from '../js/data/classes.js';
 import { startBattle, playerAttack, playerSkill, playerUseItem, playerDefend, playerFlee, battleVictory, battleDefeat, getBattleState } from '../js/ui/battle.js';
 
@@ -304,4 +305,51 @@ test('expedition combat resource and relic ownership changes survive a real save
         campaignCycle: 1, stage: 3, enemiesDefeated: 1
     });
     assert.equal(gameState.player.inventory.find(item => item.id === 'health_potion').quantity, 1);
+});
+
+
+test('a committed expedition guard action saves the exact enemy and next turn for reload', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 2, enemiesDefeated: 1 }
+    };
+    prepareBattle(battle, player, {
+        id: 'wolf',
+        health: 91,
+        maxHealth: 180,
+        effects: { poisonTurns: 2 },
+        intent: 'heavy',
+        phase: 1
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+
+    playerDefend();
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.enemy.id, 'wolf');
+    assert.equal(saved.enemy.health, 91);
+    assert.deepEqual(saved.enemy.effects, { poisonTurns: 2 });
+    assert.equal(saved.enemy.intent, 'heavy');
+    assert.equal(saved.turn, 'enemy');
+    assert.ok(saved.guardReduction > 0);
 });

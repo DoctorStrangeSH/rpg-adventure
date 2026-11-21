@@ -10,6 +10,7 @@ function setup(t, classId = 'warrior') {
     const previousWindow = globalThis.window;
     const previousDocument = globalThis.document;
     const previousRandom = Math.random;
+    const previousTimeout = globalThis.setTimeout;
     const battle = getBattleState();
     const previousBattle = { ...battle };
     const notifications = [];
@@ -36,6 +37,7 @@ function setup(t, classId = 'warrior') {
         if (previousDocument === undefined) delete globalThis.document;
         else globalThis.document = previousDocument;
         Math.random = previousRandom;
+        globalThis.setTimeout = previousTimeout;
     });
     return { player, battle, notifications };
 }
@@ -120,4 +122,23 @@ test('failed moonblade save restores player mana and opponent state before hit f
     assert.equal(battle.enemySprite.hitCount || 0, 0);
     assert.equal(battle.turn, 'player');
     assert.match(notifications[0]?.message || '', /эффект оружия/);
+});
+
+test('failed enemy-turn save restores player and enemy state and returns the turn safely', (t) => {
+    const { player, battle, notifications } = setup(t, 'mage');
+    prepareBattle(battle, player, { behavior: 'aggressive', intent: 'attack', attack: 18 });
+    const enemy = battle.currentEnemy;
+    const beforePlayer = structuredClone(player);
+    const beforeEnemy = structuredClone(enemy);
+    globalThis.setTimeout = callback => { callback(); return 1; };
+    gameState.save = () => false;
+
+    // Defend advances directly into the enemy action using the deterministic timer stub.
+    const { playerDefend } = await import('../js/ui/battle.js');
+    playerDefend();
+
+    assert.deepEqual(player, beforePlayer);
+    assert.deepEqual(enemy, beforeEnemy);
+    assert.equal(battle.turn, 'player');
+    assert.match(notifications[0]?.message || '', /ход противника/);
 });

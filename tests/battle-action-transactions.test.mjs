@@ -147,7 +147,7 @@ test('failed enemy-turn save restores player and enemy state and returns the tur
 
 test('field victory rolls back rewards on save failure and exposes an explicit retry', (t) => {
     const { player, battle, notifications } = setup(t);
-    prepareBattle(battle, player, { health: 0 });
+    prepareBattle(battle, player, { health: 0, expReward: 20, goldReward: 15 });
     const beforePlayer = structuredClone(player);
     globalThis.setTimeout = () => 1;
     gameState.save = () => false;

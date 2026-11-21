@@ -429,3 +429,80 @@ for (const scenario of [
         assert.equal(player.mana, manaBefore - CLASSES[scenario.classId].skills.find(skill => skill.id === scenario.skillId).manaCost);
     });
 }
+
+
+test('successful expedition basic attack saves enemy damage, weapon state and enemy turn', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    globalThis.setTimeout = () => 1;
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 1, enemiesDefeated: 0 }
+    };
+    prepareBattle(battle, player, { health: 2000, maxHealth: 2000 });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+
+    playerAttack();
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.ok(saved.enemy.health < 2000);
+    assert.equal(saved.turn, 'enemy');
+});
+
+test('successful expedition potion use saves restored resources, inventory and enemy turn', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    globalThis.setTimeout = () => 1;
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 1, enemiesDefeated: 0 }
+    };
+    prepareBattle(battle, player, { health: 2000, maxHealth: 2000 });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+    player.health = Math.max(1, player.maxHealth - 30);
+    const beforeHealth = player.health;
+    const beforeQuantity = player.inventory.find(item => item.id === 'health_potion').quantity;
+
+    playerUseItem('health_potion');
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    const savedPlayer = Storage.load().player;
+    assert.ok(savedPlayer.health > beforeHealth);
+    assert.equal(savedPlayer.inventory.find(item => item.id === 'health_potion').quantity, beforeQuantity - 1);
+    assert.equal(saved.enemy.health, 2000);
+    assert.equal(saved.turn, 'enemy');
+});

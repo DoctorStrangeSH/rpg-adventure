@@ -570,3 +570,26 @@ test('defeat preserves the expedition snapshot when clearing progress cannot be 
     assert.equal(run.currentLocation.id, 'forest');
     assert.equal(Storage.load().player.dungeonProgress.forest.stage, 3);
 });
+
+test('defeat handler rolls back pre-penalty player snapshot when save fails', (t) => {
+    const { player } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 4;
+    run.enemiesDefeated = 2;
+    player.dungeonProgress ||= {};
+    player.dungeonProgress.forest = { campaignCycle: 1, stage: 4, enemiesDefeated: 2 };
+    const beforePenalty = structuredClone(player);
+    player.health = 1;
+    player.gold = Math.max(0, player.gold - 10);
+    player.stats.losses++;
+    const previousSave = gameState.save;
+    gameState.save = () => false;
+    t.after(() => { gameState.save = previousSave; });
+
+    assert.equal(handleDefeat(beforePenalty), false);
+    assert.deepEqual(player, beforePenalty);
+    assert.equal(run.inLocation, true);
+    assert.equal(run.currentStage, 4);
+    assert.equal(run.enemiesDefeated, 2);
+});

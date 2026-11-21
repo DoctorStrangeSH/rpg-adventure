@@ -1156,7 +1156,7 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
 
         const enemy = {
             ...structuredClone(baseBoss),
-            health: 713,
+            health: Math.max(1, Math.floor(baseBoss.health * 0.713)),
             maxHealth: baseBoss.health,
             behavior: 'boss',
             intent: expected.intent,
@@ -1187,6 +1187,7 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
         const persisted = Storage.load().player.dungeonProgress[regionId];
         assert.ok(persisted?.activeEncounter, regionId + ' active encounter must survive normalization');
         assert.equal(persisted.activeEncounter.enemy.id, expected.id);
+        assert.equal(persisted.activeEncounter.enemy.health, expectedHealth);
 
         startLocation(regionId);
         assert.ok(getLocationState().inLocation, regionId + ' expedition must start');
@@ -1197,7 +1198,7 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
         assert.equal(battle.isActive, true, regionId + ' encounter must resume');
         assert.equal(battle.isBossBattle, true, regionId + ' must retain boss rules');
         assert.equal(battle.currentEnemy.id, expected.id);
-        assert.equal(battle.currentEnemy.health, 713);
+        assert.equal(battle.currentEnemy.health, expectedHealth);
         assert.equal(battle.currentEnemy.intent, expected.intent);
         assert.equal(battle.currentEnemy.phase, 2);
         assert.deepEqual(battle.currentEnemy.effects, { burnTurns: 2, weakenTurns: 1 });

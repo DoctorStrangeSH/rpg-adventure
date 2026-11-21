@@ -261,3 +261,46 @@ test('lethal enemy action never saves a zero-health profile before defeat penalt
     assert.equal(battle.isActive, true);
     assert.equal(battle.pendingDefeatSave, true);
 });
+
+
+test('expedition combat resource and relic ownership changes survive a real save/reload', (t) => {
+    const { player, battle } = setup(t, 'mage');
+    const previousStorage = globalThis.localStorage;
+    const previousTimeout = globalThis.setTimeout;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    globalThis.setTimeout = () => 1;
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    player.health = Math.max(1, player.maxHealth - 30);
+    player.mana = Math.max(0, player.maxMana - 20);
+    player.inventory = [{ id: 'health_potion', quantity: 2 }];
+    player.relics = ['phoenix_feather'];
+    player.dungeonProgress = {
+        forest: { campaignCycle: 1, stage: 3, enemiesDefeated: 1 }
+    };
+    prepareBattle(battle, player, { health: 200, maxHealth: 200 });
+    battle.isLocationBattle = true;
+    battle.isDungeonBattle = true;
+    window.getLocationState = () => ({ inLocation: true, currentLocation: { id: 'forest' } });
+
+    const expectedHealth = player.health;
+    playerUseItem('health_potion');
+    assert.equal(player.health, Math.min(player.maxHealth, expectedHealth + 50));
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.health, player.health);
+    assert.equal(gameState.player.mana, player.mana);
+    assert.deepEqual(gameState.player.relics, ['phoenix_feather']);
+    assert.deepEqual(gameState.player.dungeonProgress.forest, {
+        campaignCycle: 1, stage: 3, enemiesDefeated: 1
+    });
+    assert.equal(gameState.player.inventory.find(item => item.id === 'health_potion').quantity, 1);
+});

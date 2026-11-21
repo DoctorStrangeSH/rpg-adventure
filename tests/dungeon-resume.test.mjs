@@ -1181,6 +1181,10 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
         battle.currentEnemy = null;
         gameState.data = { player: null, screen: 'main-menu' };
         assert.equal(gameState.load(), true, regionId + ' profile must reload');
+        const persisted = Storage.load().player.dungeonProgress[regionId];
+        assert.ok(persisted, regionId + ' progress must remain in the save');
+        assert.ok(persisted.activeEncounter, regionId + ' active encounter must survive normalization');
+        assert.equal(persisted.activeEncounter.enemy.id, expected.id);
         startLocation(regionId);
         startStageBattle();
 

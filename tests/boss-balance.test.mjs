@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { LOCATIONS } from '../js/data/locations.js';
 import { CLASSES } from '../js/data/classes.js';
 import { gameState } from '../js/core/state.js';
-import { applyEnemyAction, useSkillEffect } from '../js/systems/combat.js';
+import { applyEnemyAction, planEnemyTurn, useSkillEffect } from '../js/systems/combat.js';
 
 const REGIONS = LOCATIONS.filter(location => location.type !== 'safe');
 
@@ -108,4 +108,95 @@ test('final world eater scaling remains within the documented release envelope',
         { health: finalBoss.health, attack: finalBoss.attack, defense: finalBoss.defense },
         { health: 4050, attack: 180, defense: 86 }
     );
+});
+
+
+test('each regional boss telegraphs and resolves its own signature attack', () => {
+    const signatures = {
+        forest: { id: 'forest_guardian', action: 'thorn_burst' },
+        mountains: { id: 'mountain_dragon', action: 'flame_breath' },
+        ruins: { id: 'lich_king', action: 'siphon' },
+        dragon_lair: { id: 'world_eater', action: 'cataclysm' }
+    };
+
+    for (const [regionId, expected] of Object.entries(signatures)) {
+        const region = REGIONS.find(entry => entry.id === regionId);
+        const baseBoss = region.stages.at(-1).boss;
+        assert.equal(baseBoss.id, expected.id, regionId + ' must keep its named boss');
+
+        const enemy = {
+            ...baseBoss,
+            behavior: 'boss',
+            health: Math.floor(baseBoss.health * 0.2),
+            maxHealth: baseBoss.health,
+            effects: {}
+        };
+        const player = gameState.createPlayer('warrior');
+        player.health = player.maxHealth;
+        player.mana = player.maxMana;
+
+        const warning = planEnemyTurn(enemy, player, 0.5);
+        assert.equal(warning.warned, true, expected.id + ' must announce its signature');
+        assert.equal(warning.action, null);
+        assert.equal(enemy.intent, expected.action);
+
+        const resolved = planEnemyTurn(enemy, player, 0.5);
+        assert.equal(resolved.warned, false);
+        assert.equal(resolved.action, expected.action);
+        assert.equal(enemy.intent, null);
+
+        const beforeHealth = player.health;
+        const beforeMana = player.mana;
+        const result = applyEnemyAction(enemy, player, resolved.action, 0, 0, 0.99);
+        assert.ok(result.damage > 0, expected.id + ' signature must deal damage');
+        assert.ok(player.health < beforeHealth, expected.id + ' signature must affect player health');
+        assert.ok(player.health > 0, expected.id + ' signature must not one-shot a full-health hero');
+        if (expected.action === 'flame_breath') {
+            assert.ok(result.manaBurned > 0);
+            assert.ok(player.mana < beforeMana);
+        }
+        if (expected.action === 'siphon') {
+            assert.ok(result.soulDrain > 0);
+            assert.ok(enemy.health > Math.floor(baseBoss.health * 0.2));
+        }
+    }
+});
+
+test('each regional mini-boss announces and resolves its configured signature', () => {
+    const signatures = {
+        forest: { id: 'goblin_king', action: 'ambush' },
+        mountains: { id: 'mountain_giant', action: 'crush' },
+        ruins: { id: 'death_knight', action: 'siphon' },
+        dragon_lair: { id: 'ancient_dragon', action: 'flame_breath' }
+    };
+
+    for (const [regionId, expected] of Object.entries(signatures)) {
+        const region = REGIONS.find(entry => entry.id === regionId);
+        const baseBoss = region.stages.find(stage => stage.boss?.miniBoss).boss;
+        assert.equal(baseBoss.id, expected.id, regionId + ' must keep its named mini-boss');
+
+        const enemy = {
+            ...baseBoss,
+            behavior: 'mini_boss',
+            health: baseBoss.health,
+            maxHealth: baseBoss.health,
+            effects: {}
+        };
+        const player = gameState.createPlayer('warrior');
+        player.health = player.maxHealth;
+        player.mana = player.maxMana;
+
+        const warning = planEnemyTurn(enemy, player, 0.1);
+        assert.equal(warning.warned, true, expected.id + ' must announce its signature');
+        assert.equal(enemy.intent, expected.action);
+
+        const resolved = planEnemyTurn(enemy, player, 0.1);
+        assert.equal(resolved.action, expected.action);
+        assert.equal(enemy.intent, null);
+
+        const beforeHealth = player.health;
+        const result = applyEnemyAction(enemy, player, resolved.action, 0, 0, 0.99);
+        assert.ok(result.damage > 0, expected.id + ' signature must deal damage');
+        assert.ok(player.health < beforeHealth, expected.id + ' signature must affect player health');
+    }
 });

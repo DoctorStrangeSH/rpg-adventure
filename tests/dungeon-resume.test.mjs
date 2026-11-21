@@ -1163,6 +1163,7 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
             phase: 2,
             effects: { burnTurns: 2, weakenTurns: 1 }
         };
+        const expectedHealth = enemy.health;
         activePlayer.dungeonProgress ||= {};
         activePlayer.dungeonProgress[regionId] = {
             campaignCycle: activePlayer.campaignCycle,

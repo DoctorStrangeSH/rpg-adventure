@@ -382,3 +382,50 @@ test('failed expedition guard snapshot restores guard, turn and previous encount
     assert.equal(location.activeEncounter, null);
     assert.equal(player.dungeonProgress.forest.activeEncounter, undefined);
 });
+
+
+for (const scenario of [
+    { classId: 'warrior', skillId: 'power_strike', expectedEffect: 'weakenTurns' },
+    { classId: 'mage', skillId: 'fireball', expectedEffect: 'burnTurns' },
+    { classId: 'archer', skillId: 'poison_arrow', expectedEffect: 'poisonTurns' }
+]) {
+    test(`successful ${scenario.classId} skill persists its encounter snapshot and next turn`, (t) => {
+        const { player, battle } = setup(t, scenario.classId);
+        const previousStorage = globalThis.localStorage;
+        const values = new Map();
+        globalThis.localStorage = {
+            getItem(key) { return values.get(key) ?? null; },
+            setItem(key, value) { values.set(key, String(value)); },
+            removeItem(key) { values.delete(key); }
+        };
+        globalThis.setTimeout = () => 1;
+        t.after(() => {
+            if (previousStorage === undefined) delete globalThis.localStorage;
+            else globalThis.localStorage = previousStorage;
+        });
+
+        const location = {
+            id: 'forest',
+            inLocation: true,
+            currentLocation: { id: 'forest' },
+            activeEncounter: null
+        };
+        window.getLocationState = () => location;
+        player.dungeonProgress = {
+            forest: { campaignCycle: player.campaignCycle, stage: 1, enemiesDefeated: 0 }
+        };
+        prepareBattle(battle, player, { health: 2000, maxHealth: 2000 });
+        battle.isDungeonBattle = true;
+        battle.isLocationBattle = true;
+        const manaBefore = player.mana;
+
+        playerSkill(scenario.skillId);
+
+        const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+        assert.ok(saved.enemy.health < 2000);
+        assert.ok(saved.enemy.effects[scenario.expectedEffect] > 0);
+        assert.equal(saved.turn, 'enemy');
+        assert.equal(saved.isBossBattle, false);
+        assert.equal(player.mana, manaBefore - CLASSES[scenario.classId].skills.find(skill => skill.id === scenario.skillId).manaCost);
+    });
+}

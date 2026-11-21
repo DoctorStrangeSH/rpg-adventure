@@ -23,7 +23,7 @@ function normalizeActiveEncounter(value) {
     if (typeof enemy.id !== 'string' || enemy.id.length > 100 ||
         typeof enemy.name !== 'string' || enemy.name.length > 200 ||
         !Number.isFinite(enemy.health) || enemy.health < 0 ||
-        !Number.isFinite(enemy.maxHealth) || enemy.maxHealth <= 0 ||
+        !Number.isFinite(enemy.maxHealth) || enemy.maxHealth <= 0 || enemy.health > enemy.maxHealth ||
         !Number.isFinite(enemy.attack) || enemy.attack < 0 ||
         !Number.isFinite(enemy.defense) || enemy.defense < 0) return null;
     let serialized;

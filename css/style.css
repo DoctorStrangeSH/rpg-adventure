@@ -1937,3 +1937,213 @@ button,
 .map-overlay .map-btn {
     min-height: 44px;
 }
+
+
+/* Main menu, character, quests, achievements and shop on compact screens. */
+.menu-container,
+.player-info,
+.character-header,
+.character-info,
+.skill-card,
+.skill-info,
+.quest-card,
+.quest-header,
+.quest-name,
+.achievement-card,
+.achievement-info,
+.shop-item {
+    min-width: 0;
+}
+
+.character-info,
+.skill-info,
+.quest-name,
+.achievement-info,
+.shop-item .item-name,
+.shop-item .item-stats {
+    overflow-wrap: anywhere;
+}
+
+.player-info-header {
+    min-width: 0;
+}
+
+.player-info-header > div:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+    .menu-container {
+        padding: 14px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .game-logo {
+        margin: 14px 0 20px;
+    }
+
+    .game-title {
+        font-size: clamp(22px, 7vw, 28px);
+        overflow-wrap: anywhere;
+    }
+
+    .game-subtitle {
+        line-height: 1.45;
+    }
+
+    .player-info {
+        padding: 12px;
+    }
+
+    .character-header {
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .character-avatar {
+        flex: 0 0 64px;
+        width: 64px;
+        height: 64px;
+        font-size: 32px;
+    }
+
+    .skill-card {
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .skill-icon {
+        flex: 0 0 30px;
+    }
+
+    .talent-button {
+        flex: 0 0 auto;
+        max-width: 42%;
+        min-height: 44px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .quest-card {
+        padding: 12px;
+    }
+
+    .quest-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+    }
+
+    .quest-name {
+        flex: 1 1 170px;
+    }
+
+    .quest-progress {
+        flex: 0 0 auto;
+    }
+
+    .quest-rewards {
+        gap: 6px;
+    }
+
+    .quest-rewards span {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .quest-claim-btn,
+    .achievement-claim-btn,
+    .shop-btn {
+        min-height: 44px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .achievement-card {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .achievement-icon {
+        flex: 0 0 36px;
+        width: 36px;
+        font-size: 26px;
+    }
+
+    .achievement-info {
+        flex: 1 1 calc(100% - 58px);
+    }
+
+    .achievement-status {
+        flex: 0 0 28px;
+        text-align: center;
+    }
+
+    .achievement-claim-btn {
+        position: static;
+        flex: 1 0 100%;
+        margin-top: 2px;
+        padding: 9px 12px;
+    }
+
+    .shop-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .shop-item {
+        align-items: stretch;
+        padding: 13px;
+    }
+
+    .shop-item .item-icon,
+    .shop-item .item-name,
+    .shop-item .item-rarity,
+    .shop-item .item-stats,
+    .shop-item .item-price {
+        text-align: center;
+    }
+}
+
+@media (max-width: 375px) {
+    .menu-buttons {
+        gap: 8px;
+    }
+
+    .menu-btn {
+        min-height: 52px;
+        padding: 12px;
+        gap: 8px;
+        font-size: 14px;
+    }
+
+    .btn-icon {
+        flex: 0 0 28px;
+        margin-right: 0;
+        text-align: center;
+    }
+
+    .btn-text {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .btn-arrow {
+        flex: 0 0 auto;
+    }
+
+    .section-title {
+        font-size: 16px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    .talent-button {
+        max-width: 44%;
+        padding: 8px;
+        font-size: 12px;
+    }
+}

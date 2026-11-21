@@ -765,6 +765,7 @@ function enemyTurn() {
     if (!battleState.isActive || !enemy) return;
     const enemyTurnSnapshot = cloneBattleEntity(enemy);
     const playerTurnSnapshot = createPlayerSnapshot(player);
+    const guardBeforeEnemyTurn = battleState.guardReduction;
     if (!enemyTurnSnapshot || !playerTurnSnapshot) return;
     const effects = tickEnemyEffects(enemy);
     if (effects.poisonDamage) {
@@ -786,6 +787,7 @@ function enemyTurn() {
         if (!commitBattleMutation(player, playerTurnSnapshot, enemy, enemyTurnSnapshot,
             'Не удалось сохранить пропуск хода замороженного противника.')) {
             battleState.turn = 'enemy';
+            battleState.guardReduction = guardBeforeEnemyTurn;
             isProcessing = false;
             updateBattleUI();
             return;

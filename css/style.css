@@ -2147,3 +2147,80 @@ button,
         font-size: 12px;
     }
 }
+
+
+/* Combat controls remain readable when skills and status hints grow. */
+.battle-ui,
+.battle-buttons,
+.battle-btn,
+.battle-btn span,
+.battle-btn small,
+.combat-entity,
+.combat-entity-title {
+    min-width: 0;
+}
+
+.battle-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.battle-btn {
+    min-height: 48px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    touch-action: manipulation;
+}
+
+.battle-btn span,
+.battle-btn small {
+    overflow-wrap: anywhere;
+}
+
+.battle-turn,
+.battle-tactic,
+.battle-relics,
+.boss-phase,
+.stage-info span {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 375px) {
+    .battle-ui {
+        padding: 9px;
+        max-height: 68%;
+    }
+
+    .combat-overview {
+        gap: 6px;
+    }
+
+    .combat-entity {
+        padding: 7px 6px;
+    }
+
+    .combat-entity-title {
+        font-size: 10px;
+        line-height: 1.35;
+    }
+
+    .battle-buttons {
+        gap: 6px;
+    }
+
+    .battle-btn {
+        min-height: 48px;
+        padding: 9px 6px;
+        font-size: 12px;
+    }
+
+    .battle-btn small {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 340px) {
+    .battle-buttons {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

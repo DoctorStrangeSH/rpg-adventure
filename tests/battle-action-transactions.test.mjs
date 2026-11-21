@@ -652,3 +652,120 @@ test('an expedition enemy adaptation is persisted before the next player turn', 
     assert.equal(saved.turn, 'player');
     assert.equal(battle.turn, 'player');
 });
+
+
+test('a boss wind-up is saved as a warning and resolves the same signature attack on the next turn', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const previousRandom = Math.random;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
+    Math.random = () => 0.1;
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+        Math.random = previousRandom;
+    });
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 30, enemiesDefeated: 29 }
+    };
+    prepareBattle(battle, player, {
+        id: 'forest_guardian',
+        name: 'Страж леса',
+        health: 2000,
+        maxHealth: 2000,
+        attack: 35,
+        behavior: 'boss',
+        phase: 1
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+    battle.isBossBattle = true;
+
+    playerDefend();
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+
+    let saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.enemy.intent, 'heavy');
+    assert.equal(saved.turn, 'player');
+    assert.equal(battle.currentEnemy.intent, 'heavy');
+
+    const beforeHealth = player.health;
+    playerDefend();
+    safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+
+    saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.enemy.intent, null);
+    assert.equal(saved.turn, 'player');
+    assert.equal(battle.currentEnemy.intent, null);
+    assert.ok(player.health < beforeHealth);
+});
+
+test('phoenix crown revival is saved exactly once with the surviving expedition encounter', (t) => {
+    const { player, battle } = setup(t);
+    const previousStorage = globalThis.localStorage;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+    });
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 30, enemiesDefeated: 29 }
+    };
+    player.relics = ['phoenix_crown'];
+    player.activeRelics = ['phoenix_crown'];
+    player.health = 1;
+    prepareBattle(battle, player, {
+        id: 'forest_guardian',
+        name: 'Страж леса',
+        health: 2000,
+        maxHealth: 2000,
+        attack: 100,
+        behavior: 'boss',
+        intent: 'heavy',
+        phase: 1
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+    battle.isBossBattle = true;
+
+    playerDefend();
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    const savedPlayer = Storage.load().player;
+    assert.equal(saved.relicEffects.phoenixRebirthUsed, true);
+    assert.equal(saved.turn, 'player');
+    assert.equal(savedPlayer.health, Math.ceil(player.maxHealth * 0.2));
+    assert.equal(battle.relicEffects.phoenixRebirthUsed, true);
+});

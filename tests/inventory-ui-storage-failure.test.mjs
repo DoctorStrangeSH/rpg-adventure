@@ -81,7 +81,7 @@ test('inventory UI rolls back every item operation when localStorage rejects the
             player.weaponRunes.iron_sword = ['flame'];
             player.inventory.push({ id: 'blood_essence', quantity: 2 });
         }],
-        ['rune extraction', () => extractInventoryRune('iron_sword', 0), () => {
+        ['rune extraction', () => extractInventoryRune('iron_sword', 0), (player) => {
             player.gold = 500;
             player.weaponRunes.iron_sword = ['flame'];
         }]

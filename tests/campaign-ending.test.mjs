@@ -5,6 +5,7 @@ import { getLocation, LOCATIONS } from '../js/data/locations.js';
 import { getBattleState } from '../js/ui/battle.js';
 import { getLocationState, handleBossVictory, resetLocationState, completeLocation } from '../js/systems/dungeon.js';
 import { startNewGamePlus } from '../js/systems/newGamePlus.js';
+import { updateAchievements } from '../js/ui/achievements.js';
 
 function installBrowserStubs(t) {
     const previousWindow = globalThis.window;
@@ -430,4 +431,33 @@ test('World Eater victory completes NG+ cycle two without duplicating cycle-one 
     assert.equal(gameState.player.newGamePlusUnlocked, true);
     assert.equal(gameState.player.locationRewardCycles.dragon_lair, 2);
     assert.equal(gameState.player.inventory.find(item => item.id === 'rune_world_fragment')?.quantity, 2);
+});
+
+
+
+test('final region completion updates and notifies dungeon achievements in the same saved transaction', (t) => {
+    const screens = installBrowserStubs(t);
+    const notifications = [];
+    globalThis.window.updateAchievements = updateAchievements;
+    globalThis.window.showNotification = (message, type) => notifications.push({ message, type });
+    const player = gameState.createPlayer('warrior');
+    player.stats.dungeonsCompleted = 3;
+    const achievement = player.achievements.find(entry => entry.id === 'dungeon_master');
+    achievement.progress = 3;
+    const location = getLocation('dragon_lair');
+    const run = getLocationState();
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.inLocation = true;
+    run.finalBossDefeated = true;
+
+    assert.equal(completeLocation(), true);
+    assert.equal(player.stats.dungeonsCompleted, 4);
+    assert.equal(achievement.progress, 4);
+    assert.equal(achievement.completed, true);
+    assert.equal(notifications.some(entry => entry.message.includes('Мастер подземелий')), true,
+        'the achievement should be announced immediately after the region completion save');
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.achievements.find(entry => entry.id === 'dungeon_master').completed, true);
+    assert.ok(screens.includes('ending-screen'));
 });

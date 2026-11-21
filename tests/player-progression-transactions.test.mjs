@@ -133,3 +133,42 @@ test('level-up commits once after updating quest and achievement progress', (t) 
         SoundSystem.playSound = previousSound;
     }
 });
+
+
+test('quest progress rejects non-positive, fractional and non-finite increments without mutation', (t) => {
+    const { player } = setup(t);
+    const before = structuredClone(player.quests);
+    for (const amount of [0, -1, 0.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1]) {
+        assert.equal(updateQuestProgress('kill', amount), false);
+        assert.deepEqual(player.quests, before);
+    }
+});
+
+test('quest reward rejects overflowing inventory stacks before granting any reward', (t) => {
+    const { player } = setup(t);
+    const quest = player.quests.find(entry => entry.id === 'first_blood');
+    quest.completed = true;
+    player.inventory = [{ id: 'health_potion', quantity: Number.MAX_SAFE_INTEGER }];
+    const before = structuredClone(player);
+    let saves = 0;
+    gameState.save = () => { saves++; return true; };
+
+    assert.equal(claimQuestReward('first_blood'), false);
+    assert.deepEqual(player, before);
+    assert.equal(saves, 0);
+});
+
+test('quest and achievement rewards reject unsafe currency arithmetic before mutation', (t) => {
+    const { player } = setup(t);
+    player.quests.find(entry => entry.id === 'first_blood').completed = true;
+    player.gold = Number.MAX_SAFE_INTEGER - 50;
+    const beforeQuest = structuredClone(player);
+    assert.equal(claimQuestReward('first_blood'), false);
+    assert.deepEqual(player, beforeQuest);
+
+    player.achievements.find(entry => entry.id === 'first_kill').completed = true;
+    player.gold = Number.MAX_SAFE_INTEGER - 50;
+    const beforeAchievement = structuredClone(player);
+    assert.equal(claimAchievement('first_kill'), false);
+    assert.deepEqual(player, beforeAchievement);
+});

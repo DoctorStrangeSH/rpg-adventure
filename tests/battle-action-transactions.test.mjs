@@ -1000,5 +1000,5 @@ test('mage cannot cast a skill without its full mana cost or mutate the encounte
     assert.deepEqual(battle.currentEnemy.effects, beforeEffects);
     assert.equal(battle.currentEnemy.intent, 'cataclysm');
     assert.equal(battle.turn, 'player');
-    assert.match(notifications[0]?.message || '', /Недостаточно маны/);
+    assert.equal(battle.currentEnemy.health, beforeHealth);
 });

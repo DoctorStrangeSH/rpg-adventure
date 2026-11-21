@@ -1114,8 +1114,9 @@ test('final World Eater cataclysm telegraph and phase survive a full expedition 
 
 
 
+
 test('all four regional signature bosses restore identity, phase, telegraph and effects after reload', (t) => {
-    const { player, battle } = setup(t);
+    const { battle } = setup(t);
     const previousDocument = globalThis.document;
     const previousUnlocks = LOCATIONS.map(entry => entry.unlocked);
     const ui = { innerHTML: '' };
@@ -1139,9 +1140,13 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
         dragon_lair: { id: 'world_eater', intent: 'cataclysm' }
     };
 
-    player.level = 100;
-    player.unlockedLocations = Object.keys(signatures);
+    gameState.player.level = 100;
+    gameState.player.unlockedLocations = Object.keys(signatures);
     for (const [regionId, expected] of Object.entries(signatures)) {
+        resetLocationState();
+        battle.isActive = false;
+        battle.currentEnemy = null;
+        const activePlayer = gameState.player;
         const location = getLocation(regionId);
         location.unlocked = true;
         const finalStageIndex = location.stages.length - 1;
@@ -1149,10 +1154,6 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
         const baseBoss = stage.boss;
         assert.equal(baseBoss.id, expected.id);
 
-        startLocation(regionId);
-        const run = getLocationState();
-        run.currentStage = finalStageIndex;
-        run.enemiesDefeated = stage.enemiesCount;
         const enemy = {
             ...structuredClone(baseBoss),
             health: 713,
@@ -1162,10 +1163,15 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
             phase: 2,
             effects: { burnTurns: 2, weakenTurns: 1 }
         };
-        player.dungeonProgress[regionId] = {
-            campaignCycle: player.campaignCycle,
+        activePlayer.dungeonProgress ||= {};
+        activePlayer.dungeonProgress[regionId] = {
+            campaignCycle: activePlayer.campaignCycle,
             stage: finalStageIndex,
             enemiesDefeated: stage.enemiesCount,
+            visitedCheckpointStages: [finalStageIndex],
+            visitedEventStages: [finalStageIndex],
+            visitedRouteStages: [finalStageIndex],
+            checkedSecretStages: [finalStageIndex],
             activeEncounter: {
                 enemy,
                 isBossBattle: true,
@@ -1176,16 +1182,15 @@ test('all four regional signature bosses restore identity, phase, telegraph and 
         };
         assert.equal(gameState.save(), true, regionId + ' snapshot must save');
 
-        resetLocationState();
-        battle.isActive = false;
-        battle.currentEnemy = null;
         gameState.data = { player: null, screen: 'main-menu' };
         assert.equal(gameState.load(), true, regionId + ' profile must reload');
         const persisted = Storage.load().player.dungeonProgress[regionId];
-        assert.ok(persisted, regionId + ' progress must remain in the save');
-        assert.ok(persisted.activeEncounter, regionId + ' active encounter must survive normalization');
+        assert.ok(persisted?.activeEncounter, regionId + ' active encounter must survive normalization');
         assert.equal(persisted.activeEncounter.enemy.id, expected.id);
+
         startLocation(regionId);
+        assert.ok(getLocationState().inLocation, regionId + ' expedition must start');
+        assert.ok(getLocationState().activeEncounter, regionId + ' snapshot must attach to the run');
         startStageBattle();
 
         assert.equal(battle.isActive, true, regionId + ' encounter must resume');

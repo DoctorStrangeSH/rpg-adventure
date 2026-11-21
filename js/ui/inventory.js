@@ -1,6 +1,6 @@
 // Экран инвентаря
 import { gameState } from '../core/state.js';
-import { getItem, getItemAbilityDescription, getItemLore, getEquipmentComparison, RARITIES } from '../data/items.js';
+import { getItem, getItemAbilityDescription, getItemLore, RARITIES } from '../data/items.js';
 import { getEquipmentSetBonuses, getEffectiveCombatStats } from '../systems/combat.js';
 import { equipInventoryItem, unequipEquipmentItem } from '../systems/equipment.js';
 import { getBossTrophyCatalog, getCollectionProgress } from '../systems/loot.js';
@@ -10,6 +10,42 @@ import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../sys
 import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
 import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD, getRuneLoadoutPreview } from '../systems/enchanting.js';
 import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
+
+function getFullEquipmentPreview(player, inventoryIndex) {
+    const entry = player?.inventory?.[inventoryIndex];
+    const item = entry ? getItem(entry.id) : null;
+    if (!item || !['weapon', 'armor'].includes(item.type) ||
+        (item.requiredLevel || 1) > (Number(player.level) || 1)) return null;
+
+    let previewPlayer;
+    try {
+        previewPlayer = structuredClone(player);
+    } catch {
+        try { previewPlayer = JSON.parse(JSON.stringify(player)); }
+        catch { return null; }
+    }
+
+    const before = getEffectiveCombatStats(player);
+    const result = equipInventoryItem(previewPlayer, inventoryIndex);
+    if (!result.ok) return null;
+    const after = getEffectiveCombatStats(previewPlayer);
+    const beforeSets = new Set((before.activeSets || []).map(set => set.id));
+    const afterSets = new Set((after.activeSets || []).map(set => set.id));
+
+    return {
+        attack: after.attack - before.attack,
+        defense: after.defense - before.defense,
+        critChance: after.critChance - before.critChance,
+        activatedSets: (after.activeSets || []).filter(set => !beforeSets.has(set.id)),
+        deactivatedSets: (before.activeSets || []).filter(set => !afterSets.has(set.id))
+    };
+}
+
+function formatPreviewDelta(value, suffix = '') {
+    const rounded = suffix === '%' ? Math.round(value * 1000) / 10 : Math.round(value * 10) / 10;
+    if (!rounded) return '±0' + suffix;
+    return (rounded > 0 ? '+' : '') + rounded + suffix;
+}
 
 function beginInventoryMutation(player) {
     const snapshot = createPlayerSnapshot(player);
@@ -120,12 +156,8 @@ function createInventoryItem(item, index, player) {
     const isEquipped = (player.equipment.weapon === item.id || player.equipment.armor === item.id);
     const currentItem = itemData.type === 'weapon' || itemData.type === 'armor'
         ? getItem(player.equipment[itemData.type]) : null;
-    const currentBonus = itemData.type === 'weapon' ? (currentItem?.attackBonus || 0) : (currentItem?.defenseBonus || 0);
-    const newBonus = itemData.type === 'weapon' ? (itemData.attackBonus || 0) : (itemData.defenseBonus || 0);
-    const statLabel = itemData.type === 'weapon' ? '⚔️ Атака' : '🛡️ Защита';
-    const difference = newBonus - currentBonus;
-    const comparison = getEquipmentComparison(itemData, currentItem);
     const levelLocked = (itemData.requiredLevel || 1) > player.level;
+    const comparison = getFullEquipmentPreview(player, index);
     
     const rarity = RARITIES[itemData.rarity] || RARITIES.common;
     const upgradeLevel = ['weapon', 'armor'].includes(itemData.type) ? getItemUpgradeLevel(player, item.id) : 0;
@@ -140,7 +172,17 @@ function createInventoryItem(item, index, player) {
             <div class="item-rarity" style="color:${rarity.color}">${rarity.name}</div>
             ${getItemAbilityDescription(itemData) ? `<div class="item-stats">${getItemAbilityDescription(itemData)}</div>` : ''}
             ${getItemLore(itemData) ? `<div class="item-lore"><span>${getItemLore(itemData).origin}</span><p>${getItemLore(itemData).lore}</p></div>` : ''}
-            ${comparison ? `<div class="item-comparison"><span>${comparison.statLabel}: ${comparison.currentValue} → <b>${comparison.nextValue}</b></span><strong class="comparison-delta ${comparison.delta > 0 ? 'delta-up' : comparison.delta < 0 ? 'delta-down' : 'delta-equal'}">${comparison.delta > 0 ? '+' : ''}${comparison.delta}</strong></div>` : ''}
+            ${comparison ? `
+                <div class="item-comparison equipment-preview" aria-label="Изменение итоговых характеристик после экипировки">
+                    <span class="equipment-preview-heading">После экипировки</span>
+                    <div class="equipment-preview-stats">
+                        <span>⚔️ Атака <b class="comparison-delta ${comparison.attack > 0 ? 'delta-up' : comparison.attack < 0 ? 'delta-down' : 'delta-equal'}">${formatPreviewDelta(comparison.attack)}</b></span>
+                        <span>🛡️ Защита <b class="comparison-delta ${comparison.defense > 0 ? 'delta-up' : comparison.defense < 0 ? 'delta-down' : 'delta-equal'}">${formatPreviewDelta(comparison.defense)}</b></span>
+                        <span>🎯 Крит <b class="comparison-delta ${comparison.critChance > 0 ? 'delta-up' : comparison.critChance < 0 ? 'delta-down' : 'delta-equal'}">${formatPreviewDelta(comparison.critChance, '%')}</b></span>
+                    </div>
+                    ${comparison.activatedSets.map(set => `<span class="equipment-set-change set-activated">✦ Активируется комплект: ${set.name}</span>`).join('')}
+                    ${comparison.deactivatedSets.map(set => `<span class="equipment-set-change set-deactivated">◇ Перестанет действовать: ${set.name}</span>`).join('')}
+                </div>` : ''}
             ${itemData.requiredLevel ? `<div class="item-stats">${levelLocked ? '🔒 ' : ''}Уровень ${itemData.requiredLevel}</div>` : ''}
             <div class="item-quantity">x${item.quantity}</div>
             ${isEquipped ? '<div class="equipped-badge">✓</div>' : ['weapon', 'armor'].includes(itemData.type) ? `<button class="salvage-button" onclick="window.salvageInventoryItem(${index}, event)">Разобрать · ${getSalvagePreview(item.id).map(r => `${r.item?.icon || '◆'} ×${r.quantity}`).join(' ')}</button>` : ''}

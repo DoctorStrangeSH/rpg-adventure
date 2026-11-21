@@ -445,6 +445,66 @@ for (const scenario of [
 }
 
 
+
+
+test('successful expedition skill commits mana, damage and status effect for reload', (t) => {
+    const { player, battle } = setup(t, 'mage');
+    const previousStorage = globalThis.localStorage;
+    const previousData = gameState.data;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+        gameState.data = previousData;
+    });
+
+    const location = {
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    };
+    window.getLocationState = () => location;
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 2, enemiesDefeated: 1 }
+    };
+    prepareBattle(battle, player, {
+        health: 2000,
+        maxHealth: 2000,
+        effects: {}
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+    const beforeMana = player.mana;
+
+    playerSkill('fireball');
+
+    const committed = Storage.load().player;
+    const encounter = committed.dungeonProgress.forest.activeEncounter;
+    assert.equal(committed.mana, beforeMana - CLASSES.mage.skills[0].manaCost);
+    assert.ok(encounter.enemy.health < 2000);
+    assert.ok(encounter.enemy.effects.burnTurns > 0);
+    assert.equal(encounter.turn, 'enemy');
+
+    gameState.data = { player: null, screen: 'main-menu' };
+    assert.equal(gameState.load(), true);
+    const restored = gameState.player.dungeonProgress.forest.activeEncounter;
+    assert.equal(gameState.player.mana, beforeMana - CLASSES.mage.skills[0].manaCost);
+    assert.equal(restored.enemy.health, encounter.enemy.health);
+    assert.equal(restored.enemy.effects.burnTurns, encounter.enemy.effects.burnTurns);
+    assert.equal(restored.turn, 'enemy');
+
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+});
+
 test('successful expedition basic attack saves enemy damage, weapon state and enemy turn', (t) => {
     const { player, battle } = setup(t);
     const previousStorage = globalThis.localStorage;

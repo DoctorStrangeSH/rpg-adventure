@@ -534,7 +534,7 @@ export function playerAttack() {
     const dragonEcho = triggerDragonSwordEcho(player, enemy, damage, isCrit);
     const moonMana = triggerMoonbladeMana(player, damage, isCrit);
     if (!commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
-        'Не удалось сохранить ход. Урон и эффекты боя отменены.')) {
+        'Не удалось сохранить эффект оружия или ход боя. Урон и эффекты отменены.')) {
         isProcessing = false;
         updateBattleUI();
         return;

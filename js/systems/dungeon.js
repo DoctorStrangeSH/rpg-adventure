@@ -814,6 +814,7 @@ export function completeLocation(playerBeforeCompletion = null) {
     }
 
     let rewardGranted = false;
+    const completionNotifications = [];
     if (rewardDue) {
         if (!claimLocationReward(player, location.id) || !grantItemsAtomically(player, rewardItems)) {
             if (rollbackPlayer) restorePlayer(rollbackPlayer);
@@ -823,7 +824,9 @@ export function completeLocation(playerBeforeCompletion = null) {
         rewardGranted = true;
         player.experience += rewardExp;
         player.gold += rewardGold;
-        if (player.experience >= player.maxExperience) window.levelUp?.();
+        if (player.experience >= player.maxExperience) {
+            window.levelUp?.({ save: false, notifications: completionNotifications });
+        }
     }
 
     const runId = ++locationState.runId;
@@ -841,8 +844,15 @@ export function completeLocation(playerBeforeCompletion = null) {
     // Region completion happens after the final battle's normal achievement
     // update. Re-evaluate lifetime achievements here so the fourth/final region
     // can unlock its reward without requiring an unrelated fifth expedition.
-    const completionAchievementNotifications = [];
-    window.updateAchievements?.({ save: false, notifications: completionAchievementNotifications });
+    window.updateQuestProgress?.('gold', 1, {
+        save: false,
+        notifications: completionNotifications
+    });
+    window.updateQuestProgress?.('level', 1, {
+        save: false,
+        notifications: completionNotifications
+    });
+    window.updateAchievements?.({ save: false, notifications: completionNotifications });
     if (player.dungeonCheckpoints) delete player.dungeonCheckpoints[location.id];
     clearDungeonProgress(player, location.id);
     
@@ -893,8 +903,11 @@ export function completeLocation(playerBeforeCompletion = null) {
     }
 
     window.showNotification(`🎉 Локация пройдена! ${rewardSummary}${nextLocationText}`, 'success');
-    completionAchievementNotifications.forEach(({ name }) => {
-        window.showNotification?.(`🏆 Достижение получено: ${name}!`, 'success');
+    completionNotifications.forEach(({ kind, name }) => {
+        const message = kind === 'quest'
+            ? `🎉 Квест выполнен: ${name}!`
+            : `🏆 Достижение получено: ${name}!`;
+        window.showNotification?.(message, 'success');
     });
     window.updateMainMenu?.();
     window.updateMapScreen?.();

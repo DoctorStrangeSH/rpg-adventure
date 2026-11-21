@@ -180,3 +180,46 @@ test('malformed regional reward claim state cannot silently skip the guaranteed 
     assert.equal(run.currentLocation.id, 'forest');
     assert.equal(player.inventory.find(item => item.id === 'rune_verdant_heart'), undefined);
 });
+
+
+test('all three classes follow the same four-region unlock and reward progression', (t) => {
+    installBrowserStubs(t);
+    const previousUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => {
+        LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
+    });
+
+    const route = ['forest', 'mountains', 'ruins', 'dragon_lair'];
+    for (const classId of ['warrior', 'mage', 'archer']) {
+        resetLocationState();
+        LOCATIONS.forEach(location => { location.unlocked = location.type === 'safe' || location.id === 'forest'; });
+        const player = gameState.createPlayer(classId);
+        player.level = 100;
+        player.unlockedLocations = ['forest'];
+
+        for (let index = 0; index < route.length; index++) {
+            const locationId = route[index];
+            const location = getLocation(locationId);
+            const run = getLocationState();
+            assert.equal(location.unlocked, true, classId + ' must unlock ' + locationId + ' before entering');
+            run.currentLocation = location;
+            run.currentStage = location.stages.length - 1;
+            run.enemiesDefeated = location.stages.at(-1).enemiesCount;
+            run.inLocation = true;
+            run.finalBossDefeated = locationId === 'dragon_lair';
+
+            assert.equal(completeLocation(), true, classId + ' must complete ' + locationId);
+            assert.equal(player.locationRewardCycles[locationId], 1);
+            if (index < route.length - 1) {
+                const nextId = route[index + 1];
+                assert.equal(getLocation(nextId).unlocked, true);
+                assert.ok(player.unlockedLocations.includes(nextId));
+            }
+        }
+
+        assert.equal(player.campaignCompleted, true, classId + ' must reach the campaign ending');
+        assert.equal(player.newGamePlusUnlocked, true);
+        assert.equal(player.completedCampaignCycles, 1);
+        assert.deepEqual(player.unlockedLocations, route);
+    }
+});

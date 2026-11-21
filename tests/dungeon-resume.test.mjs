@@ -1199,8 +1199,15 @@ test('boss victory is rejected before the regular encounters on its stage are cl
 test('rescued traveler reward and both delayed expedition effects survive a real reload', (t) => {
     const { player, battle } = setup(t);
     const previousRandom = Math.random;
+    const previousDocument = globalThis.document;
+    const ui = { innerHTML: '' };
+    globalThis.document = { getElementById(id) { return id === 'battle-ui' ? ui : null; } };
     Math.random = () => 0.1;
-    t.after(() => { Math.random = previousRandom; });
+    t.after(() => {
+        Math.random = previousRandom;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
     player.mana = 40;
 
     startLocation('forest');

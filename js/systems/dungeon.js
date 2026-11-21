@@ -1,5 +1,6 @@
 // Система локаций с этапами
 import { gameState } from '../core/state.js';
+import { createPlayerSnapshot, commitPlayerMutation } from './playerTransactions.js';
 import { LOCATIONS, getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
@@ -313,6 +314,14 @@ export function startStageBattle() {
         expReward: Math.floor(enemyData.expReward * stageMultiplier * depth.reward),
         goldReward: Math.floor(enemyData.goldReward * stageMultiplier * depth.reward)
     };
+    const player = gameState.player;
+    const playerBeforeStart = createPlayerSnapshot(player);
+    if (!playerBeforeStart) {
+        window.showNotification?.('Не удалось подготовить начало боя. Экспедиция не изменена.', 'error');
+        return;
+    }
+    const previousFavorCharges = locationState.travelerFavorFights;
+    const previousPursuerPending = locationState.bloodPursuerPending;
     const routeId = locationState.routeChoices[locationState.currentStage];
     if (routeId) enemy = applyRouteToEnemy(enemy, routeId);
     const favor = consumeTravelerFavor(enemy, locationState.travelerFavorFights);
@@ -321,7 +330,27 @@ export function startStageBattle() {
     const pursuer = applyBloodPursuer(enemy, locationState.bloodPursuerPending);
     enemy = pursuer.enemy;
     if (pursuer.pursued) locationState.bloodPursuerPending = false;
-    
+
+    player.stats.battles++;
+    persistDungeonProgress();
+    if (!commitPlayerMutation(player, playerBeforeStart, () => gameState.save())) {
+        locationState.travelerFavorFights = previousFavorCharges;
+        locationState.bloodPursuerPending = previousPursuerPending;
+        window.showNotification?.('Не удалось сохранить начало боя. Счётчик и бонусы восстановлены — повторите запуск.', 'error');
+        const ui = typeof document !== 'undefined' ? document.getElementById('battle-ui') : null;
+        if (ui) {
+            ui.innerHTML = `<section class="adventure-event" aria-label="Повтор запуска боя">
+                <div class="adventure-event-icon">⚠️</div>
+                <h3>Бой не сохранён</h3>
+                <p>Прогресс экспедиции сохранён. Повторите запуск, когда хранилище будет доступно.</p>
+                <button class="battle-btn" onclick="window.startStageBattle()">🔄 Повторить запуск боя</button>
+            </section>`;
+        } else {
+            window.showScreen?.('map-screen');
+        }
+        return;
+    }
+
     const battleState = getBattleState();
     resetBattlePresentation();
     battleState.currentEnemy = enemy;
@@ -332,8 +361,6 @@ export function startStageBattle() {
     battleState.isBossBattle = false;
     battleState.guardReduction = 0;
     battleState.relicEffects = { phoenixRebirthUsed: false };
-    gameState.player.stats.battles++;
-    gameState.save();
     
     const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height);
     

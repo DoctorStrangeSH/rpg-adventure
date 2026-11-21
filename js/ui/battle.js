@@ -533,8 +533,10 @@ export function playerAttack() {
     const rangerBleed = triggerRangerEffect(player, enemy);
     const dragonEcho = triggerDragonSwordEcho(player, enemy, damage, isCrit);
     const moonMana = triggerMoonbladeMana(player, damage, isCrit);
-    if (!commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
-        'Не удалось сохранить эффект оружия или ход боя. Урон и эффекты отменены.')) {
+    const isDungeonEncounter = Boolean(window.getLocationState?.()?.inLocation);
+    if ((isDungeonEncounter || moonMana) &&
+        !commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
+            'Не удалось сохранить эффект оружия или ход боя. Урон и эффекты отменены.')) {
         isProcessing = false;
         updateBattleUI();
         return;
@@ -600,8 +602,9 @@ export function playerDefend() {
         return;
     }
     battleState.guardReduction = Math.max(battleState.guardReduction, getClassTacticalBonus(player, enemy).guardReduction);
-    if (!commitCurrentBattleState(player, playerSnapshot,
-        'Не удалось сохранить защитную стойку. Действие отменено.')) {
+    if (window.getLocationState?.()?.inLocation &&
+        !commitCurrentBattleState(player, playerSnapshot,
+            'Не удалось сохранить защитную стойку. Действие отменено.')) {
         battleState.guardReduction = previousGuardReduction;
         isProcessing = false;
         updateBattleUI();

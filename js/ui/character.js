@@ -197,12 +197,14 @@ function createStatCard(label, value) {
     `;
 }
 
-export function levelUp({ save = true } = {}) {
+export function levelUp({ save = true, notifications = null } = {}) {
     const player = gameState.player;
     if (!player) return false;
     const snapshot = save ? createPlayerSnapshot(player) : null;
     if (save && !snapshot) return false;
-    const deferredNotifications = [];
+    const deferredNotifications = save
+        ? []
+        : (Array.isArray(notifications) ? notifications : null);
     const gainedLevels = applyExperience(player);
 
     if (gainedLevels) {
@@ -225,7 +227,7 @@ export function levelUp({ save = true } = {}) {
         SoundSystem.playSound('levelup');
         window.showNotification?.(`🎉 +${gainedLevels} ур.! Теперь вы ${player.level} уровня!`, 'success');
     }
-    deferredNotifications.forEach(({ kind, name }) => {
+    if (save) deferredNotifications.forEach(({ kind, name }) => {
         const message = kind === 'quest'
             ? `🎉 Квест выполнен: ${name}!`
             : `🏆 Достижение получено: ${name}!`;

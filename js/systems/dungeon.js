@@ -1006,10 +1006,10 @@ export function handleBossVictory(playerBeforeBattle = null) {
 }
 
 // Вызывается при поражении
-export function handleDefeat() {
+export function handleDefeat(playerBeforeDefeat = null) {
     const player = gameState.player;
     if (!player) return false;
-    const playerBeforeDefeatCommit = snapshotPlayer();
+    const playerBeforeDefeatCommit = playerBeforeDefeat || snapshotPlayer();
     const locationId = locationState.currentLocation?.id;
 
     if (locationId && player.dungeonCheckpoints) delete player.dungeonCheckpoints[locationId];

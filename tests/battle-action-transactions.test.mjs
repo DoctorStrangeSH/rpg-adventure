@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gameState } from '../js/core/state.js';
 import { CLASSES } from '../js/data/classes.js';
-import { startBattle, playerAttack, playerSkill, playerUseItem, playerDefend, getBattleState } from '../js/ui/battle.js';
+import { startBattle, playerAttack, playerSkill, playerUseItem, playerDefend, playerFlee, battleVictory, battleDefeat, getBattleState } from '../js/ui/battle.js';
 
 function setup(t, classId = 'warrior') {
     const previousPlayer = gameState.player;
@@ -11,6 +11,7 @@ function setup(t, classId = 'warrior') {
     const previousDocument = globalThis.document;
     const previousRandom = Math.random;
     const previousTimeout = globalThis.setTimeout;
+    const previousRaf = globalThis.requestAnimationFrame;
     const battle = getBattleState();
     const previousBattle = { ...battle };
     const notifications = [];
@@ -38,6 +39,8 @@ function setup(t, classId = 'warrior') {
         else globalThis.document = previousDocument;
         Math.random = previousRandom;
         globalThis.setTimeout = previousTimeout;
+        if (previousRaf === undefined) delete globalThis.requestAnimationFrame;
+        else globalThis.requestAnimationFrame = previousRaf;
     });
     return { player, battle, notifications };
 }
@@ -140,4 +143,73 @@ test('failed enemy-turn save restores player and enemy state and returns the tur
     assert.deepEqual(enemy, beforeEnemy);
     assert.equal(battle.turn, 'player');
     assert.match(notifications[0]?.message || '', /ход противника/);
+});
+
+test('field victory rolls back rewards on save failure and exposes an explicit retry', (t) => {
+    const { player, battle, notifications } = setup(t);
+    prepareBattle(battle, player, { health: 0 });
+    const beforePlayer = structuredClone(player);
+    globalThis.setTimeout = () => 1;
+    gameState.save = () => false;
+
+    battleVictory();
+
+    assert.deepEqual(player, beforePlayer);
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.pendingVictorySave, true);
+    assert.match(notifications[0]?.message || '', /Победа не сохранена/);
+
+    gameState.save = () => true;
+    battleVictory();
+
+    assert.equal(battle.isActive, false);
+    assert.equal(battle.pendingVictorySave, false);
+    assert.equal(player.stats.wins, beforePlayer.stats.wins + 1);
+    assert.ok(player.experience > beforePlayer.experience);
+});
+
+test('defeat failure restores all penalties and keeps an explicit save retry available', (t) => {
+    const { player, battle, notifications } = setup(t);
+    prepareBattle(battle, player);
+    player.health = 0;
+    player.gold = 100;
+    const beforePlayer = structuredClone(player);
+    globalThis.requestAnimationFrame = () => 1;
+    globalThis.setTimeout = () => 1;
+    window.handleDefeat = snapshot => {
+        assert.deepEqual(snapshot, beforePlayer);
+        return false;
+    };
+
+    battleDefeat();
+
+    assert.deepEqual(player, beforePlayer);
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.pendingDefeatSave, true);
+    assert.match(notifications.at(-1)?.message || '', /Поражение не сохранено/);
+
+    window.handleDefeat = () => true;
+    battleDefeat();
+
+    assert.equal(battle.isActive, false);
+    assert.equal(battle.pendingDefeatSave, false);
+    assert.equal(player.health, 1);
+    assert.equal(player.gold, 90);
+    assert.equal(player.stats.losses, beforePlayer.stats.losses + 1);
+});
+
+test('failed expedition flee save keeps the battle open and restores available actions', (t) => {
+    const { battle } = setup(t);
+    prepareBattle(battle, gameState.player);
+    window.getLocationState = () => ({ inLocation: true });
+    window.fleeLocation = () => false;
+    globalThis.setTimeout = callback => { callback(); return 1; };
+    Math.random = () => 0;
+
+    playerFlee();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.turn, 'player');
+    assert.equal(battle.pendingVictorySave, false);
+    assert.equal(battle.pendingDefeatSave, false);
 });

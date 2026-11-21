@@ -382,15 +382,25 @@ function createRuneEnchantPanel(player) {
         else if (preview.reason === 'duplicate') label = 'Уже установлена';
         else if (preview.reason === 'materials') label = 'Не хватает материалов';
         const cost = Object.entries(rune.cost).map(([id,qty]) => (getItem(id)?.icon || '◆') + ' ×' + qty).join(' · ');
-        const changes = [
-            projected.delta.attack ? (projected.delta.attack > 0 ? '+' : '') + projected.delta.attack + ' атаки' : '',
-            projected.delta.defense ? (projected.delta.defense > 0 ? '+' : '') + projected.delta.defense + ' защиты' : '',
-            projected.delta.critChance ? (projected.delta.critChance > 0 ? '+' : '') + (projected.delta.critChance * 100).toFixed(0) + '% крит. шанса' : '',
-            projected.currentDamageType !== projected.projectedDamageType ? 'Стихия: ' + projected.currentDamageType + ' → ' + projected.projectedDamageType : '',
-            projected.synergyActivated ? 'Активируется синергия: ' + projected.projectedSynergy.name : '',
-            projected.currentSynergy && !projected.projectedSynergy ? 'Текущая синергия перестанет действовать' : '',
-            projected.projectedEffects.filter(effect => !projected.currentEffects.includes(effect)).map(effect => 'Новый эффект: ' + effect).join(', ')
-        ].filter(Boolean).join(' · ') || 'Без изменения характеристик и эффектов';
+        const blockedReasonLabels = {
+            invalid: 'Некорректная руна или предмет',
+            not_equipped: 'Сначала экипируйте это оружие',
+            upgrade_required: 'Сначала откройте руническое гнездо заточкой +1',
+            sockets_full: 'Все рунические гнёзда заняты',
+            duplicate: 'Эта руна уже установлена',
+            invalid_inventory: 'Инвентарь материалов недоступен'
+        };
+        const changes = !projected.available
+            ? 'Предпросмотр недоступен: ' + (blockedReasonLabels[projected.reason] || 'Установка невозможна')
+            : [
+                projected.delta.attack ? (projected.delta.attack > 0 ? '+' : '') + projected.delta.attack + ' атаки' : '',
+                projected.delta.defense ? (projected.delta.defense > 0 ? '+' : '') + projected.delta.defense + ' защиты' : '',
+                projected.delta.critChance ? (projected.delta.critChance > 0 ? '+' : '') + (projected.delta.critChance * 100).toFixed(0) + '% крит. шанса' : '',
+                projected.currentDamageType !== projected.projectedDamageType ? 'Стихия: ' + projected.currentDamageType + ' → ' + projected.projectedDamageType : '',
+                projected.synergyActivated ? 'Активируется синергия: ' + projected.projectedSynergy.name : '',
+                projected.currentSynergy && !projected.projectedSynergy ? 'Текущая синергия перестанет действовать' : '',
+                projected.projectedEffects.filter(effect => !projected.currentEffects.includes(effect)).map(effect => 'Новый эффект: ' + effect).join(', ')
+            ].filter(Boolean).join(' · ') || 'Без изменения характеристик и эффектов';
         return '<article class="forge-rune-card" style="--rune-color:' + rune.color + '"><div class="forge-rune-title"><b>' +
             rune.icon + ' ' + rune.name + '</b>' + (rune.bossRune ? '<span>БОСС</span>' : '') +
             '</div><small>' + (rune.effect ? 'Эффект при попадании · ' + rune.turns + ' ход.' : 'Пассивный эффект') +

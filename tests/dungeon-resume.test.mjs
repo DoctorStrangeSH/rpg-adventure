@@ -901,7 +901,8 @@ test('malformed active encounter snapshots are discarded without invalidating th
     };
 
     assert.equal(gameState.save(), true);
-    const saved = Storage.load().player.dungeonProgress.forest;
+    assert.equal(gameState.load(), true);
+    const saved = gameState.player.dungeonProgress.forest;
     assert.equal(saved.stage, 2);
     assert.equal(saved.enemiesDefeated, 1);
     assert.equal(saved.activeEncounter, null);

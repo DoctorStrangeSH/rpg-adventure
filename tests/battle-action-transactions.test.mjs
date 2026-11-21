@@ -366,6 +366,75 @@ test('a committed expedition guard action saves the exact enemy and next turn fo
 });
 
 
+
+
+test('warrior expedition guard survives save and reload with the same boss telegraph and riposte window', (t) => {
+    const { player, battle } = setup(t, 'warrior');
+    const previousStorage = globalThis.localStorage;
+    const previousData = gameState.data;
+    const values = new Map();
+    globalThis.localStorage = {
+        getItem(key) { return values.get(key) ?? null; },
+        setItem(key, value) { values.set(key, String(value)); },
+        removeItem(key) { values.delete(key); }
+    };
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
+    t.after(() => {
+        if (previousStorage === undefined) delete globalThis.localStorage;
+        else globalThis.localStorage = previousStorage;
+        gameState.data = previousData;
+    });
+
+    window.getLocationState = () => ({
+        id: 'forest',
+        inLocation: true,
+        currentLocation: { id: 'forest' },
+        activeEncounter: null
+    });
+    player.dungeonProgress = {
+        forest: { campaignCycle: player.campaignCycle, stage: 8, enemiesDefeated: 7 }
+    };
+    prepareBattle(battle, player, {
+        id: 'forest_guardian',
+        name: 'Страж леса',
+        health: 850,
+        maxHealth: 1000,
+        attack: 48,
+        effects: { poisonTurns: 1 },
+        intent: 'heavy',
+        phase: 2
+    });
+    battle.isDungeonBattle = true;
+    battle.isLocationBattle = true;
+    battle.isBossBattle = true;
+
+    playerDefend();
+
+    const saved = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.isBossBattle, true);
+    assert.equal(saved.enemy.id, 'forest_guardian');
+    assert.equal(saved.enemy.health, 850);
+    assert.equal(saved.enemy.intent, 'heavy');
+    assert.equal(saved.enemy.phase, 2);
+    assert.ok(saved.guardReduction >= 0.75);
+    assert.equal(saved.turn, 'enemy');
+
+    gameState.data = { player: null, screen: 'main-menu' };
+    assert.equal(gameState.load(), true);
+    const restored = gameState.player.dungeonProgress.forest.activeEncounter;
+    assert.equal(restored.isBossBattle, true);
+    assert.equal(restored.enemy.id, 'forest_guardian');
+    assert.equal(restored.enemy.health, 850);
+    assert.equal(restored.enemy.intent, 'heavy');
+    assert.equal(restored.enemy.phase, 2);
+    assert.equal(restored.turn, 'enemy');
+    assert.ok(restored.guardReduction >= 0.75);
+
+    let safety = 0;
+    while (callbacks.length && safety++ < 5) callbacks.shift()();
+});
+
 test('failed expedition guard snapshot restores guard, turn and previous encounter save', (t) => {
     const { player, battle } = setup(t);
     const location = {

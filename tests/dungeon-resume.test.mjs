@@ -1535,3 +1535,100 @@ test('successful defeat commits the penalty and clears only the failed expeditio
     assert.equal(getLocationState().currentStage, 0);
     assert.equal(getLocationState().enemiesDefeated, 0);
 });
+
+
+test('active boss status effects and one-use relic flags remain identical across repeated reload cycles', (t) => {
+    const { player, battle } = setup(t);
+    const previousDocument = globalThis.document;
+    const previousRaf = globalThis.requestAnimationFrame;
+    const ui = { innerHTML: '' };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? ui : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.requestAnimationFrame = () => 1;
+    window.getLocationState = getLocationState;
+    window.animateBattle = () => {};
+    window.updateBattleUI = () => {};
+    window.showBattleMessage = () => {};
+    window.showScreen = () => {};
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        if (previousRaf === undefined) delete globalThis.requestAnimationFrame;
+        else globalThis.requestAnimationFrame = previousRaf;
+    });
+
+    const boss = {
+        ...structuredClone(getLocation('forest').stages[29].boss),
+        health: 413,
+        behavior: 'boss',
+        intent: 'thorn_burst',
+        phase: 3,
+        effects: {
+            poisonTurns: 2,
+            burnTurns: 1,
+            freezeTurns: 1,
+            weakenTurns: 2
+        },
+        damageModifiers: { fire: 1.2 },
+        resistances: { ice: 0.75 }
+    };
+    player.health = player.maxHealth - 37;
+    player.mana = Math.max(0, player.maxMana - 19);
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 29,
+            enemiesDefeated: getLocation('forest').stages[29].enemiesCount,
+            activeEncounter: {
+                enemy: boss,
+                isBossBattle: true,
+                turn: 'enemy',
+                guardReduction: 0.4,
+                relicEffects: {
+                    phoenixRebirthUsed: true,
+                    lastStandTriggered: 1,
+                    guardianWardUsed: true
+                }
+            }
+        }
+    };
+    const expectedPlayerHealth = player.health;
+    const expectedMana = player.mana;
+    const expectedEnemy = structuredClone(boss);
+    const expectedRelics = {
+        phoenixRebirthUsed: true,
+        lastStandTriggered: 1,
+        guardianWardUsed: true
+    };
+
+    for (let cycle = 0; cycle < 3; cycle++) {
+        resetLocationState();
+        battle.isActive = false;
+        battle.currentEnemy = null;
+        assert.equal(gameState.load(), true, 'profile reload ' + cycle);
+        startLocation('forest');
+        startStageBattle();
+
+        assert.equal(battle.isActive, true, 'battle restored ' + cycle);
+        assert.equal(battle.isBossBattle, true, 'boss rules restored ' + cycle);
+        assert.equal(battle.currentEnemy.health, expectedEnemy.health, 'boss HP ' + cycle);
+        assert.equal(battle.currentEnemy.phase, expectedEnemy.phase, 'boss phase ' + cycle);
+        assert.equal(battle.currentEnemy.intent, expectedEnemy.intent, 'boss telegraph ' + cycle);
+        assert.deepEqual(battle.currentEnemy.effects, expectedEnemy.effects, 'status effects ' + cycle);
+        assert.deepEqual(battle.currentEnemy.damageModifiers, expectedEnemy.damageModifiers);
+        assert.deepEqual(battle.currentEnemy.resistances, expectedEnemy.resistances);
+        assert.equal(battle.turn, 'enemy', 'prepared turn ' + cycle);
+        assert.equal(battle.guardReduction, 0.4, 'guard ' + cycle);
+        assert.deepEqual(battle.relicEffects, expectedRelics, 'one-use relic flags ' + cycle);
+        assert.equal(player.health, expectedPlayerHealth, 'player HP ' + cycle);
+        assert.equal(player.mana, expectedMana, 'player mana ' + cycle);
+
+        assert.equal(gameState.save(), true, 'resave ' + cycle);
+        const persisted = Storage.load().player.dungeonProgress.forest.activeEncounter;
+        assert.equal(persisted.enemy.health, expectedEnemy.health);
+        assert.deepEqual(persisted.enemy.effects, expectedEnemy.effects);
+        assert.deepEqual(persisted.relicEffects, expectedRelics);
+    }
+});

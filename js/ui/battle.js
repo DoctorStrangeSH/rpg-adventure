@@ -824,6 +824,10 @@ export function battleVictory() {
     const playerBeforeBattle = createPlayerSnapshot(player);
     
     if (!battleState.isActive || !enemy || enemy.health > 0) return;
+    if (!playerBeforeBattle) {
+        window.showNotification?.('Не удалось подготовить награды боя. Победа не засчитана.', 'error');
+        return;
+    }
     
     battleState.isActive = false;
     isProcessing = false;
@@ -864,19 +868,23 @@ export function battleVictory() {
         // marker together. Saving before them would let a reload replay a paid fight.
         if (battleState.isBossBattle) {
             const committed = window.handleBossVictory?.(playerBeforeBattle);
-            if (committed === false) {
+            if (committed !== true) {
                 restorePlayerSnapshot(player, playerBeforeBattle);
+                window.showNotification?.('Не удалось сохранить награды босса. Бой будет предложен повторно.', 'error');
                 setTimeout(() => {
                     if (locationState?.inLocation && !battleState.isActive) window.startStageBattle?.();
                 }, 500);
+                return;
             }
         } else {
             const committed = window.handleVictory?.(playerBeforeBattle);
-            if (committed === false) {
+            if (committed !== true) {
                 restorePlayerSnapshot(player, playerBeforeBattle);
+                window.showNotification?.('Не удалось сохранить награду боя. Бой будет предложен повторно.', 'error');
                 setTimeout(() => {
                     if (locationState?.inLocation && !battleState.isActive) window.startStageBattle?.();
                 }, 500);
+                return;
             }
         }
     } else {
@@ -927,6 +935,7 @@ export function battleDefeat() {
         battleState.pendingDefeatSave = true;
         battleState.turn = 'player';
         battleState.deathAnimationEndFrame = null;
+        if (battleState.playerSprite) battleState.playerSprite.deathStartFrame = null;
         isProcessing = false;
         window.showNotification?.('Поражение не сохранено. Потеря золота и сброс экспедиции отменены — повторите сохранение.', 'error');
         updateBattleUI();

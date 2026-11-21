@@ -36,6 +36,9 @@ function createShopItem(item, player) {
     const canAfford = Number.isSafeInteger(player.gold) && player.gold >= item.price;
     const requiredLevel = item.requiredLevel || 1;
     const levelLocked = player.level < requiredLevel;
+    const discoveryItem = item.shopRequiresDiscovery ? getItem(item.shopRequiresDiscovery) : null;
+    const discoveryLocked = Boolean(item.shopRequiresDiscovery &&
+        !player.discoveredItems?.includes(item.shopRequiresDiscovery));
     
     return `
         <div class="shop-item">
@@ -53,8 +56,8 @@ function createShopItem(item, player) {
             ${requiredLevel > 1 ? `<div class="item-stats">${player.level < requiredLevel ? '🔒 ' : ''}Экипировка с ${requiredLevel} уровня</div>` : ''}
             <button class="shop-btn" 
                     onclick="window.buyItem('${item.id}')"
-                    ${!canAfford || levelLocked ? 'disabled' : ''}>
-                ${levelLocked ? `Доступно с ${requiredLevel} уровня` : canAfford ? 'Купить' : 'Недостаточно золота'}
+                    ${!canAfford || levelLocked || discoveryLocked ? 'disabled' : ''}>
+                ${levelLocked ? `Доступно с ${requiredLevel} уровня` : discoveryLocked ? `Сначала найдите: ${discoveryItem?.name || 'необходимый предмет'}` : canAfford ? 'Купить' : 'Недостаточно золота'}
             </button>
         </div>
     `;
@@ -71,6 +74,16 @@ export function buyItem(itemId) {
     if (!Number.isSafeInteger(player.level) || player.level < requiredLevel) {
         window.showNotification?.(`Предмет доступен с ${requiredLevel} уровня!`, 'error');
         return;
+    }
+
+    if (itemData.shopRequiresDiscovery &&
+        !player.discoveredItems?.includes(itemData.shopRequiresDiscovery)) {
+        const requiredItem = getItem(itemData.shopRequiresDiscovery);
+        window.showNotification?.(
+            `Сначала найдите: ${requiredItem?.name || 'необходимый предмет'}!`,
+            'error'
+        );
+        return false;
     }
 
     if (player.gold < itemData.price) {

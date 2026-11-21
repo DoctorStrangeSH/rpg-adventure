@@ -336,12 +336,14 @@ test('headless event fallback preserves its pending event when save fails', (t) 
     const previousDocument = globalThis.document;
     const previousSave = gameState.save;
     globalThis.document = { getElementById() { return null; } };
-    gameState.save = () => false;
+    let saveAttempts = 0;
+    gameState.save = () => ++saveAttempts === 1;
     battle.isActive = false;
     battle.currentEnemy = null;
     const run = getLocationState();
     run.currentStage = 4;
     run.visitedCheckpointStages.add(4);
+    run.travelerReturnPending = true;
     t.after(() => {
         gameState.save = previousSave;
         if (previousDocument === undefined) delete globalThis.document;
@@ -1056,7 +1058,7 @@ test('phoenix revival health and one-use flag remain spent after a full save rel
         forest: {
             campaignCycle: player.campaignCycle,
             stage: 29,
-            enemiesDefeated: 29,
+            enemiesDefeated: getLocation('forest').stages[29].enemiesCount,
             activeEncounter: {
                 enemy: {
                     id: 'forest_guardian',

@@ -142,7 +142,7 @@ function createAttributeCard(icon, name, value) {
 function createSkillCard(skill) {
     return `
         <div class="skill-card">
-            <div class="skill-icon">${skill.icon}</div>
+            <div class="skill-icon skill-art-icon skill-art-${skill.id}" aria-hidden="true">${skill.icon}</div>
             <div class="skill-info">
                 <div class="skill-name">${skill.name}</div>
                 <div class="skill-description">${skill.description}</div>

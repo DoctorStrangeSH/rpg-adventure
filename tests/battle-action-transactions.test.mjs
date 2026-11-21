@@ -492,7 +492,8 @@ test('successful expedition potion use saves restored resources, inventory and e
         setItem(key, value) { values.set(key, String(value)); },
         removeItem(key) { values.delete(key); }
     };
-    globalThis.setTimeout = () => 1;
+    const callbacks = [];
+    globalThis.setTimeout = callback => { callbacks.push(callback); return 1; };
     t.after(() => {
         if (previousStorage === undefined) delete globalThis.localStorage;
         else globalThis.localStorage = previousStorage;

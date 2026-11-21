@@ -757,6 +757,13 @@ function enemyTurn() {
         const parried = resolveWarriorParry(player, enemy, guardedWindup, battleState.guardReduction);
         const reborn = tryPhoenixRebirth(player, battleState.relicEffects);
         battleState.guardReduction = 0;
+        // A lethal enemy action and its defeat penalty must share one save.
+        // Never persist a standalone zero-HP profile before the defeat transaction.
+        if (player.health <= 0) {
+            battleState.enemySprite.isAttacking = false;
+            battleDefeat();
+            return;
+        }
         if (!commitBattleMutation(player, playerSnapshot, enemy, enemySnapshot,
             'Не удалось сохранить ход противника. Здоровье и эффекты боя восстановлены.')) {
             battleState.guardReduction = previousGuardReduction;

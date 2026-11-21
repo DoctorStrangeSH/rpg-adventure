@@ -302,8 +302,9 @@ test('NG+ commits atomically, survives reload and resets only current-cycle prog
     player.stats.wins = 91;
     player.quests = player.quests.map(entry => ({
         ...entry,
-        progress: entry.id === 'main_quest_1' ? 3 : entry.progress,
-        completed: entry.id === 'main_quest_1' ? false : entry.completed
+        progress: entry.id === 'first_blood' ? 1 : entry.id === 'monster_hunter' ? 3 : entry.progress,
+        completed: entry.id === 'first_blood',
+        rewardClaimed: entry.id === 'first_blood'
     }));
     player.health = 1;
     player.mana = 2;
@@ -334,7 +335,10 @@ test('NG+ commits atomically, survives reload and resets only current-cycle prog
     assert.deepEqual(next.itemUpgrades, { moonblade: 7 });
     assert.deepEqual(next.weaponRunes, { moonblade: ['rune_flame'] });
     assert.equal(next.stats.wins, 91);
-    assert.ok(next.quests.every(entry => entry.completed && entry.rewardClaimed === true));
+    assert.equal(next.quests.find(entry => entry.id === 'first_blood').completed, true);
+    assert.equal(next.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(next.quests.find(entry => entry.id === 'monster_hunter').completed, false);
+    assert.equal(next.quests.find(entry => entry.id === 'monster_hunter').progress, 0);
 
     assert.equal(gameState.load(), true);
     assert.equal(gameState.player.campaignCycle, 2);

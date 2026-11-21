@@ -7,7 +7,7 @@ import { escapeHtml } from '../core/html.js';
 import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 import { TALENTS, getTalentPoints, getTalentAvailability, unlockTalent } from '../systems/talents.js';
 import { getEffectiveCombatStats } from '../systems/combat.js';
-import { RELICS, RELIC_RARITIES, MAX_ACTIVE_RELICS, getActiveRelicSynergies, toggleRelic } from '../systems/relics.js';
+import { RELICS, RELIC_RARITIES, RELIC_SYNERGIES, MAX_ACTIVE_RELICS, getActiveRelicSynergies, getRelicBonuses, toggleRelic } from '../systems/relics.js';
 
 export function updateCharacterScreen() {
     const player = gameState.player;
@@ -18,6 +18,8 @@ export function updateCharacterScreen() {
     const combatStats = getEffectiveCombatStats(player);
     const ownedRelics = new Set((player.relics || []).filter(id => Object.hasOwn(RELICS, id)));
     const activeRelicCount = [...new Set(player.activeRelics || [])].filter(id => ownedRelics.has(id)).slice(0, MAX_ACTIVE_RELICS).length;
+    const relicBonuses = getRelicBonuses(player);
+    const activeSynergies = new Set(getActiveRelicSynergies(player).map(synergy => synergy.id));
     
     content.innerHTML = `
         <div class="character-header">
@@ -75,12 +77,37 @@ export function updateCharacterScreen() {
                     </button>
                 </div>
             `).join('') : '<p class="skill-description">Реликвии можно найти у элитных врагов и боссов.</p>'}
-            ${getActiveRelicSynergies(player).map(synergy => `
-                <div class="skill-card"><div class="skill-icon">🔗</div><div class="skill-info">
-                    <div class="skill-name">Синергия: ${synergy.name}</div>
-                    <div class="skill-description">${synergy.description}</div>
-                </div></div>
-            `).join('')}
+            <div class="relic-bonus-panel" aria-label="Суммарные бонусы активных реликвий">
+                <div class="relic-bonus-heading">Сила реликвий</div>
+                <div class="relic-bonus-grid">
+                    ${[
+                        ['⚔️', 'Атака', relicBonuses.attack, ''],
+                        ['🛡️', 'Защита', relicBonuses.defense, ''],
+                        ['🎯', 'Критический удар', relicBonuses.critChance, '%'],
+                        ['✨', 'Сила умений', relicBonuses.skillPower, '%']
+                    ].filter(([, , value]) => value > 0).map(([icon, label, value, suffix]) => `
+                        <div class="relic-bonus-stat"><span aria-hidden="true">${icon}</span><span>${label}</span><strong>+${suffix === '%' ? Math.round(value * 100) : value}${suffix}</strong></div>
+                    `).join('') || '<p class="relic-bonus-empty">Экипируйте реликвии, чтобы получить бонусы.</p>'}
+                </div>
+                <p class="relic-bonus-note">Учитываются экипированные реликвии и активные синергии.</p>
+            </div>
+            <div class="relic-synergy-list" aria-label="Синергии реликвий">
+                ${RELIC_SYNERGIES.map(synergy => {
+                    const active = activeSynergies.has(synergy.id);
+                    const requirements = synergy.relics.map(id => RELICS[id].name).join(' + ');
+                    return `
+                        <div class="relic-synergy-card ${active ? 'relic-synergy-active' : 'relic-synergy-locked'}" aria-label="${active ? 'Активная синергия' : 'Неактивная синергия'}: ${synergy.name}">
+                            <div class="relic-synergy-icon" aria-hidden="true">${active ? '✦' : '◇'}</div>
+                            <div class="relic-synergy-info">
+                                <div class="relic-synergy-name">${synergy.name}</div>
+                                <div class="relic-synergy-requirements">${requirements}</div>
+                                <div class="relic-synergy-description">${synergy.description}</div>
+                            </div>
+                            <span class="relic-synergy-state">${active ? 'Активна' : 'Нужны обе реликвии'}</span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
         </div>
         
         <div class="section-title">✨ Навыки</div>

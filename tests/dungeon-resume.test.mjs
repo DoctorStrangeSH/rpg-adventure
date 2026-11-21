@@ -884,3 +884,25 @@ test('an active expedition encounter restores the same enemy, effects, turn and 
         lastStandTriggered: 1
     });
 });
+
+
+test('malformed active encounter snapshots are discarded without invalidating the expedition checkpoint', (t) => {
+    const { player } = setup(t);
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 2,
+            enemiesDefeated: 1,
+            activeEncounter: {
+                enemy: { id: 'wolf', name: 'Broken wolf', health: 'not-a-number', maxHealth: 100, attack: 10, defense: 2 },
+                turn: 'enemy'
+            }
+        }
+    };
+
+    assert.equal(gameState.save(), true);
+    const saved = Storage.load().player.dungeonProgress.forest;
+    assert.equal(saved.stage, 2);
+    assert.equal(saved.enemiesDefeated, 1);
+    assert.equal(saved.activeEncounter, null);
+});

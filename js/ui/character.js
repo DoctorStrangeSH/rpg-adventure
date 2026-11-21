@@ -61,7 +61,7 @@ export function updateCharacterScreen() {
         <div class="skills-section">
             ${(player.relics || []).length ? player.relics.filter(id => RELICS[id]).map(id => `
                 <div class="skill-card talent-card">
-                    <div class="skill-icon relic-icon relic-rarity-${RELICS[id].rarity}">${RELICS[id].icon}</div>
+                    <div class="skill-icon relic-icon relic-rarity-${RELICS[id].rarity} relic-art-${id}" role="img" aria-label="${RELICS[id].name}">${RELICS[id].icon}</div>
                     <div class="skill-info"><div class="skill-name">${RELICS[id].name} • ${RELIC_RARITIES[RELICS[id].rarity].name}</div><div class="skill-description">${RELICS[id].description}</div></div>
                     <button class="talent-button" onclick="window.toggleCharacterRelic('${id}')" ${!player.activeRelics?.includes(id) && (player.activeRelics?.length || 0) >= MAX_ACTIVE_RELICS ? 'disabled' : ''}>
                         ${player.activeRelics?.includes(id) ? 'Снять' : 'Надеть'}

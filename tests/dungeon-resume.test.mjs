@@ -1112,6 +1112,92 @@ test('final World Eater cataclysm telegraph and phase survive a full expedition 
     assert.equal(restored.relicEffects.phoenixRebirthUsed, true);
 });
 
+
+
+test('all four regional signature bosses restore identity, phase, telegraph and effects after reload', (t) => {
+    const { player, battle } = setup(t);
+    const previousDocument = globalThis.document;
+    const previousUnlocks = LOCATIONS.map(entry => entry.unlocked);
+    const ui = { innerHTML: '' };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? ui : null; },
+        querySelectorAll() { return []; }
+    };
+    window.animateBattle = () => {};
+    window.updateBattleUI = () => {};
+    window.showBattleMessage = () => {};
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        LOCATIONS.forEach((entry, index) => { entry.unlocked = previousUnlocks[index]; });
+    });
+
+    const signatures = {
+        forest: { id: 'forest_guardian', intent: 'thorn_burst' },
+        mountains: { id: 'mountain_dragon', intent: 'flame_breath' },
+        ruins: { id: 'lich_king', intent: 'siphon' },
+        dragon_lair: { id: 'world_eater', intent: 'cataclysm' }
+    };
+
+    player.level = 100;
+    player.unlockedLocations = Object.keys(signatures);
+    for (const [regionId, expected] of Object.entries(signatures)) {
+        const location = getLocation(regionId);
+        location.unlocked = true;
+        const finalStageIndex = location.stages.length - 1;
+        const stage = location.stages[finalStageIndex];
+        const baseBoss = stage.boss;
+        assert.equal(baseBoss.id, expected.id);
+
+        startLocation(regionId);
+        const run = getLocationState();
+        run.currentStage = finalStageIndex;
+        run.enemiesDefeated = stage.enemiesCount;
+        const enemy = {
+            ...structuredClone(baseBoss),
+            health: 713,
+            maxHealth: baseBoss.health,
+            behavior: 'boss',
+            intent: expected.intent,
+            phase: 2,
+            effects: { burnTurns: 2, weakenTurns: 1 }
+        };
+        player.dungeonProgress[regionId] = {
+            campaignCycle: player.campaignCycle,
+            stage: finalStageIndex,
+            enemiesDefeated: stage.enemiesCount,
+            activeEncounter: {
+                enemy,
+                isBossBattle: true,
+                turn: 'enemy',
+                guardReduction: 0.25,
+                relicEffects: { phoenixRebirthUsed: true }
+            }
+        };
+        assert.equal(gameState.save(), true, regionId + ' snapshot must save');
+
+        resetLocationState();
+        battle.isActive = false;
+        battle.currentEnemy = null;
+        gameState.data = { player: null, screen: 'main-menu' };
+        assert.equal(gameState.load(), true, regionId + ' profile must reload');
+        startLocation(regionId);
+        startStageBattle();
+
+        assert.equal(battle.isActive, true, regionId + ' encounter must resume');
+        assert.equal(battle.isBossBattle, true, regionId + ' must retain boss rules');
+        assert.equal(battle.currentEnemy.id, expected.id);
+        assert.equal(battle.currentEnemy.health, 713);
+        assert.equal(battle.currentEnemy.intent, expected.intent);
+        assert.equal(battle.currentEnemy.phase, 2);
+        assert.deepEqual(battle.currentEnemy.effects, { burnTurns: 2, weakenTurns: 1 });
+        assert.equal(battle.turn, 'enemy');
+        const restored = Storage.load().player.dungeonProgress[regionId].activeEncounter;
+        assert.equal(restored.guardReduction, 0.25);
+        assert.equal(restored.relicEffects.phoenixRebirthUsed, true);
+    }
+});
+
 test('phoenix revival health and one-use flag remain spent after a full save reload', (t) => {
     const { player, battle } = setup(t);
     const previousDocument = globalThis.document;

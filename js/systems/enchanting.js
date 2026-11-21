@@ -116,28 +116,39 @@ export function getRuneSynergy(player,weaponId=player?.equipment?.weapon){
 }
 export function getRuneLoadoutPreview(player,weaponId,runeId){
  const rune=RUNE_CATALOG[runeId];
- if(!player||!rune)return {available:false,reason:'invalid'};
+ if(!player||!rune)return {available:false,installable:false,reason:'invalid'};
+ const install=getEnchantPreview(player,weaponId,runeId);
  const current=getWeaponRuneBonuses(player,weaponId);
  const currentSynergy=getRuneSynergy(player,weaponId);
  const currentRunes=getWeaponRunes(player,weaponId);
+ const getDamageType=runes=>[...runes].reverse().map(id=>RUNE_CATALOG[id]?.damageType).find(type=>type&&type!=='physical')||'physical';
+ const effectsFor=runes=>[...new Set(runes.map(id=>RUNE_CATALOG[id]?.effect).filter(Boolean))];
+ const currentDamageType=getDamageType(currentRunes);
+ const currentEffects=effectsFor(currentRunes);
+ const blockedReasons=['invalid','not_equipped','upgrade_required','sockets_full','duplicate','invalid_inventory'];
+ if(blockedReasons.includes(install.reason)){
+  return {
+   available:false,installable:false,reason:install.reason,missing:install.missing||[],
+   current,projected:current,currentSynergy,projectedSynergy:currentSynergy,
+   currentDamageType,projectedDamageType:currentDamageType,
+   currentEffects,projectedEffects:currentEffects,
+   delta:{attack:0,defense:0,critChance:0},
+   synergyActivated:false,synergyChanged:false
+  };
+ }
  const simulated={
   ...player,
   weaponRunes:{...(player.weaponRunes||{}),[weaponId]:[...currentRunes,runeId]}
  };
  const projected=getWeaponRuneBonuses(simulated,weaponId);
  const projectedSynergy=getRuneSynergy(simulated,weaponId);
- const getDamageType=runes=>[...runes].reverse().map(id=>RUNE_CATALOG[id]?.damageType).find(type=>type&&type!=='physical')||'physical';
- const effectsFor=runes=>[...new Set(runes.map(id=>RUNE_CATALOG[id]?.effect).filter(Boolean))];
+ const projectedRunes=[...currentRunes,runeId];
+ const projectedDamageType=getDamageType(projectedRunes);
+ const projectedEffects=effectsFor(projectedRunes);
  return {
-  available:true,
-  current,
-  projected,
-  currentSynergy,
-  projectedSynergy,
-  currentDamageType:getDamageType(currentRunes),
-  projectedDamageType:getDamageType([...currentRunes,runeId]),
-  currentEffects:effectsFor(currentRunes),
-  projectedEffects:effectsFor([...currentRunes,runeId]),
+  available:true,installable:install.available,reason:install.reason,missing:install.missing||[],
+  current,projected,currentSynergy,projectedSynergy,
+  currentDamageType,projectedDamageType,currentEffects,projectedEffects,
   delta:{
    attack:projected.attack-current.attack,
    defense:projected.defense-current.defense,

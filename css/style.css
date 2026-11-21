@@ -2224,3 +2224,37 @@ button,
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+
+/* Accessible keyboard focus and a project-wide reduced-motion fallback. */
+:where(button, a, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 2px rgba(11, 16, 27, 0.9), 0 0 0 5px rgba(224, 188, 121, 0.22);
+}
+
+:where(button, a, [role="button"], [tabindex]:not([tabindex="-1"])):focus:not(:focus-visible) {
+    outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .menu-btn:hover,
+    .skill-card:hover,
+    .class-card:hover,
+    .stat-card:hover,
+    .attribute-card:hover,
+    .inventory-item:hover,
+    .equipment-slot:hover,
+    .battle-btn:hover,
+    .map-btn:hover {
+        transform: none !important;
+    }
+}

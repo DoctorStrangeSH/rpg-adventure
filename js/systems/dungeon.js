@@ -385,6 +385,7 @@ export function startStageBattle() {
     battleState.animationFrame = 0;
     battleState.turn = 'player';
     battleState.isLocationBattle = true;
+    battleState.isDungeonBattle = true;
     battleState.isBossBattle = false;
     battleState.guardReduction = 0;
     battleState.relicEffects = { phoenixRebirthUsed: false };

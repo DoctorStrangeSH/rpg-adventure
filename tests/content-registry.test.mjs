@@ -53,6 +53,8 @@ test('all shipped items satisfy progression, rarity and combat-effect contracts'
 test('item registry rejects malformed progression values and effect probabilities', () => {
     const base = { id: 'test_blade', name: 'Test Blade', type: 'weapon', rarity: 'rare', attackBonus: 10, price: 100 };
     assert.match(validateItemDefinition({ ...base, requiredLevel: 0 }), /requiredLevel/);
+    assert.match(validateItemDefinition({ ...base, shopRequiresDiscovery: 'missing_item' }), /shopRequiresDiscovery/);
+    assert.equal(validateItemDefinition({ ...base, shopRequiresDiscovery: 'iron_ore' }), true);
     assert.match(validateItemDefinition({ ...base, attackBonus: -1 }), /attackBonus/);
     assert.match(validateItemDefinition({ ...base, rarity: 'mythic' }), /rarity/);
     assert.match(validateItemDefinition({ ...base, onHit: { type: 'burn', chance: 1.5, turns: 2 } }), /chance/);

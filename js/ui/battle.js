@@ -43,7 +43,9 @@ let battleState = {
     isBossBattle: false,
     isLocationBattle: false,
     guardReduction: 0,
-    relicEffects: { phoenixRebirthUsed: false }
+    relicEffects: { phoenixRebirthUsed: false },
+    pendingVictorySave: false,
+    pendingDefeatSave: false
 };
 
 
@@ -150,6 +152,8 @@ export function startBattle(location) {
     battleState.isLocationBattle = false;
     battleState.guardReduction = 0;
     battleState.relicEffects = { phoenixRebirthUsed: false };
+    battleState.pendingVictorySave = false;
+    battleState.pendingDefeatSave = false;
     
     const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height);
     battleState.playerSprite = new Sprite(player.class, positions.player.x, positions.player.y);
@@ -357,6 +361,11 @@ export function updateBattleUI() {
         ${enemy.behavior === 'boss' ? `<div class="boss-phase">👑 Фаза ${getBossPhase(enemy)} / 3${enemy.intent === 'heavy' ? ' · ⚠️ Следующий удар усиленный!' : ''}</div>` : ''}
         ${activeEffects.length ? `<div class="battle-effects" aria-label="Активные эффекты">${activeEffects.map(effect => `<span class="battle-effect">${effect}</span>`).join('')}</div>` : ''}
         <div class="battle-buttons">
+            ${battleState.pendingVictorySave ? `
+                <button class="battle-btn item" onclick="window.battleVictory()">💾 Повторить сохранение победы</button>
+            ` : battleState.pendingDefeatSave ? `
+                <button class="battle-btn item" onclick="window.battleDefeat()">💾 Повторить сохранение результата</button>
+            ` : `
             <button class="battle-btn attack" onclick="window.playerAttack()" ${!canAct ? 'disabled' : ''}>
                 ⚔️ Атаковать
             </button>
@@ -383,6 +392,7 @@ export function updateBattleUI() {
             <button class="battle-btn flee" onclick="window.playerFlee()" ${!canAct ? 'disabled' : ''}>
                 🏃 Сбежать
             </button>
+            `}
         </div>
     `;
 }
@@ -644,7 +654,12 @@ export function playerFlee() {
             // Проверяем, в локации ли мы
             const locationState = window.getLocationState?.();
             if (locationState && locationState.inLocation) {
-                window.fleeLocation?.();
+                const fled = window.fleeLocation?.();
+                if (fled === false) {
+                    isProcessing = false;
+                    battleState.turn = 'player';
+                    updateBattleUI();
+                }
             } else {
                 exitBattle();
             }
@@ -806,7 +821,7 @@ export function battleVictory() {
     const enemy = battleState.currentEnemy;
     const locationState = window.getLocationState?.();
     const isDungeonBattle = Boolean(locationState?.inLocation);
-    const playerBeforeBattle = isDungeonBattle ? createPlayerSnapshot(player) : null;
+    const playerBeforeBattle = createPlayerSnapshot(player);
     
     if (!battleState.isActive || !enemy || enemy.health > 0) return;
     
@@ -866,7 +881,16 @@ export function battleVictory() {
             }
         }
     } else {
-        gameState.save();
+        if (!commitPlayerMutation(player, playerBeforeBattle, () => gameState.save())) {
+            battleState.isActive = true;
+            battleState.pendingVictorySave = true;
+            battleState.turn = 'player';
+            isProcessing = false;
+            window.showNotification?.('Победа не сохранена. Награды отменены — повторите сохранение, когда хранилище будет доступно.', 'error');
+            updateBattleUI();
+            return;
+        }
+        battleState.pendingVictorySave = false;
         setTimeout(() => {
             exitBattle();
         }, 2000);
@@ -878,6 +902,8 @@ export function battleDefeat() {
     const player = gameState.player;
     if (!battleState.isActive || !player || player.health > 0) return;
     
+    const playerBeforeDefeat = createPlayerSnapshot(player);
+    if (!playerBeforeDefeat) return;
     battleState.isActive = false;
     isProcessing = false;
     battleState.deathAnimationEndFrame = battleState.animationFrame + 72;
@@ -891,14 +917,23 @@ export function battleDefeat() {
     
     showBattleMessage(`Вы погибли! Потеряно ${goldLoss} золота!`);
     
-    const defeatCommitted = window.handleDefeat?.();
-    window.resetLocationState?.();
-
-    // handleDefeat owns the single atomic save for both dungeon and field losses.
-    // Do not issue a second write that could mask a failed dungeon reset.
-    if (typeof window.handleDefeat !== 'function' && defeatCommitted === undefined) {
-        gameState.save();
+    // The dungeon handler owns the combined penalty + expedition reset save.
+    // Pass the pre-penalty snapshot so a failed write can roll back everything.
+    const defeatCommitted = typeof window.handleDefeat === 'function'
+        ? window.handleDefeat(playerBeforeDefeat)
+        : commitPlayerMutation(player, playerBeforeDefeat, () => gameState.save());
+    if (defeatCommitted === false) {
+        restorePlayerSnapshot(player, playerBeforeDefeat);
+        battleState.isActive = true;
+        battleState.pendingDefeatSave = true;
+        battleState.turn = 'player';
+        battleState.deathAnimationEndFrame = null;
+        isProcessing = false;
+        window.showNotification?.('Поражение не сохранено. Потеря золота и сброс экспедиции отменены — повторите сохранение.', 'error');
+        updateBattleUI();
+        return;
     }
+    battleState.pendingDefeatSave = false;
     window.updateMainMenu?.();
     
     setTimeout(() => {
@@ -912,6 +947,8 @@ export function exitBattle() {
     // run before leaving, otherwise its inLocation flag blocks new attempts.
     if (window.getLocationState?.()?.inLocation) window.resetLocationState?.();
     battleState.isActive = false;
+    battleState.pendingVictorySave = false;
+    battleState.pendingDefeatSave = false;
     battleState.currentEnemy = null;
     battleState.isDungeonBattle = false;
     battleState.isBossBattle = false;

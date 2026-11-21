@@ -593,3 +593,63 @@ test('defeat handler rolls back pre-penalty player snapshot when save fails', (t
     assert.equal(run.currentStage, 4);
     assert.equal(run.enemiesDefeated, 2);
 });
+
+test('expedition battle start rolls back counters and consumed run modifiers when save fails', (t) => {
+    const { player, battle } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 0;
+    run.travelerFavorFights = 2;
+    run.bloodPursuerPending = true;
+    const battlesBefore = player.stats.battles;
+    const playerBefore = structuredClone(player);
+    const previousDocument = globalThis.document;
+    const previousSave = gameState.save;
+    const ui = { innerHTML: '' };
+    globalThis.document = { getElementById() { return ui; } };
+    gameState.save = () => false;
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        gameState.save = previousSave;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startStageBattle();
+
+    assert.equal(player.stats.battles, battlesBefore);
+    assert.deepEqual(player.dungeonProgress, playerBefore.dungeonProgress);
+    assert.equal(run.travelerFavorFights, 2);
+    assert.equal(run.bloodPursuerPending, true);
+    assert.equal(battle.isActive, false);
+    assert.equal(battle.currentEnemy, null);
+    assert.match(ui.innerHTML, /Повторить запуск боя/);
+});
+
+test('headless expedition battle start returns safely to map when its save fails', (t) => {
+    const { player, battle } = setup(t);
+    startLocation('forest');
+    const run = getLocationState();
+    run.currentStage = 0;
+    const battlesBefore = player.stats.battles;
+    const previousDocument = globalThis.document;
+    const previousSave = gameState.save;
+    const screens = [];
+    globalThis.document = { getElementById() { return null; } };
+    window.showScreen = screen => screens.push(screen);
+    gameState.save = () => false;
+    t.after(() => {
+        gameState.save = previousSave;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    startStageBattle();
+
+    assert.equal(player.stats.battles, battlesBefore);
+    assert.equal(battle.isActive, false);
+    assert.equal(battle.currentEnemy, null);
+    assert.ok(screens.includes('map-screen'));
+    assert.equal(run.inLocation, true);
+});

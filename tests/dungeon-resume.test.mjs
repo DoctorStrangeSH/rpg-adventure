@@ -968,3 +968,128 @@ test('a saved regional boss encounter resumes with boss rules instead of a regul
     assert.equal(battle.currentEnemy.health, 321);
     assert.deepEqual(battle.currentEnemy.effects, { burnTurns: 2 });
 });
+
+
+test('a saved boss telegraph survives a full save reload and resumes without rerolling its warning', (t) => {
+    const { player, battle } = setup(t);
+    const previousDocument = globalThis.document;
+    const ui = { innerHTML: '' };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? ui : null; },
+        querySelectorAll() { return []; }
+    };
+    window.getLocationState = getLocationState;
+    window.animateBattle = () => {};
+    window.updateBattleUI = () => {};
+    window.showBattleMessage = () => {};
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    const boss = getLocation('forest').stages[29].boss;
+    const warningSnapshot = {
+        enemy: {
+            ...structuredClone(boss),
+            health: 287,
+            maxHealth: boss.health,
+            behavior: 'boss',
+            intent: 'thorn_burst',
+            phase: 2,
+            effects: { burnTurns: 1, poisonTurns: 0 }
+        },
+        isBossBattle: true,
+        turn: 'player',
+        guardReduction: 0,
+        relicEffects: { phoenixRebirthUsed: false }
+    };
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 29,
+            enemiesDefeated: getLocation('forest').stages[29].enemiesCount,
+            activeEncounter: warningSnapshot
+        }
+    };
+    assert.equal(gameState.save(), true);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    assert.equal(battle.currentEnemy.id, boss.id);
+    assert.equal(battle.currentEnemy.intent, 'thorn_burst');
+    assert.equal(battle.currentEnemy.phase, 2);
+    assert.equal(battle.currentEnemy.health, 287);
+    assert.equal(battle.turn, 'player');
+    assert.equal(Storage.load().player.dungeonProgress.forest.activeEncounter.enemy.intent, 'thorn_burst');
+});
+
+test('phoenix revival health and one-use relic flag survive a full expedition reload', (t) => {
+    const { player, battle } = setup(t);
+    const previousDocument = globalThis.document;
+    const ui = { innerHTML: '' };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? ui : null; },
+        querySelectorAll() { return []; }
+    };
+    window.getLocationState = getLocationState;
+    window.animateBattle = () => {};
+    window.updateBattleUI = () => {};
+    window.showBattleMessage = () => {};
+    t.after(() => {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+    });
+
+    player.relics = ['phoenix_crown'];
+    player.activeRelics = ['phoenix_crown'];
+    player.health = Math.ceil(player.maxHealth * 0.2);
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 29,
+            enemiesDefeated: 29,
+            activeEncounter: {
+                enemy: {
+                    id: 'forest_guardian',
+                    name: 'Древний хранитель леса',
+                    health: 211,
+                    maxHealth: 500,
+                    attack: 40,
+                    defense: 20,
+                    behavior: 'boss',
+                    intent: null,
+                    phase: 2,
+                    effects: { burnTurns: 1 }
+                },
+                isBossBattle: true,
+                turn: 'player',
+                guardReduction: 0,
+                relicEffects: { phoenixRebirthUsed: true }
+            }
+        }
+    };
+    const revivedHealth = player.health;
+    assert.equal(gameState.save(), true);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(gameState.player.health, revivedHealth);
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    assert.equal(battle.relicEffects.phoenixRebirthUsed, true);
+    assert.equal(battle.currentEnemy.health, 211);
+    assert.equal(battle.turn, 'player');
+    assert.equal(Storage.load().player.dungeonProgress.forest.activeEncounter.relicEffects.phoenixRebirthUsed, true);
+});

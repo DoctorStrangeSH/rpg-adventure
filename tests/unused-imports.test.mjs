@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../js/', import.meta.url));
@@ -15,19 +15,19 @@ function collectModules(directory) {
 }
 
 function escapeRegExp(value) {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return value.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
 }
 
 function importedBindings(source) {
     const imports = [];
-    const pattern = /\\bimport\\s*\\{([^}]+)\\}\\s*from\\s*(['"])[^'"]+\\2\\s*;?/gs;
+    const pattern = /\bimport\s*\{([^}]+)\}\s*from\s*(['"])[^'"]+\2\s*;?/gs;
     for (const match of source.matchAll(pattern)) {
         for (const item of match[1].split(',')) {
             const specifier = item.trim();
             if (!specifier || specifier.startsWith('type ')) continue;
-            const parts = specifier.split(/\\s+as\\s+/);
+            const parts = specifier.split(/\s+as\s+/);
             const localName = (parts[1] || parts[0]).trim();
-            if (/^[A-Za-z_$][\\w$]*$/.test(localName)) {
+            if (/^[A-Za-z_$][\w$]*$/.test(localName)) {
                 imports.push({ localName, declaration: match[0] });
             }
         }
@@ -40,15 +40,14 @@ test('named JavaScript imports are referenced by their modules', () => {
 
     for (const path of collectModules(root)) {
         const source = readFileSync(path, 'utf8');
-        const bindings = importedBindings(source);
-        for (const binding of bindings) {
+        for (const binding of importedBindings(source)) {
             const withoutDeclaration = source.replace(binding.declaration, '');
             const references = withoutDeclaration.match(
-                new RegExp('\\\\b' + escapeRegExp(binding.localName) + '\\\\b', 'g')
+                new RegExp('\\b' + escapeRegExp(binding.localName) + '\\b', 'g')
             ) || [];
             if (references.length === 0) {
                 unused.push({
-                    file: relative(root, path).replaceAll('\\\\', '/'),
+                    file: relative(root, path).replaceAll('\\', '/'),
                     imported: binding.localName
                 });
             }

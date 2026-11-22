@@ -719,3 +719,113 @@ test('a committed mage fireball restores mana, enemy HP and burn without replayi
         'reload schedules one enemy turn and does not replay the mana cost or fireball');
     assert.equal(values.has(RECOVERY_SAVE_KEY), false);
 });
+
+
+test('a committed frost nova restores freeze and thermal shock without replaying damage or burn', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, updateQuestProgress() {}, updateAchievements() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('mage');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    const enemy = battle.currentEnemy;
+    enemy.intent = 'heavy';
+    enemy.effects = { burnTurns: 2 };
+    enemy.resistances = { freeze: 0 };
+    const enemyId = enemy.id;
+    const healthBefore = enemy.health;
+    const manaBefore = player.mana;
+    const playerHealthBefore = player.health;
+
+    playerSkill('frost_nova');
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(player.mana, manaBefore - 25);
+    assert.ok(enemy.health < healthBefore, 'frost nova and thermal shock must deal damage');
+    assert.ok(enemy.effects?.freezeTurns > 0, 'frost nova must apply freeze');
+    assert.equal(enemy.effects.burnTurns, 0, 'thermal shock consumes the existing burn');
+    assert.equal(enemy.intent, 'heavy', 'the wind-up is interrupted when the frozen enemy turn resolves');
+    const saved = Storage.load().player;
+    const savedEncounter = saved.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.mana, manaBefore - 25);
+    assert.equal(savedEncounter.enemy.id, enemyId);
+    assert.equal(savedEncounter.enemy.health, enemy.health);
+    assert.equal(savedEncounter.enemy.effects.freezeTurns, enemy.effects.freezeTurns);
+    assert.equal(savedEncounter.enemy.effects.burnTurns, 0);
+    assert.equal(savedEncounter.enemy.intent, 'heavy');
+    assert.equal(savedEncounter.turn, 'enemy');
+    assert.equal(scheduled.length, 1, 'the original skill continuation is pending');
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.health, savedEncounter.enemy.health);
+    assert.equal(battle.currentEnemy.effects.freezeTurns, savedEncounter.enemy.effects.freezeTurns);
+    assert.equal(battle.currentEnemy.effects.burnTurns, 0);
+    assert.equal(battle.currentEnemy.intent, 'heavy');
+    assert.equal(gameState.player.mana, manaBefore - 25);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(scheduled.length, 2, 'reload schedules the frozen enemy turn exactly once');
+
+    scheduled[1]();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.turn, 'player', 'the frozen enemy turn is skipped and returns control to the player');
+    assert.equal(battle.currentEnemy.intent, null, 'the prepared heavy attack is cancelled');
+    assert.equal(battle.currentEnemy.effects.freezeTurns, 0, 'the restored freeze is consumed once');
+    assert.equal(battle.currentEnemy.effects.burnTurns, 0, 'thermal shock is not applied a second time');
+    assert.equal(battle.currentEnemy.health, savedEncounter.enemy.health,
+        'resuming the frozen turn does not repeat frost nova or thermal shock damage');
+    assert.equal(gameState.player.health, playerHealthBefore,
+        'the interrupted enemy wind-up does not damage the player');
+});

@@ -81,7 +81,30 @@ export const Storage = {
         try {
             const saved = localStorage.getItem(RECOVERY_SAVE_KEY);
             if (saved === null) return false;
-            const payload = validatedData === null ? saved : JSON.stringify(validatedData);
+
+            // Validate the backup envelope even when restoring its original bytes.
+            // This storage-level guard prevents callers from copying malformed JSON
+            // directly over a usable primary save.
+            const source = JSON.parse(saved);
+            if (!source || typeof source !== 'object' || Array.isArray(source) ||
+                !source.player || typeof source.player !== 'object' || Array.isArray(source.player)) {
+                return false;
+            }
+
+            let payload = saved;
+            if (validatedData !== null) {
+                if (!validatedData || typeof validatedData !== 'object' || Array.isArray(validatedData)) {
+                    return false;
+                }
+                payload = JSON.stringify(validatedData);
+                if (typeof payload !== 'string') return false;
+                const parsed = JSON.parse(payload);
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
+                    !parsed.player || typeof parsed.player !== 'object' || Array.isArray(parsed.player)) {
+                    return false;
+                }
+            }
+
             localStorage.setItem(GAME_CONFIG.saveKey, payload);
             return true;
         } catch (error) {

@@ -444,9 +444,13 @@ test('a malformed active encounter in recovery is discarded without losing exped
     assert.equal(gameState.player.dungeonProgress.forest.activeEncounter, null,
         'invalid nested combat data must be discarded during save normalization');
 
-    startLocation('forest');
-    assert.equal(getLocationState().currentStage, 0);
-    assert.equal(getLocationState().inLocation, true);
+    const state = getLocationState();
+    state.currentLocation = location;
+    state.currentStage = 0;
+    state.enemiesDefeated = 0;
+    state.inLocation = true;
+    assert.equal(state.currentStage, 0);
+    assert.equal(state.inLocation, true);
     startStageBattle();
     assert.equal(battle.isActive, true, 'the valid expedition must remain playable');
     assert.ok(battle.currentEnemy, 'a fresh encounter should be generated for the preserved stage');

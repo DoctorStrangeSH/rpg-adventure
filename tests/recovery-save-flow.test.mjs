@@ -494,6 +494,7 @@ test('a committed player defence restores as the pending enemy turn after reload
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -577,6 +578,7 @@ test('a committed player attack restores the damaged enemy and pending enemy tur
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -656,6 +658,7 @@ test('a committed mage fireball restores mana, enemy HP and burn without replayi
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -745,6 +748,7 @@ test('a committed frost nova restores freeze and thermal shock without replaying
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -855,6 +859,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -941,6 +946,7 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -1020,6 +1026,7 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -1123,6 +1130,7 @@ test('an archer poison arrow restores poison and bleeding synergy after reload',
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -1211,6 +1219,7 @@ test('a lethal saved encounter grants victory rewards exactly once when restored
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -1314,6 +1323,7 @@ test('a lethal recovered boss advances the expedition and commits boss rewards e
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -1448,13 +1458,13 @@ test('a dungeon defeat commits the gold penalty and expedition reset exactly onc
     const player = gameState.createPlayer('warrior');
     player.unlockedLocations = ['forest'];
     player.gold = 1001;
-    player.health = 0;
     player.stats.losses = 2;
     player.dungeonCheckpoints = { forest: { stage: 4, health: 50 } };
     getLocation('forest').unlocked = true;
     startLocation('forest');
     startStageBattle();
     assert.equal(battle.isActive, true);
+    player.health = 0;
     assert.ok(player.dungeonProgress.forest);
     assert.ok(player.dungeonCheckpoints.forest);
     battle.playerSprite = { beginDeath() {} };
@@ -1495,6 +1505,7 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
     const previousWindow = globalThis.window;
     const previousDocument = globalThis.document;
     const previousTimeout = globalThis.setTimeout;
+    const previousAnimationFrame = globalThis.requestAnimationFrame;
     const battle = getBattleState();
     const previousBattle = {
         isActive: battle.isActive, currentEnemy: battle.currentEnemy,
@@ -1517,6 +1528,7 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
         querySelector() { return null; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    globalThis.requestAnimationFrame = callback => { scheduled.push(callback); return scheduled.length; };
     resetLocationState();
     battle.isActive = false;
     battle.currentEnemy = null;
@@ -1528,6 +1540,8 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
         if (previousDocument === undefined) delete globalThis.document;
         else globalThis.document = previousDocument;
         globalThis.setTimeout = previousTimeout;
+        if (previousAnimationFrame === undefined) delete globalThis.requestAnimationFrame;
+        else globalThis.requestAnimationFrame = previousAnimationFrame;
     });
 
     const player = gameState.createPlayer('warrior');
@@ -1602,6 +1616,7 @@ test('the World Eater final boss completes the campaign exactly once after reloa
     };
     globalThis.document = {
         getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelector() { return null; },
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
@@ -1622,6 +1637,7 @@ test('the World Eater final boss completes the campaign exactly once after reloa
 
     const player = gameState.createPlayer('warrior');
     player.unlockedLocations = ['forest', 'mountains', 'ruins', 'dragon_lair'];
+    player.level = 30;
     player.attack = 99999;
     player.gold = 5000;
     const dragonLair = getLocation('dragon_lair');

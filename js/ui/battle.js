@@ -223,9 +223,16 @@ export function startDungeonEncounter({ enemy, isBossBattle = false, message = '
     battleState.playerSprite = new Sprite(player.class, positions.player.x, positions.player.y);
     battleState.enemySprite = new Sprite(enemy.id, positions.enemy.x, positions.enemy.y);
 
-    window.updateBattleUI?.();
-    animateBattle();
-    if (message) showBattleMessage(message);
+    // Tests and recovery flows may start an encounter before the battle screen mounts.
+    // Keep the saved combat state valid without touching unavailable browser APIs.
+    if (battleState.canvas) {
+        updateBattleUI();
+        if (typeof requestAnimationFrame === 'function') animateBattle();
+    }
+    if (message && typeof document !== 'undefined' &&
+        typeof document.querySelector === 'function') {
+        showBattleMessage(message);
+    }
     return true;
 }
 

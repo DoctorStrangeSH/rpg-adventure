@@ -916,3 +916,81 @@ test('a committed warrior power strike restores weaken and mana without replayin
     assert.equal(battle.turn, 'player');
     assert.equal(scheduled.length, 1, 'reload does not replay the original delayed enemy turn');
 });
+
+
+test('a committed warrior shield wall restores guard reduction and mana after reload', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, updateQuestProgress() {}, updateAchievements() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    const enemyId = battle.currentEnemy.id;
+    const manaBefore = player.mana;
+
+    playerSkill('shield_wall');
+
+    assert.equal(player.mana, manaBefore - 15);
+    assert.equal(battle.guardReduction, 0.75);
+    const saved = Storage.load().player;
+    const savedEncounter = saved.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.mana, manaBefore - 15);
+    assert.equal(savedEncounter.enemy.id, enemyId);
+    assert.equal(savedEncounter.guardReduction, 0.75);
+    assert.equal(savedEncounter.turn, 'player');
+    assert.equal(scheduled.length, 1);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.guardReduction, 0.75);
+    assert.equal(gameState.player.mana, manaBefore - 15);
+    assert.equal(battle.turn, 'player');
+    assert.equal(scheduled.length, 1, 'reload does not replay the original skill continuation');
+});

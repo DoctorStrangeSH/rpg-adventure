@@ -1,5 +1,6 @@
 // Экран боя
 import { gameState } from '../core/state.js';
+import { registerDungeonBattleAdapter } from '../ports/dungeonBattlePort.js';
 import { addEventListenerOnce } from '../core/listeners.js';
 import { CLASSES } from '../data/classes.js';
 import { getRandomEnemy } from '../data/enemies.js';
@@ -196,6 +197,36 @@ export function resetBattlePresentation() {
     particleSystem.particles.length = 0;
     damageTexts = [];
     isProcessing = false;
+}
+
+// The dungeon system owns encounter rules; this adapter owns battle presentation.
+export function startDungeonEncounter({ enemy, isBossBattle = false, message = '' } = {}) {
+    const player = gameState.player;
+    if (!player || !enemy || battleState.isActive) return false;
+
+    resetBattlePresentation();
+    battleState.currentEnemy = enemy;
+    battleState.isActive = true;
+    battleState.animationFrame = 0;
+    battleState.deathAnimationEndFrame = null;
+    battleState.turn = 'player';
+    battleState.isBossBattle = isBossBattle === true;
+    battleState.isLocationBattle = true;
+    battleState.isDungeonBattle = true;
+    battleState.guardReduction = 0;
+    battleState.relicEffects = { phoenixRebirthUsed: false };
+    battleState.pendingVictorySave = false;
+    battleState.pendingDefeatSave = false;
+
+    const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height,
+        battleState.isBossBattle);
+    battleState.playerSprite = new Sprite(player.class, positions.player.x, positions.player.y);
+    battleState.enemySprite = new Sprite(enemy.id, positions.enemy.x, positions.enemy.y);
+
+    window.updateBattleUI?.();
+    animateBattle();
+    if (message) showBattleMessage(message);
+    return true;
 }
 
 export function startBattle(location) {
@@ -1152,3 +1183,10 @@ export function updateBattleScreen() {
 export function getBattleState() {
     return battleState;
 }
+
+registerDungeonBattleAdapter({
+    getState: getBattleState,
+    resetPresentation: resetBattlePresentation,
+    restoreEncounter: restoreDungeonEncounter,
+    startEncounter: startDungeonEncounter
+});

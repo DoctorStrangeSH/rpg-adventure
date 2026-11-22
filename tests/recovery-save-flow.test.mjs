@@ -4,7 +4,7 @@ import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
-import { getBattleState, playerAttack, playerDefend } from '../js/ui/battle.js';
+import { getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 
 function setup(t, options = {}) {
@@ -629,4 +629,93 @@ test('a committed player attack restores the damaged enemy and pending enemy tur
     assert.equal(battle.turn, 'enemy');
     assert.equal(scheduled.length, 2,
         'reload schedules exactly one resumed enemy turn without replaying the player attack');
+});
+
+
+test('a committed mage fireball restores mana, enemy HP and burn without replaying the skill', (t) => {
+    const values = setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, updateQuestProgress() {}, updateAchievements() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('mage');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    const enemyId = battle.currentEnemy.id;
+    const healthBefore = battle.currentEnemy.health;
+    const manaBefore = player.mana;
+
+    playerSkill('fireball');
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(player.mana, manaBefore - 20);
+    assert.ok(battle.currentEnemy.health < healthBefore, 'fireball must deal damage');
+    assert.ok(battle.currentEnemy.effects?.burnTurns > 0, 'fireball burn must be applied');
+    const saved = Storage.load().player;
+    const savedEncounter = saved.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.mana, player.mana);
+    assert.equal(savedEncounter.enemy.id, enemyId);
+    assert.equal(savedEncounter.enemy.health, battle.currentEnemy.health);
+    assert.equal(savedEncounter.enemy.effects.burnTurns, battle.currentEnemy.effects.burnTurns);
+    assert.equal(savedEncounter.turn, 'enemy');
+    assert.equal(scheduled.length, 1, 'the original enemy-turn delay is pending');
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.health, savedEncounter.enemy.health);
+    assert.equal(battle.currentEnemy.effects.burnTurns, savedEncounter.enemy.effects.burnTurns);
+    assert.equal(gameState.player.mana, manaBefore - 20);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(scheduled.length, 2,
+        'reload schedules one enemy turn and does not replay the mana cost or fireball');
+    assert.equal(values.has(RECOVERY_SAVE_KEY), false);
 });

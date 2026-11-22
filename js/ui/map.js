@@ -28,7 +28,6 @@ let mapState = {
     selectedLocation: null,
     playerX: 100,
     playerY: 100,
-    isAnimating: false,
     resizeObserver: null
 };
 

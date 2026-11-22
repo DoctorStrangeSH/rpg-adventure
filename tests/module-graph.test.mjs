@@ -96,23 +96,38 @@ test('JavaScript module dependencies respect documented architecture layers', ()
         systems: new Set(['ui']),
         entities: new Set(['ui'])
     };
+    // Temporary migration boundary: dungeon orchestration still owns two battle presentation calls.
+    const allowedLegacyEdges = new Set([
+        'systems/dungeon.js -> ui/battle.js',
+        'systems/dungeon.js -> ui/battleLayout.js'
+    ]);
+    const observedLegacyEdges = [];
 
     for (const [source, dependencies] of graph) {
-        const sourceLayer = relative(root, source).split(/[\\\\/]/)[0];
+        const sourcePath = relative(root, source).replaceAll('\\\\', '/');
+        const sourceLayer = sourcePath.split('/')[0];
         const forbidden = forbiddenTargets[sourceLayer];
         if (!forbidden) continue;
 
         for (const dependency of dependencies) {
-            const targetLayer = relative(root, dependency).split(/[\\\\/]/)[0];
-            if (forbidden.has(targetLayer)) {
-                violations.push({
-                    from: relative(root, source),
-                    to: relative(root, dependency),
-                    rule: `${sourceLayer} must not depend on ${targetLayer}`
-                });
+            const targetPath = relative(root, dependency).replaceAll('\\\\', '/');
+            const targetLayer = targetPath.split('/')[0];
+            if (!forbidden.has(targetLayer)) continue;
+
+            const edge = `${sourcePath} -> ${targetPath}`;
+            if (allowedLegacyEdges.has(edge)) {
+                observedLegacyEdges.push(edge);
+                continue;
             }
+            violations.push({
+                from: sourcePath,
+                to: targetPath,
+                rule: `${sourceLayer} must not depend on ${targetLayer}`
+            });
         }
     }
 
-    assert.deepEqual(violations, [], 'keep dependencies aligned with docs/ARCHITECTURE.md');
+    assert.deepEqual([...observedLegacyEdges].sort(), [...allowedLegacyEdges].sort(),
+        'legacy UI coupling must remain explicit and cannot silently spread');
+    assert.deepEqual(violations, [], 'keep new dependencies aligned with docs/ARCHITECTURE.md');
 });

@@ -829,3 +829,91 @@ test('a committed frost nova restores freeze and thermal shock without replaying
     assert.equal(gameState.player.health, playerHealthBefore,
         'the interrupted enemy wind-up does not damage the player');
 });
+
+
+test('a committed warrior power strike restores weaken and mana without replaying the skill', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, updateQuestProgress() {}, updateAchievements() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    const enemyId = battle.currentEnemy.id;
+    const healthBefore = battle.currentEnemy.health;
+    const manaBefore = player.mana;
+
+    playerSkill('power_strike');
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.turn, 'player', 'the action commits before its delayed enemy turn starts');
+    assert.equal(player.mana, manaBefore - 10);
+    assert.ok(battle.currentEnemy.health < healthBefore, 'power strike must deal damage');
+    assert.ok(battle.currentEnemy.effects?.weakenTurns > 0, 'power strike must apply weaken');
+    const saved = Storage.load().player;
+    const savedEncounter = saved.dungeonProgress.forest.activeEncounter;
+    assert.equal(saved.mana, manaBefore - 10);
+    assert.equal(savedEncounter.enemy.id, enemyId);
+    assert.equal(savedEncounter.enemy.health, battle.currentEnemy.health);
+    assert.equal(savedEncounter.enemy.effects.weakenTurns, battle.currentEnemy.effects.weakenTurns);
+    assert.equal(savedEncounter.turn, 'player');
+    assert.equal(scheduled.length, 1);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.health, savedEncounter.enemy.health);
+    assert.equal(battle.currentEnemy.effects.weakenTurns, savedEncounter.enemy.effects.weakenTurns);
+    assert.equal(gameState.player.mana, manaBefore - 10);
+    assert.equal(battle.turn, 'player');
+    assert.equal(scheduled.length, 2, 'restored player turn is available and original timer is not replayed');
+    assert.equal(scheduled[1], undefined, 'reload must not create a delayed enemy turn for a committed player action');
+});

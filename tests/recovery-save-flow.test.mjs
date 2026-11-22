@@ -6,7 +6,7 @@ import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
 import { battleDefeat, battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, handleBossVictory, handleDefeat, handleVictory, startBossFight, startLocation, startStageBattle } from '../js/systems/dungeon.js';
-import { tickEnemyEffects } from '../js/systems/combat.js';
+import { getBossPhase, tickEnemyEffects } from '../js/systems/combat.js';
 
 function setup(t, options = {}) {
     const previousStorage = globalThis.localStorage;
@@ -1574,4 +1574,133 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
     assert.equal(committed.dungeonProgress.forest, undefined);
     assert.equal(committed.dungeonCheckpoints.forest, undefined);
     assert.equal(scheduled.length, 1, 'successful retry schedules navigation exactly once');
+});
+
+
+test('the World Eater final boss completes the campaign exactly once after reload', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects),
+        pendingVictorySave: battle.pendingVictorySave, pendingDefeatSave: battle.pendingDefeatSave
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, handleBossVictory, updateQuestProgress() {}, updateAchievements() {},
+        levelUp() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest', 'mountains', 'ruins', 'dragon_lair'];
+    player.attack = 99999;
+    player.gold = 5000;
+    const dragonLair = getLocation('dragon_lair');
+    dragonLair.unlocked = true;
+    startLocation('dragon_lair');
+    const state = getLocationState();
+    const location = state.currentLocation;
+    const finalStageIndex = location.stages.length - 1;
+    const finalStage = location.stages[finalStageIndex];
+    assert.equal(finalStage.stage, 60);
+    assert.equal(finalStage.boss.id, 'world_eater');
+    state.currentStage = finalStageIndex;
+    state.enemiesDefeated = finalStage.enemiesCount;
+    startBossFight(finalStage.boss);
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    assert.equal(battle.currentEnemy.id, 'world_eater');
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    const boss = battle.currentEnemy;
+    const bossId = boss.id;
+    const maxHealth = boss.maxHealth;
+    boss.health = Math.floor(maxHealth * 0.6);
+    assert.equal(getBossPhase(boss), 2, 'the World Eater enters phase two at 60% HP');
+    boss.health = Math.floor(maxHealth * 0.25);
+    assert.equal(getBossPhase(boss), 3, 'the World Eater enters phase three at 25% HP');
+    boss.health = 1;
+
+    const expBefore = player.experience;
+    const goldBefore = player.gold;
+    const winsBefore = player.stats.wins;
+    const bossKillsBefore = player.stats.bossesKilled || 0;
+    playerAttack();
+
+    assert.equal(boss.health, 0, 'the lethal hit is committed before rewards are paid');
+    const lethalSave = Storage.load().player;
+    assert.equal(lethalSave.dungeonProgress.dragon_lair.activeEncounter.enemy.id, bossId);
+    assert.equal(lethalSave.dungeonProgress.dragon_lair.activeEncounter.enemy.health, 0);
+    assert.equal(lethalSave.dungeonProgress.dragon_lair.activeEncounter.isBossBattle, true);
+    assert.equal(lethalSave.campaignCompleted, false);
+    assert.equal(lethalSave.newGamePlusUnlocked, false);
+    assert.equal(scheduled.length, 1, 'the original attack animation has not been resolved');
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('dragon_lair');
+    startStageBattle();
+
+    const completed = Storage.load().player;
+    assert.equal(battle.isActive, false, 'reload resolves the saved lethal final encounter');
+    assert.equal(getLocationState().inLocation, false);
+    assert.equal(getLocationState().currentLocation, null);
+    assert.equal(completed.dungeonProgress.dragon_lair, undefined);
+    assert.equal(completed.dungeonCheckpoints.dragon_lair, undefined);
+    assert.equal(completed.campaignCompleted, true);
+    assert.equal(completed.newGamePlusUnlocked, true);
+    assert.equal(completed.completedCampaignCycles, 1);
+    assert.equal(completed.lastCompletedCampaignCycle, 1);
+    assert.ok(completed.campaignCompletedAt);
+    assert.equal(completed.locationRewardCycles.dragon_lair, 1);
+    assert.equal(completed.stats.wins, winsBefore + 1);
+    assert.equal(completed.stats.bossesKilled, bossKillsBefore + 1);
+    assert.ok(completed.experience > expBefore);
+    assert.ok(completed.gold > goldBefore);
+    assert.ok(completed.inventory.some(item => item.id === 'rune_world_fragment'),
+        'the final region reward is granted with campaign completion');
+    assert.equal(scheduled.length, 2, 'the ending transition is scheduled once after the original attack timer');
+
+    battleVictory();
+    assert.equal(handleBossVictory(), false, 'a duplicate final boss completion cannot run after campaign end');
+    const afterDuplicate = Storage.load().player;
+    assert.equal(afterDuplicate.completedCampaignCycles, 1);
+    assert.equal(afterDuplicate.lastCompletedCampaignCycle, 1);
+    assert.equal(afterDuplicate.locationRewardCycles.dragon_lair, 1);
+    assert.equal(afterDuplicate.stats.bossesKilled, bossKillsBefore + 1);
+    assert.equal(afterDuplicate.inventory.filter(item => item.id === 'rune_world_fragment')
+        .reduce((sum, item) => sum + item.quantity, 0), 1);
 });

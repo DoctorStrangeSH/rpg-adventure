@@ -4,7 +4,7 @@ import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
-import { getBattleState, playerDefend } from '../js/ui/battle.js';
+import { getBattleState, playerAttack, playerDefend } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 
 function setup(t, options = {}) {
@@ -544,4 +544,89 @@ test('a committed player defence restores as the pending enemy turn after reload
         'reload schedules one resumed enemy turn, rather than replaying the player action');
     assert.equal(values.has(RECOVERY_SAVE_KEY), false,
         'ordinary reload does not fabricate a recovery copy');
+});
+
+
+test('a committed player attack restores the damaged enemy and pending enemy turn after reload', (t) => {
+    const values = setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive,
+        currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite,
+        enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle,
+        isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle,
+        turn: battle.turn,
+        guardReduction: battle.guardReduction,
+        relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {},
+        updateMapScreen() {}, exitBattle() {}, showBattleMessage() {},
+        getLocationState, resetLocationState, startStageBattle,
+        updateQuestProgress() {}, updateAchievements() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    const enemyId = battle.currentEnemy.id;
+    const enemyHealthBefore = battle.currentEnemy.health;
+
+    playerAttack();
+
+    assert.equal(battle.isActive, true);
+    assert.ok(battle.currentEnemy.health < enemyHealthBefore,
+        'the real attack must reduce the active enemy HP');
+    assert.equal(battle.turn, 'enemy');
+    const savedEncounter = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(savedEncounter.enemy.id, enemyId);
+    assert.equal(savedEncounter.enemy.health, battle.currentEnemy.health);
+    assert.equal(savedEncounter.turn, 'enemy');
+    assert.equal(scheduled.length, 1, 'the original enemy-turn delay is pending');
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.health, savedEncounter.enemy.health);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(scheduled.length, 2,
+        'reload schedules exactly one resumed enemy turn without replaying the player attack');
 });

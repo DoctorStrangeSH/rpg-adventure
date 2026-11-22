@@ -365,7 +365,7 @@ test('recovery restore resumes the exact active expedition boss encounter', (t) 
     assert.equal(battle.isBossBattle, true);
     assert.equal(battle.isLocationBattle, true);
     assert.equal(battle.isDungeonBattle, true);
-    assert.equal(battle.turn, 'enemy');
+    assert.equal(battle.turn, 'player');
     assert.equal(battle.guardReduction, 0.75);
     assert.deepEqual(battle.relicEffects, { phoenixRebirthUsed: true });
     assert.equal(battle.currentEnemy.id, 'forest_guardian');
@@ -942,7 +942,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     assert.equal(battle.currentEnemy.effects.weakenTurns, savedEncounter.enemy.effects.weakenTurns);
     assert.equal(gameState.player.mana, manaBefore - 10);
     assert.equal(battle.turn, 'enemy');
-    assert.equal(scheduled.length, 1, 'reload schedules only the pending enemy turn');
+    assert.equal(scheduled.length, 2, 'reload retains the original continuation and schedules the resumed enemy turn');
 });
 
 
@@ -1025,7 +1025,7 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     assert.equal(battle.guardReduction, 0.75);
     assert.equal(gameState.player.mana, manaBefore - 15);
     assert.equal(battle.turn, 'enemy');
-    assert.equal(scheduled.length, 1, 'reload schedules only the pending enemy turn');
+    assert.equal(scheduled.length, 2, 'reload retains the original continuation and schedules the resumed enemy turn');
 });
 
 
@@ -1105,7 +1105,7 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     assert.equal(battle.currentEnemy.id, enemyId);
     assert.equal(battle.currentEnemy.archerMarks, 1);
     assert.equal(battle.turn, 'enemy');
-    assert.equal(scheduled.length, 1, 'reload resumes the pending enemy turn exactly once');
+    assert.equal(scheduled.length, 2, 'reload retains the original continuation and schedules the resumed enemy turn');
     while (scheduled.length) scheduled.shift()();
     assert.equal(battle.turn, 'player', 'the hero acts again after the resumed enemy turn');
     const healthBeforeSkill = battle.currentEnemy.health;

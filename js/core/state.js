@@ -1,5 +1,4 @@
 // Управление состоянием игры
-import { GAME_CONFIG } from '../config/constants.js';
 import { CLASSES } from '../data/classes.js';
 import { QUESTS } from '../data/quests.js';
 import { ACHIEVEMENTS } from '../data/achievements.js';

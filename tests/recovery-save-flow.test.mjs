@@ -6,6 +6,7 @@ import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
 import { getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, startLocation, startStageBattle } from '../js/systems/dungeon.js';
+import { tickEnemyEffects } from '../js/systems/combat.js';
 
 function setup(t, options = {}) {
     const previousStorage = globalThis.localStorage;
@@ -993,4 +994,193 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     assert.equal(gameState.player.mana, manaBefore - 15);
     assert.equal(battle.turn, 'player');
     assert.equal(scheduled.length, 1, 'reload does not replay the original skill continuation');
+});
+
+
+test('an archer basic shot persists its mark and rapid shot consumes it once after reload', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, updateQuestProgress() {}, updateAchievements() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('archer');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    const enemyId = battle.currentEnemy.id;
+    const healthBeforeShot = battle.currentEnemy.health;
+
+    playerAttack();
+
+    assert.equal(battle.turn, 'player', 'the dungeon attack snapshot is committed before its animation timer');
+    assert.equal(battle.currentEnemy.archerMarks, 1);
+    assert.ok(battle.currentEnemy.health < healthBeforeShot);
+    const attackSave = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(attackSave.enemy.archerMarks, 1);
+    assert.equal(attackSave.turn, 'player');
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.archerMarks, 1);
+    const healthBeforeSkill = battle.currentEnemy.health;
+    const manaBeforeSkill = gameState.player.mana;
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+
+    playerSkill('rapid_shot');
+
+    assert.equal(gameState.player.mana, manaBeforeSkill - 15);
+    assert.ok(battle.currentEnemy.health < healthBeforeSkill, 'rapid shot must deal its two-hit damage');
+    assert.equal(battle.currentEnemy.archerMarks, 0, 'the saved mark is consumed exactly once');
+    assert.ok(battle.currentEnemy.effects?.bleedTurns > 0, 'rapid shot applies bleeding');
+    const skillSave = Storage.load().player;
+    const savedEncounter = skillSave.dungeonProgress.forest.activeEncounter;
+    assert.equal(savedEncounter.enemy.id, enemyId);
+    assert.equal(savedEncounter.enemy.archerMarks, 0);
+    assert.equal(savedEncounter.enemy.effects.bleedTurns, battle.currentEnemy.effects.bleedTurns);
+    assert.equal(savedEncounter.enemy.health, battle.currentEnemy.health);
+    assert.equal(skillSave.mana, manaBeforeSkill - 15);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.archerMarks, 0);
+    assert.equal(battle.currentEnemy.effects.bleedTurns, savedEncounter.enemy.effects.bleedTurns);
+    assert.equal(battle.currentEnemy.health, savedEncounter.enemy.health);
+    assert.equal(gameState.player.mana, manaBeforeSkill - 15);
+});
+
+test('an archer poison arrow restores poison and bleeding synergy after reload', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, updateQuestProgress() {}, updateAchievements() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('archer');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    const enemy = battle.currentEnemy;
+    const enemyId = enemy.id;
+    enemy.effects = { bleedTurns: 2 };
+    const healthBefore = enemy.health;
+    const manaBefore = player.mana;
+
+    playerSkill('poison_arrow');
+
+    assert.equal(player.mana, manaBefore - 20);
+    assert.ok(enemy.health < healthBefore);
+    assert.equal(enemy.effects.poisonTurns, 3);
+    assert.equal(enemy.effects.bleedTurns, 2);
+    const saved = Storage.load().player;
+    const savedEncounter = saved.dungeonProgress.forest.activeEncounter;
+    assert.equal(savedEncounter.enemy.id, enemyId);
+    assert.equal(savedEncounter.enemy.effects.poisonTurns, 3);
+    assert.equal(savedEncounter.enemy.effects.bleedTurns, 2);
+    assert.equal(savedEncounter.enemy.health, enemy.health);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.effects.poisonTurns, 3);
+    assert.equal(battle.currentEnemy.effects.bleedTurns, 2);
+    assert.equal(gameState.player.mana, manaBefore - 20);
+    const tick = tickEnemyEffects(battle.currentEnemy);
+    assert.ok(tick.poisonDamage > 0);
+    assert.ok(tick.bleedDamage > 0);
+    assert.ok(tick.woundPoisonDamage > 0,
+        'the restored poison and bleeding both trigger their combined wound-poison damage');
 });

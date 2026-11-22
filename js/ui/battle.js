@@ -1,5 +1,6 @@
 // Экран боя
 import { gameState } from '../core/state.js';
+import { createTaskScope } from '../core/asyncScope.js';
 import { registerDungeonBattleAdapter } from '../ports/dungeonBattlePort.js';
 import { addEventListenerOnce } from '../core/listeners.js';
 import { CLASSES } from '../data/classes.js';
@@ -23,6 +24,7 @@ const projectileFx = new ProjectileFx();
 const bossSpellFx = new BossSpellFx();
 const WEAPON_EFFECT_NAMES = { burn: 'горение', bleed: 'кровотечение', freeze: 'заморозка' };
 let damageTexts = [];
+const battleTasks = createTaskScope();
 let isProcessing = false;
 let animationRunning = false;
 let battleResizeObserver = null;
@@ -120,6 +122,7 @@ function commitCurrentBattleState(player, playerSnapshot, failureMessage) {
 export function restoreDungeonEncounter(snapshot) {
     const player = gameState.player;
     if (!snapshot?.enemy || !player) return false;
+    battleTasks.invalidate();
     const enemy = cloneBattleEntity(snapshot.enemy);
     if (!enemy || enemy.health < 0 || enemy.health > enemy.maxHealth) return false;
     resetBattlePresentation();
@@ -150,7 +153,7 @@ export function restoreDungeonEncounter(snapshot) {
         return true;
     }
     if (battleState.turn === 'enemy') {
-        setTimeout(() => {
+        battleTasks.schedule(() => {
             if (battleState.isActive && battleState.turn === 'enemy') enemyTurn();
         }, 250);
     }
@@ -259,6 +262,8 @@ export function startBattle(location) {
         return;
     }
 
+    battleTasks.invalidate();
+    battleTasks.invalidate();
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
     battleState.animationFrame = 0;
@@ -621,7 +626,7 @@ export function playerAttack() {
     
     showBattleMessage(`Вы нанесли ${damage} урона!${damageFeedback ? ` ${damageFeedback}!` : ''}${warriorOpening ? ' ⚔️ Добивающий удар по ослабленной цели!' : ''}${tacticalBonus.attackMultiplier > 1 ? ' 🎯 Удар по открытой цели!' : ''}${isCrit ? ' КРИТ!' : ''}${weaponEffect ? ` Эффект оружия: ${WEAPON_EFFECT_NAMES[weaponEffect]}!` : ''}${rangerBleed ? ' Следопыт вызвал кровотечение!' : ''}${archerMarks ? ` 🎯 Метки: ${archerMarks}/2 (усилят следующий навык)!` : ''}${dragonEcho ? ` 🐉 Эхо дракона: +${dragonEcho} урона!` : ''}${moonMana ? ` 🌙 Лунный прилив: +${moonMana} маны!` : ''}`);
     
-    setTimeout(() => {
+    battleTasks.schedule(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         battleState.playerSprite.isAttacking = false;
         
@@ -667,7 +672,7 @@ export function playerDefend() {
     showBattleMessage('Вы готовитесь отразить следующий удар!');
     
     battleState.turn = 'enemy';
-    setTimeout(() => {
+    battleTasks.schedule(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         enemyTurn();
     }, 350);
@@ -730,7 +735,7 @@ export function playerSkill(skillId) {
     showBattleMessage(`${skill.name}! ${result.damage ? `Урон: ${result.damage}.` : ''}${damageFeedback ? ` ${damageFeedback}.` : ''}${effect}`);
     updateBattleUI();
     
-    setTimeout(() => {
+    battleTasks.schedule(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         battleState.playerSprite.isAttacking = false;
         
@@ -782,7 +787,7 @@ export function playerUseItem(potionId = 'health_potion') {
     const resourceLabel = potionId === 'mana_potion' ? 'MP' : 'HP';
     showBattleMessage(`Вы использовали ${potionData.name}! +${restored} ${resourceLabel}`);
     battleState.turn = 'enemy';
-    setTimeout(() => {
+    battleTasks.schedule(() => {
         if (!battleState.isActive) return;
         enemyTurn();
     }, 1000);
@@ -798,7 +803,7 @@ export function playerFlee() {
     const enemy = battleState.currentEnemy;
     
     if (Math.random() < 0.7) {
-            setTimeout(() => {
+            battleTasks.schedule(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
             isProcessing = false;
             
@@ -910,7 +915,7 @@ function enemyTurn() {
     bossSpellFx.start(action, battleState.enemySprite, battleState.playerSprite,
         battleState.animationFrame);
     
-    setTimeout(() => {
+    battleTasks.schedule(() => {
         if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
         SoundSystem.playSound('hit');
         
@@ -969,7 +974,7 @@ function enemyTurn() {
             result.healed ? `${enemy.name} восстанавливает ${result.healed} HP!` :
             `${enemy.name} наносит ${damage} урона!${result.manaBurned ? ` -${result.manaBurned} MP` : ''}${result.reflected ? ` Контратака: ${result.reflected} урона!` : ''}${result.lifeStolen ? ` Вампиризм: +${result.lifeStolen} HP!` : ''}${result.soulDrain ? ` Похищение жизни: +${result.soulDrain} HP!` : ''}${result.enraged ? ' ЯРОСТЬ!' : ''}${result.armorEffect === 'freeze' ? ' ❄️ Ледяная броня заморозила врага!' : ''}${result.armorHealed ? ` 🩸 Кровавый доспех: +${result.armorHealed} HP!` : ''}${parried ? ` ⚔️ Идеальный блок! Контрудар: ${parried} урона!` : ''}`);
         
-        setTimeout(() => {
+        battleTasks.schedule(() => {
             if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
             if (player.health <= 0) {
                 SoundSystem.playSound('defeat');
@@ -1010,6 +1015,7 @@ export function battleVictory() {
         return;
     }
     
+    battleTasks.invalidate();
     battleState.isActive = false;
     isProcessing = false;
     
@@ -1052,7 +1058,7 @@ export function battleVictory() {
             if (committed !== true) {
                 restorePlayerSnapshot(player, playerBeforeBattle);
                 window.showNotification?.('Не удалось сохранить награды босса. Бой будет предложен повторно.', 'error');
-                setTimeout(() => {
+                battleTasks.schedule(() => {
                     if (locationState?.inLocation && !battleState.isActive) window.startStageBattle?.();
                 }, 500);
                 return;
@@ -1062,7 +1068,7 @@ export function battleVictory() {
             if (committed !== true) {
                 restorePlayerSnapshot(player, playerBeforeBattle);
                 window.showNotification?.('Не удалось сохранить награду боя. Бой будет предложен повторно.', 'error');
-                setTimeout(() => {
+                battleTasks.schedule(() => {
                     if (locationState?.inLocation && !battleState.isActive) window.startStageBattle?.();
                 }, 500);
                 return;
@@ -1079,7 +1085,7 @@ export function battleVictory() {
             return;
         }
         battleState.pendingVictorySave = false;
-        setTimeout(() => {
+        battleTasks.schedule(() => {
             exitBattle();
         }, 2000);
     }
@@ -1093,6 +1099,7 @@ export function battleDefeat() {
     
     const playerBeforeDefeat = createPlayerSnapshot(player);
     if (!playerBeforeDefeat) return;
+    battleTasks.invalidate();
     battleState.isActive = false;
     isProcessing = false;
     battleState.deathAnimationEndFrame = battleState.animationFrame + 72;
@@ -1126,12 +1133,13 @@ export function battleDefeat() {
     showBattleMessage(`Вы погибли! Потеряно ${goldLoss} золота!`);
     window.updateMainMenu?.();
     
-    setTimeout(() => {
+    battleTasks.schedule(() => {
         exitBattle();
         window.showScreen('map-screen');
     }, 2000);
 }
 
+    battleTasks.invalidate();
 export function exitBattle() {
     // The header back button can exit an active dungeon directly. Clear the
     // run before leaving, otherwise its inLocation flag blocks new attempts.

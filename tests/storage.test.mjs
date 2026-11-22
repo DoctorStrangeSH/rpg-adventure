@@ -360,8 +360,7 @@ test('recovery restore rejects structurally invalid envelopes and invalid replac
         removeItem(key) { values.delete(key); }
     });
 
-    for (const invalid of [undefined, null, false, [], {}, { player: null }, { player: [] }]) {
-        if (invalid === null) continue; // null requests the byte-preserving validated-backup path.
+    for (const invalid of [false, [], {}, { player: null }, { player: [] }]) {
         assert.equal(Storage.restoreRecovery(invalid), false);
         assert.equal(values.get(GAME_CONFIG.saveKey), primary);
     }

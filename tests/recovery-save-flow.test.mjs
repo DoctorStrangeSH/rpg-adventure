@@ -4,7 +4,7 @@ import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { LOCATIONS, getLocation } from '../js/data/locations.js';
-import { battleDefeat, battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
+import { battleDefeat, battleVictory, exitBattle, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, handleBossVictory, handleDefeat, handleVictory, startBossFight, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 import { getBossPhase, tickEnemyEffects } from '../js/systems/combat.js';
 import { canStartNewGamePlus, completeCampaign, prepareNewGamePlus, startNewGamePlus } from '../js/systems/newGamePlus.js';
@@ -13,6 +13,7 @@ function setup(t, options = {}) {
     const previousStorage = globalThis.localStorage;
     const previousPlayer = gameState.player;
     const values = new Map();
+    globalThis.requestAnimationFrame = () => 0;
     globalThis.localStorage = {
         getItem(key) { return values.get(key) ?? null; },
         setItem(key, value) {
@@ -300,6 +301,7 @@ test('recovery restore resumes the exact active expedition boss encounter', (t) 
     battle.currentEnemy = null;
 
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -515,6 +517,7 @@ test('a committed player defence restores as the pending enemy turn after reload
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     const enemyId = battle.currentEnemy.id;
@@ -536,6 +539,7 @@ test('a committed player defence restores as the pending enemy turn after reload
     battle.currentEnemy = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     assert.equal(battle.isActive, true);
@@ -601,6 +605,7 @@ test('a committed player attack restores the damaged enemy and pending enemy tur
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     const enemyId = battle.currentEnemy.id;
@@ -625,6 +630,7 @@ test('a committed player attack restores the damaged enemy and pending enemy tur
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     assert.equal(battle.isActive, true);
@@ -681,6 +687,7 @@ test('a committed mage fireball restores mana, enemy HP and burn without replayi
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     battle.playerSprite = { isAttacking: false };
@@ -712,6 +719,7 @@ test('a committed mage fireball restores mana, enemy HP and burn without replayi
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     assert.equal(battle.isActive, true);
@@ -771,6 +779,7 @@ test('a committed frost nova restores freeze and thermal shock without replaying
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     battle.playerSprite = { isAttacking: false };
@@ -811,6 +820,7 @@ test('a committed frost nova restores freeze and thermal shock without replaying
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     assert.equal(battle.isActive, true);
@@ -882,6 +892,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     battle.playerSprite = { isAttacking: false };
@@ -913,6 +924,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     assert.equal(battle.isActive, true);
@@ -967,6 +979,7 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     battle.playerSprite = { isAttacking: false };
@@ -993,6 +1006,7 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     assert.equal(battle.isActive, true);
@@ -1049,6 +1063,7 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     battle.playerSprite = { isAttacking: false };
     battle.enemySprite = { receiveHit() {} };
@@ -1071,6 +1086,7 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.currentEnemy.id, enemyId);
     assert.equal(battle.currentEnemy.archerMarks, 1);
@@ -1100,6 +1116,7 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.currentEnemy.id, enemyId);
     assert.equal(battle.currentEnemy.archerMarks, 0);
@@ -1153,6 +1170,7 @@ test('an archer poison arrow restores poison and bleeding synergy after reload',
     player.unlockedLocations = ['forest'];
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     battle.playerSprite = { isAttacking: false };
     battle.enemySprite = { receiveHit() {} };
@@ -1182,6 +1200,7 @@ test('an archer poison arrow restores poison and bleeding synergy after reload',
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.currentEnemy.id, enemyId);
     assert.equal(battle.currentEnemy.effects.poisonTurns, 3);
@@ -1244,6 +1263,7 @@ test('a lethal saved encounter grants victory rewards exactly once when restored
     player.gold = 500;
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     battle.playerSprite = { isAttacking: false };
@@ -1270,6 +1290,7 @@ test('a lethal saved encounter grants victory rewards exactly once when restored
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     assert.equal(battle.isActive, false, 'restoring a lethal encounter resolves the pending victory');
@@ -1348,6 +1369,7 @@ test('a lethal recovered boss advances the expedition and commits boss rewards e
     player.gold = 500;
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     const state = getLocationState();
     const location = state.currentLocation;
     const bossStageIndex = location.stages.findIndex(stage => stage.boss && !stage.boss.miniBoss);
@@ -1384,6 +1406,7 @@ test('a lethal recovered boss advances the expedition and commits boss rewards e
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     const restored = Storage.load().player;
@@ -1462,6 +1485,7 @@ test('a dungeon defeat commits the gold penalty and expedition reset exactly onc
     player.dungeonCheckpoints = { forest: { stage: 4, health: 50 } };
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     assert.equal(battle.isActive, true);
     player.health = 0;
@@ -1528,7 +1552,6 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
         querySelector() { return null; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
-    globalThis.requestAnimationFrame = callback => { scheduled.push(callback); return scheduled.length; };
     resetLocationState();
     battle.isActive = false;
     battle.currentEnemy = null;
@@ -1551,6 +1574,7 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
     player.dungeonCheckpoints = { forest: { stage: 3, health: 42 } };
     getLocation('forest').unlocked = true;
     startLocation('forest');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
     player.health = 0;
     battle.playerSprite = { beginDeath() {} };
@@ -1643,6 +1667,7 @@ test('the World Eater final boss completes the campaign exactly once after reloa
     const dragonLair = getLocation('dragon_lair');
     dragonLair.unlocked = true;
     startLocation('dragon_lair');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     const state = getLocationState();
     const location = state.currentLocation;
     const finalStageIndex = location.stages.length - 1;
@@ -1689,6 +1714,7 @@ test('the World Eater final boss completes the campaign exactly once after reloa
     battle.enemySprite = null;
     assert.equal(gameState.load(), true);
     startLocation('dragon_lair');
+    scheduled.pop(); // Ignore the delayed auto-start; this test starts the stage explicitly.
     startStageBattle();
 
     const completed = Storage.load().player;

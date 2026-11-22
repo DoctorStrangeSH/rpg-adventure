@@ -243,3 +243,59 @@ test('repeated quota failures never replace the first recovery copy or primary s
     assert.equal(values.get(GAME_CONFIG.saveKey), original);
     assert.equal(values.get(RECOVERY_SAVE_KEY), firstRecovery);
 });
+
+
+test('invalid save envelopes are rejected before touching primary or recovery data', (t) => {
+    const original = JSON.stringify({ schemaVersion: 2, player: { class: 'warrior', level: 12 } });
+    const recovery = JSON.stringify({ schemaVersion: 1, player: { class: 'mage', level: 7 } });
+    const values = new Map([
+        [GAME_CONFIG.saveKey, original],
+        [RECOVERY_SAVE_KEY, recovery]
+    ]);
+    let writes = 0;
+    installStorage(t, {
+        setItem(key, value) { writes++; values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+
+    const invalid = [
+        undefined,
+        null,
+        false,
+        0,
+        'not-a-save',
+        [],
+        {},
+        { player: null },
+        { player: [] },
+        { player: 'invalid' },
+        { player: { class: 'warrior' }, toJSON() { return null; } },
+        { player: { class: 'warrior' }, toJSON() { return 'not-json-envelope'; } }
+    ];
+
+    for (const candidate of invalid) {
+        assert.equal(Storage.save(candidate), false);
+        assert.equal(values.get(GAME_CONFIG.saveKey), original);
+        assert.equal(values.get(RECOVERY_SAVE_KEY), recovery);
+    }
+    assert.equal(writes, 0, 'invalid envelopes must not write either storage key');
+});
+
+test('circular save payloads are rejected without replacing the existing profile', (t) => {
+    const original = JSON.stringify({ player: { class: 'archer', level: 9 } });
+    const values = new Map([[GAME_CONFIG.saveKey, original]]);
+    installStorage(t, {
+        setItem(key, value) { values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+    const circular = { player: { class: 'mage' } };
+    circular.self = circular;
+    const originalError = console.error;
+    console.error = () => {};
+    t.after(() => { console.error = originalError; });
+
+    assert.equal(Storage.save(circular), false);
+    assert.equal(values.get(GAME_CONFIG.saveKey), original);
+});

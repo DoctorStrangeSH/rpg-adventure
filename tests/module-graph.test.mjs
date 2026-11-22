@@ -91,17 +91,12 @@ test('JavaScript module dependencies respect documented architecture layers', ()
     const violations = [];
 
     const forbiddenTargets = {
-        core: new Set(['ui']),
-        data: new Set(['systems', 'ui']),
-        systems: new Set(['ui']),
-        entities: new Set(['ui'])
+        core: new Set(['ports', 'ui']),
+        data: new Set(['ports', 'systems', 'ui']),
+        entities: new Set(['ports', 'ui']),
+        ports: new Set(['core', 'data', 'entities', 'systems', 'ui']),
+        systems: new Set(['ui'])
     };
-    // Temporary migration boundary: dungeon orchestration still owns two battle presentation calls.
-    const allowedLegacyEdges = new Set([
-        'systems/dungeon.js -> ui/battle.js',
-        'systems/dungeon.js -> ui/battleLayout.js'
-    ]);
-    const observedLegacyEdges = [];
 
     for (const [source, dependencies] of graph) {
         const sourcePath = relative(root, source).replaceAll('\\\\', '/');
@@ -115,11 +110,7 @@ test('JavaScript module dependencies respect documented architecture layers', ()
             if (!forbidden.has(targetLayer)) continue;
 
             const edge = `${sourcePath} -> ${targetPath}`;
-            if (allowedLegacyEdges.has(edge)) {
-                observedLegacyEdges.push(edge);
-                continue;
-            }
-            violations.push({
+                        violations.push({
                 from: sourcePath,
                 to: targetPath,
                 rule: `${sourceLayer} must not depend on ${targetLayer}`
@@ -127,7 +118,5 @@ test('JavaScript module dependencies respect documented architecture layers', ()
         }
     }
 
-    assert.deepEqual([...observedLegacyEdges].sort(), [...allowedLegacyEdges].sort(),
-        'legacy UI coupling must remain explicit and cannot silently spread');
     assert.deepEqual(violations, [], 'keep new dependencies aligned with docs/ARCHITECTURE.md');
 });

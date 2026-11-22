@@ -109,8 +109,7 @@ test('JavaScript module dependencies respect documented architecture layers', ()
             const targetLayer = targetPath.split('/')[0];
             if (!forbidden.has(targetLayer)) continue;
 
-            const edge = `${sourcePath} -> ${targetPath}`;
-                        violations.push({
+            violations.push({
                 from: sourcePath,
                 to: targetPath,
                 rule: `${sourceLayer} must not depend on ${targetLayer}`

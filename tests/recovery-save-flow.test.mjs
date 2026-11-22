@@ -914,6 +914,5 @@ test('a committed warrior power strike restores weaken and mana without replayin
     assert.equal(battle.currentEnemy.effects.weakenTurns, savedEncounter.enemy.effects.weakenTurns);
     assert.equal(gameState.player.mana, manaBefore - 10);
     assert.equal(battle.turn, 'player');
-    assert.equal(scheduled.length, 2, 'restored player turn is available and original timer is not replayed');
-    assert.equal(scheduled[1], undefined, 'reload must not create a delayed enemy turn for a committed player action');
+    assert.equal(scheduled.length, 1, 'reload does not replay the original delayed enemy turn');
 });

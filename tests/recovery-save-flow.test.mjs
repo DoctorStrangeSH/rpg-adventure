@@ -1541,6 +1541,7 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
     battle.playerSprite = { beginDeath() {} };
     const progressBefore = structuredClone(player.dungeonProgress.forest);
     const checkpointBefore = structuredClone(player.dungeonCheckpoints.forest);
+    const savedBeforeFailure = Storage.load();
 
     options.failActiveWrite = true;
     battleDefeat();
@@ -1554,7 +1555,7 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
     assert.equal(getLocationState().currentLocation.id, 'forest');
     assert.deepEqual(player.dungeonProgress.forest, progressBefore);
     assert.deepEqual(player.dungeonCheckpoints.forest, checkpointBefore);
-    assert.equal(Storage.load(), null, 'failed storage write leaves no partial profile');
+    assert.deepEqual(Storage.load(), savedBeforeFailure, 'failed storage write leaves the previous profile unchanged');
     assert.equal(scheduled.length, 0, 'no post-defeat navigation is scheduled on failure');
 
     options.failActiveWrite = false;

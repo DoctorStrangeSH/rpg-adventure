@@ -228,6 +228,7 @@
 - [ ] Все MUST и Definition of Done из ТЗ выполнены.
 - [ ] [Release checklist](docs/RELEASE_CHECKLIST.md) заполнен.
 - [x] Gameplay tests run #770 — 502/502 passed, 0 failed на commit `78c9bb58`; ручные браузерные прогоны остаются отдельной приёмкой.
+- [x] После исправления тестовых фикстур NG++/recovery и изоляции отложенных callbacks полный GitHub Actions suite: **605/605 passed, 0 failed** на commit `de9e323e` (Node.js 22). [Workflow run](https://github.com/DoctorStrangeSH/rpg-adventure/actions/runs/44997201846).
 - [ ] Версия, README и release notes обновлены.
 - [ ] Выпуск RPG Adventure 1.0.
 

@@ -1,17 +1,4 @@
-# Файлы Python (если есть)
-__pycache__/
-*.py[cod]
-
-# Системные файлы
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Временные файлы
-*.tmp
-*.log
-
-# Node.js / local test artifacts
+# Dependencies and generated test output
 node_modules/
 coverage/
 .nyc_output/
@@ -22,8 +9,15 @@ coverage/
 !.env.example
 !.env.*.example
 
-# Editor metadata
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor and temporary files
 .vscode/
 .idea/
 *.swp
 *.swo
+*.tmp
+*.log

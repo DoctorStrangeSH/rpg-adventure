@@ -4,7 +4,7 @@ import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
-import { getBattleState } from '../js/ui/battle.js';
+import { getBattleState, playerDefend } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 
 function setup(t, options = {}) {
@@ -463,4 +463,85 @@ test('a malformed primary save never replaces the active in-memory profile durin
     assert.equal(gameState.load(), false);
     assert.deepEqual(gameState.player, activeBefore);
     assert.equal(values.get(GAME_CONFIG.saveKey), damagedPrimary);
+});
+
+
+test('a committed player defence restores as the pending enemy turn after reload', (t) => {
+    const values = setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive,
+        currentEnemy: battle.currentEnemy,
+        isBossBattle: battle.isBossBattle,
+        isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle,
+        turn: battle.turn,
+        guardReduction: battle.guardReduction,
+        relicEffects: structuredClone(battle.relicEffects)
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {},
+        updateMapScreen() {}, exitBattle() {}, showBattleMessage() {},
+        getLocationState,
+        resetLocationState,
+        startStageBattle
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    const enemyId = battle.currentEnemy.id;
+    const enemyHealth = battle.currentEnemy.health;
+
+    playerDefend();
+
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(battle.guardReduction > 0, true);
+    const committed = Storage.load().player.dungeonProgress.forest.activeEncounter;
+    assert.equal(committed.enemy.id, enemyId);
+    assert.equal(committed.enemy.health, enemyHealth);
+    assert.equal(committed.turn, 'enemy');
+    assert.equal(committed.guardReduction, battle.guardReduction);
+    assert.equal(scheduled.length, 1, 'the original enemy-turn timer is pending');
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.currentEnemy.id, enemyId);
+    assert.equal(battle.currentEnemy.health, enemyHealth);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(battle.guardReduction, committed.guardReduction);
+    assert.equal(scheduled.length, 2,
+        'reload schedules one resumed enemy turn, rather than replaying the player action');
+    assert.equal(values.has(RECOVERY_SAVE_KEY), false,
+        'ordinary reload does not fabricate a recovery copy');
 });

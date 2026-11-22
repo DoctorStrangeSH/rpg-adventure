@@ -397,6 +397,7 @@ test('a malformed active encounter in recovery is discarded without losing exped
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         battle.isActive = previousBattle.isActive;
         battle.currentEnemy = previousBattle.currentEnemy;
@@ -1460,6 +1461,7 @@ test('a lethal recovered boss advances the expedition and commits boss rewards e
         bossesKilled: gameState.player.stats.bossesKilled
     }, committed, 'a duplicate boss victory callback cannot pay boss rewards twice');
     assert.equal(Storage.load().player.dungeonProgress.forest.enemiesDefeated, 0);
+    exitBattle(); // Cancel the resumed stage before restoring the test globals.
 });
 
 

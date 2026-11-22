@@ -5,7 +5,7 @@ import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
 import { getBattleState } from '../js/ui/battle.js';
-import { getLocationState, resetLocationState, completeLocation } from '../js/systems/dungeon.js';
+import { getLocationState, resetLocationState, completeLocation, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 
 function setup(t, options = {}) {
     const previousStorage = globalThis.localStorage;
@@ -264,6 +264,111 @@ test('recovered regional reward claims prevent duplicate items, gold and experie
     assert.deepEqual(restoredPlayer.inventory, rewardSnapshot.inventory);
     assert.equal(restoredPlayer.locationRewardCycles.forest, rewardSnapshot.claimCycle);
     assert.equal(values.get(RECOVERY_SAVE_KEY), recovery, 'the recovery snapshot must remain unchanged');
+});
+
+
+test('recovery restore resumes the exact active expedition boss encounter', (t) => {
+    const values = setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive,
+        currentEnemy: battle.currentEnemy,
+        isBossBattle: battle.isBossBattle,
+        isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle,
+        turn: battle.turn,
+        guardReduction: battle.guardReduction,
+        relicEffects: structuredClone(battle.relicEffects)
+    };
+    globalThis.window = {
+        showScreen() {},
+        showNotification() {},
+        updateMainMenu() {},
+        updateMapScreen() {},
+        exitBattle() {},
+        showBattleMessage() {}
+    };
+    globalThis.document = { getElementById() { return { innerHTML: '' }; } };
+    globalThis.setTimeout = () => 0;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.level = 18;
+    player.unlockedLocations = ['forest'];
+    const location = getLocation('forest');
+    location.unlocked = true;
+    const encounter = {
+        enemy: {
+            id: 'forest_guardian',
+            name: 'Страж леса',
+            health: 437,
+            maxHealth: 900,
+            attack: 52,
+            defense: 18,
+            behavior: 'boss',
+            intent: 'heavy',
+            phase: 2,
+            effects: { burnTurns: 2, poisonTurns: 1 },
+            archerMarks: 1,
+            adaptiveResistance: { type: 'fire', turns: 2 }
+        },
+        isBossBattle: true,
+        turn: 'player',
+        guardReduction: 0.75,
+        relicEffects: { phoenixRebirthUsed: true }
+    };
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 8,
+            enemiesDefeated: location.stages[8].enemiesCount,
+            activeEncounter: structuredClone(encounter)
+        }
+    };
+
+    const recovery = JSON.stringify({ schemaVersion: 2, player });
+    values.set(RECOVERY_SAVE_KEY, recovery);
+    values.set(GAME_CONFIG.saveKey, '{damaged-primary-before-recovery}');
+
+    assert.equal(gameState.canRestoreRecovery(), true);
+    assert.equal(gameState.restoreRecovery(), true);
+    assert.deepEqual(gameState.player.dungeonProgress.forest.activeEncounter, encounter);
+    assert.equal(values.get(RECOVERY_SAVE_KEY), recovery);
+
+    startLocation('forest');
+    assert.equal(getLocationState().activeEncounter.enemy.health, 437);
+    startStageBattle();
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    assert.equal(battle.isLocationBattle, true);
+    assert.equal(battle.isDungeonBattle, true);
+    assert.equal(battle.turn, 'player');
+    assert.equal(battle.guardReduction, 0.75);
+    assert.deepEqual(battle.relicEffects, { phoenixRebirthUsed: true });
+    assert.equal(battle.currentEnemy.id, 'forest_guardian');
+    assert.equal(battle.currentEnemy.health, 437);
+    assert.equal(battle.currentEnemy.intent, 'heavy');
+    assert.equal(battle.currentEnemy.phase, 2);
+    assert.deepEqual(battle.currentEnemy.effects, { burnTurns: 2, poisonTurns: 1 });
+    assert.deepEqual(battle.currentEnemy.adaptiveResistance, { type: 'fire', turns: 2 });
+    assert.equal(values.get(RECOVERY_SAVE_KEY), recovery,
+        'resuming the recovered encounter must not consume or rewrite the backup');
 });
 
 test('a malformed primary save never replaces the active in-memory profile during reload', (t) => {

@@ -881,6 +881,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
     Math.random = () => 0.99;
+    scheduled.length = 0; // A real reload cancels the pre-reload animation callback.
     resetLocationState();
     battle.isActive = false;
     battle.currentEnemy = null;
@@ -940,8 +941,8 @@ test('a committed warrior power strike restores weaken and mana without replayin
     assert.equal(battle.currentEnemy.health, savedEncounter.enemy.health);
     assert.equal(battle.currentEnemy.effects.weakenTurns, savedEncounter.enemy.effects.weakenTurns);
     assert.equal(gameState.player.mana, manaBefore - 10);
-    assert.equal(battle.turn, 'player');
-    assert.equal(scheduled.length, 1, 'reload does not replay the original delayed enemy turn');
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(scheduled.length, 1, 'reload schedules only the pending enemy turn');
 });
 
 
@@ -970,6 +971,7 @@ test('a committed warrior shield wall restores guard reduction and mana after re
         querySelectorAll() { return []; }
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    scheduled.length = 0; // A real reload cancels the pre-reload animation callback.
     resetLocationState();
     battle.isActive = false;
     battle.currentEnemy = null;
@@ -1005,7 +1007,7 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     assert.equal(saved.mana, manaBefore - 15);
     assert.equal(savedEncounter.enemy.id, enemyId);
     assert.equal(savedEncounter.guardReduction, 0.75);
-    assert.equal(savedEncounter.turn, 'player');
+    assert.equal(savedEncounter.turn, 'enemy');
     assert.equal(scheduled.length, 1);
 
     resetLocationState();
@@ -1022,8 +1024,8 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     assert.equal(battle.currentEnemy.id, enemyId);
     assert.equal(battle.guardReduction, 0.75);
     assert.equal(gameState.player.mana, manaBefore - 15);
-    assert.equal(battle.turn, 'player');
-    assert.equal(scheduled.length, 1, 'reload does not replay the original skill continuation');
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(scheduled.length, 1, 'reload schedules only the pending enemy turn');
 });
 
 
@@ -1054,6 +1056,8 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     };
     globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
     Math.random = () => 0.99;
+    scheduled.length = 0; // Simulate browser reload: discard the old attack animation timer.
+    scheduled.length = 0; // Simulate reload after the rapid-shot action is committed.
     resetLocationState();
     battle.isActive = false;
     battle.currentEnemy = null;
@@ -1100,6 +1104,10 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     startStageBattle();
     assert.equal(battle.currentEnemy.id, enemyId);
     assert.equal(battle.currentEnemy.archerMarks, 1);
+    assert.equal(battle.turn, 'enemy');
+    assert.equal(scheduled.length, 1, 'reload resumes the pending enemy turn exactly once');
+    while (scheduled.length) scheduled.shift()();
+    assert.equal(battle.turn, 'player', 'the hero acts again after the resumed enemy turn');
     const healthBeforeSkill = battle.currentEnemy.health;
     const manaBeforeSkill = gameState.player.mana;
     battle.playerSprite = { isAttacking: false };

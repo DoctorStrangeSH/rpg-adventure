@@ -4,8 +4,8 @@ import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
-import { getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
-import { getLocationState, resetLocationState, completeLocation, startLocation, startStageBattle } from '../js/systems/dungeon.js';
+import { battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
+import { getLocationState, resetLocationState, completeLocation, handleVictory, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 import { tickEnemyEffects } from '../js/systems/combat.js';
 
 function setup(t, options = {}) {
@@ -1183,4 +1183,106 @@ test('an archer poison arrow restores poison and bleeding synergy after reload',
     assert.ok(tick.bleedDamage > 0);
     assert.ok(tick.woundPoisonDamage > 0,
         'the restored poison and bleeding both trigger their combined wound-poison damage');
+});
+
+
+test('a lethal saved encounter grants victory rewards exactly once when restored after reload', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects),
+        pendingVictorySave: battle.pendingVictorySave, pendingDefeatSave: battle.pendingDefeatSave
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, handleVictory, updateQuestProgress() {}, updateAchievements() {},
+        levelUp() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    player.attack = 999;
+    player.gold = 500;
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    battle.currentEnemy.health = 1;
+    const enemyId = battle.currentEnemy.id;
+    const expBefore = player.experience;
+    const goldBefore = player.gold;
+    const winsBefore = player.stats.wins;
+
+    playerAttack();
+
+    assert.equal(battle.currentEnemy.health, 0, 'the real attack commits the lethal enemy snapshot');
+    const lethalSave = Storage.load().player;
+    assert.equal(lethalSave.dungeonProgress.forest.activeEncounter.enemy.id, enemyId);
+    assert.equal(lethalSave.dungeonProgress.forest.activeEncounter.enemy.health, 0);
+    assert.equal(lethalSave.experience, expBefore, 'rewards are not paid before the victory transaction');
+    assert.equal(scheduled.length, 1, 'the original animation callback has not run');
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    assert.equal(battle.isActive, false, 'restoring a lethal encounter resolves the pending victory');
+    assert.equal(gameState.player.stats.wins, winsBefore + 1);
+    assert.equal(gameState.player.stats.kills, 1);
+    assert.ok(gameState.player.experience > expBefore);
+    assert.ok(gameState.player.gold > goldBefore);
+    const committed = Storage.load().player.dungeonProgress.forest;
+    assert.equal(committed.activeEncounter, null);
+    assert.equal(committed.enemiesDefeated, 1);
+    const rewardsAfterCommit = {
+        experience: gameState.player.experience,
+        gold: gameState.player.gold,
+        wins: gameState.player.stats.wins,
+        kills: gameState.player.stats.kills
+    };
+
+    battleVictory();
+    assert.deepEqual({
+        experience: gameState.player.experience,
+        gold: gameState.player.gold,
+        wins: gameState.player.stats.wins,
+        kills: gameState.player.stats.kills
+    }, rewardsAfterCommit, 'a duplicate victory callback cannot pay rewards twice');
+    assert.equal(Storage.load().player.dungeonProgress.forest.enemiesDefeated, 1);
 });

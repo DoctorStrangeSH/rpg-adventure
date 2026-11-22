@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
-import { getLocation } from '../js/data/locations.js';
+import { LOCATIONS, getLocation } from '../js/data/locations.js';
 import { battleDefeat, battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, handleBossVictory, handleDefeat, handleVictory, startBossFight, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 import { getBossPhase, tickEnemyEffects } from '../js/systems/combat.js';
@@ -1773,6 +1773,8 @@ test('NG+ preparation preserves lifetime progress and resets only the new-cycle 
 
 test('starting NG+ commits one new cycle and restores the same state after reload', (t) => {
     const values = setup(t);
+    const previousLocationUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => LOCATIONS.forEach((location, index) => { location.unlocked = previousLocationUnlocks[index]; }));
     const player = gameState.createPlayer('warrior');
     Object.assign(player, {
         campaignCycle: 3,
@@ -1820,6 +1822,8 @@ test('starting NG+ commits one new cycle and restores the same state after reloa
 
 test('a failed or throwing NG+ save restores the completed campaign and location unlocks', (t) => {
     setup(t);
+    const previousLocationUnlocks = LOCATIONS.map(location => location.unlocked);
+    t.after(() => LOCATIONS.forEach((location, index) => { location.unlocked = previousLocationUnlocks[index]; }));
     const player = gameState.createPlayer('archer');
     Object.assign(player, {
         campaignCycle: 2,

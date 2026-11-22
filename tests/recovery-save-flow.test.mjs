@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
+import { getLocation } from '../js/data/locations.js';
+import { getBattleState } from '../js/ui/battle.js';
+import { getLocationState, resetLocationState, completeLocation } from '../js/systems/dungeon.js';
 
 function setup(t, options = {}) {
     const previousStorage = globalThis.localStorage;
@@ -199,6 +202,69 @@ test('recovery restores NG+ progression, equipment upgrades, runes, claims and e
         'restoration and subsequent save must not consume or rewrite the recovery copy');
 });
 
+
+test('recovered regional reward claims prevent duplicate items, gold and experience', (t) => {
+    const values = setup(t);
+    const previousWindow = globalThis.window;
+    const previousTimeout = globalThis.setTimeout;
+    globalThis.window = {
+        showNotification() {},
+        updateMainMenu() {},
+        updateMapScreen() {},
+        exitBattle() {},
+        showScreen() {}
+    };
+    globalThis.setTimeout = callback => { callback(); return 1; };
+    t.after(() => {
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        globalThis.setTimeout = previousTimeout;
+        resetLocationState();
+        const battle = getBattleState();
+        battle.isActive = false;
+        battle.currentEnemy = null;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    const location = getLocation('forest');
+    const run = getLocationState();
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.inLocation = true;
+    run.finalBossDefeated = false;
+
+    assert.equal(completeLocation(), true, 'first clear must commit the guaranteed reward');
+    const rewardSnapshot = {
+        gold: player.gold,
+        experience: player.experience,
+        inventory: structuredClone(player.inventory),
+        claimCycle: player.locationRewardCycles.forest
+    };
+    assert.equal(rewardSnapshot.claimCycle, player.campaignCycle);
+
+    const recovery = values.get(GAME_CONFIG.saveKey);
+    assert.ok(recovery);
+    values.set(RECOVERY_SAVE_KEY, recovery);
+    values.set(GAME_CONFIG.saveKey, '{damaged-primary-after-crash');
+    gameState.player = null;
+
+    assert.equal(gameState.canRestoreRecovery(), true);
+    assert.equal(gameState.restoreRecovery(), true);
+    assert.equal(gameState.player.locationRewardCycles.forest, rewardSnapshot.claimCycle);
+
+    const restoredPlayer = gameState.player;
+    run.currentLocation = location;
+    run.currentStage = location.stages.length - 1;
+    run.inLocation = true;
+    run.finalBossDefeated = false;
+
+    assert.equal(completeLocation(), true, 'a replayed region clear may complete, but must not regrant its cycle reward');
+    assert.equal(restoredPlayer.gold, rewardSnapshot.gold);
+    assert.equal(restoredPlayer.experience, rewardSnapshot.experience);
+    assert.deepEqual(restoredPlayer.inventory, rewardSnapshot.inventory);
+    assert.equal(restoredPlayer.locationRewardCycles.forest, rewardSnapshot.claimCycle);
+    assert.equal(values.get(RECOVERY_SAVE_KEY), recovery, 'the recovery snapshot must remain unchanged');
+});
 
 test('a malformed primary save never replaces the active in-memory profile during reload', (t) => {
     const values = setup(t);

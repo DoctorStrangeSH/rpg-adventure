@@ -5,7 +5,7 @@ import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
 import { battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
-import { getLocationState, resetLocationState, completeLocation, handleVictory, startLocation, startStageBattle } from '../js/systems/dungeon.js';
+import { getLocationState, resetLocationState, completeLocation, handleBossVictory, handleVictory, startBossFight, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 import { tickEnemyEffects } from '../js/systems/combat.js';
 
 function setup(t, options = {}) {
@@ -1285,4 +1285,120 @@ test('a lethal saved encounter grants victory rewards exactly once when restored
         kills: gameState.player.stats.kills
     }, rewardsAfterCommit, 'a duplicate victory callback cannot pay rewards twice');
     assert.equal(Storage.load().player.dungeonProgress.forest.enemiesDefeated, 1);
+});
+
+
+test('a lethal recovered boss advances the expedition and commits boss rewards exactly once', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const previousRandom = Math.random;
+    const battle = getBattleState();
+    const locationState = getLocationState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects),
+        pendingVictorySave: battle.pendingVictorySave, pendingDefeatSave: battle.pendingDefeatSave
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, handleBossVictory, updateQuestProgress() {}, updateAchievements() {},
+        levelUp() {}
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    Math.random = () => 0.99;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+        Math.random = previousRandom;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    player.attack = 9999;
+    player.gold = 500;
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    const state = getLocationState();
+    const location = state.currentLocation;
+    const bossStageIndex = location.stages.findIndex(stage => stage.boss && !stage.boss.miniBoss);
+    assert.ok(bossStageIndex >= 0);
+    state.currentStage = bossStageIndex;
+    state.enemiesDefeated = location.stages[bossStageIndex].enemiesCount;
+    startBossFight(location.stages[bossStageIndex].boss);
+
+    assert.equal(battle.isActive, true);
+    assert.equal(battle.isBossBattle, true);
+    battle.playerSprite = { isAttacking: false };
+    battle.enemySprite = { receiveHit() {} };
+    battle.currentEnemy.health = 1;
+    const bossId = battle.currentEnemy.id;
+    const expBefore = player.experience;
+    const goldBefore = player.gold;
+    const winsBefore = player.stats.wins;
+    const bossKillsBefore = player.stats.bossesKilled || 0;
+
+    playerAttack();
+
+    assert.equal(battle.currentEnemy.health, 0);
+    const lethalSave = Storage.load().player;
+    assert.equal(lethalSave.dungeonProgress.forest.activeEncounter.enemy.id, bossId);
+    assert.equal(lethalSave.dungeonProgress.forest.activeEncounter.isBossBattle, true);
+    assert.equal(lethalSave.dungeonProgress.forest.activeEncounter.enemy.health, 0);
+    assert.equal(lethalSave.experience, expBefore);
+    assert.equal(scheduled.length, 1);
+
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    battle.playerSprite = null;
+    battle.enemySprite = null;
+    assert.equal(gameState.load(), true);
+    startLocation('forest');
+    startStageBattle();
+
+    const restored = Storage.load().player;
+    assert.equal(getLocationState().currentStage, bossStageIndex + 1,
+        'restored boss victory advances to the next stage');
+    assert.equal(getLocationState().enemiesDefeated, 0);
+    assert.equal(getLocationState().activeEncounter, null);
+    assert.equal(restored.dungeonProgress.forest.activeEncounter, null);
+    assert.equal(gameState.player.stats.wins, winsBefore + 1);
+    assert.equal(gameState.player.stats.bossesKilled, bossKillsBefore + 1);
+    assert.ok(gameState.player.experience > expBefore);
+    assert.ok(gameState.player.gold > goldBefore);
+    assert.equal(battle.isBossBattle, false, 'the next stage does not retain boss battle mode');
+    const committed = {
+        experience: gameState.player.experience,
+        gold: gameState.player.gold,
+        wins: gameState.player.stats.wins,
+        bossesKilled: gameState.player.stats.bossesKilled
+    };
+
+    battleVictory();
+    assert.deepEqual({
+        experience: gameState.player.experience,
+        gold: gameState.player.gold,
+        wins: gameState.player.stats.wins,
+        bossesKilled: gameState.player.stats.bossesKilled
+    }, committed, 'a duplicate boss victory callback cannot pay boss rewards twice');
+    assert.equal(Storage.load().player.dungeonProgress.forest.enemiesDefeated, 0);
 });

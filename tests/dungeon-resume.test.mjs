@@ -103,6 +103,11 @@ test('a saved boss encounter is restored into the live battle without resetting 
             activeEncounter: structuredClone(savedEncounter)
         }
     };
+    assert.equal(gameState.save(), true, 'the expedition snapshot must be written before reload');
+    gameState.data = { player: null, screen: 'main-menu' };
+    assert.equal(gameState.load(), true, 'the player profile must be reconstructed from storage');
+    const reloadedPlayer = gameState.player;
+    assert.equal(reloadedPlayer.dungeonProgress.forest.activeEncounter.enemy.health, 437);
     const previousDocument = globalThis.document;
     globalThis.document = { getElementById() { return { innerHTML: '' }; } };
     t.after(() => {
@@ -112,6 +117,7 @@ test('a saved boss encounter is restored into the live battle without resetting 
 
     startLocation('forest');
     assert.equal(getLocationState().activeEncounter.enemy.health, 437);
+    assert.equal(gameState.player, reloadedPlayer);
     startStageBattle();
 
     assert.equal(battle.isActive, true);

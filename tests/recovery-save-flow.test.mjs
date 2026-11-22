@@ -365,7 +365,7 @@ test('recovery restore resumes the exact active expedition boss encounter', (t) 
     assert.equal(battle.isBossBattle, true);
     assert.equal(battle.isLocationBattle, true);
     assert.equal(battle.isDungeonBattle, true);
-    assert.equal(battle.turn, 'player');
+    assert.equal(battle.turn, 'enemy');
     assert.equal(battle.guardReduction, 0.75);
     assert.deepEqual(battle.relicEffects, { phoenixRebirthUsed: true });
     assert.equal(battle.currentEnemy.id, 'forest_guardian');
@@ -912,7 +912,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     playerSkill('power_strike');
 
     assert.equal(battle.isActive, true);
-    assert.equal(battle.turn, 'player', 'the action commits before its delayed enemy turn starts');
+    assert.equal(battle.turn, 'enemy', 'the committed action is marked as the pending enemy turn before its callback fires');
     assert.equal(player.mana, manaBefore - 10);
     assert.ok(battle.currentEnemy.health < healthBefore, 'power strike must deal damage');
     assert.ok(battle.currentEnemy.effects?.weakenTurns > 0, 'power strike must apply weaken');
@@ -922,7 +922,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     assert.equal(savedEncounter.enemy.id, enemyId);
     assert.equal(savedEncounter.enemy.health, battle.currentEnemy.health);
     assert.equal(savedEncounter.enemy.effects.weakenTurns, battle.currentEnemy.effects.weakenTurns);
-    assert.equal(savedEncounter.turn, 'player');
+    assert.equal(savedEncounter.turn, 'enemy');
     assert.equal(scheduled.length, 1);
 
     resetLocationState();
@@ -1082,12 +1082,12 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
 
     playerAttack();
 
-    assert.equal(battle.turn, 'player', 'the dungeon attack snapshot is committed before its animation timer');
+    assert.equal(battle.turn, 'enemy', 'the dungeon attack snapshot records the pending enemy turn before its animation timer');
     assert.equal(battle.currentEnemy.archerMarks, 1);
     assert.ok(battle.currentEnemy.health < healthBeforeShot);
     const attackSave = Storage.load().player.dungeonProgress.forest.activeEncounter;
     assert.equal(attackSave.enemy.archerMarks, 1);
-    assert.equal(attackSave.turn, 'player');
+    assert.equal(attackSave.turn, 'enemy');
 
     resetLocationState();
     battle.isActive = false;
@@ -1426,8 +1426,12 @@ test('a lethal recovered boss advances the expedition and commits boss rewards e
     assert.equal(getLocationState().currentStage, bossStageIndex + 1,
         'restored boss victory advances to the next stage');
     assert.equal(getLocationState().enemiesDefeated, 0);
-    assert.equal(getLocationState().activeEncounter, null);
-    assert.equal(restored.dungeonProgress.forest.activeEncounter, null);
+    assert.equal(battle.isActive, true, 'the next stage encounter starts after the recovered boss is committed');
+    assert.ok(getLocationState().activeEncounter, 'the next stage has a fresh saved encounter');
+    assert.ok(restored.dungeonProgress.forest.activeEncounter,
+        'the next stage encounter is persisted together with the advanced stage');
+    assert.notEqual(restored.dungeonProgress.forest.activeEncounter.enemy.id, bossId,
+        'the defeated boss is not replayed after reload');
     assert.equal(gameState.player.stats.wins, winsBefore + 1);
     assert.equal(gameState.player.stats.bossesKilled, bossKillsBefore + 1);
     assert.ok(gameState.player.experience > expBefore);

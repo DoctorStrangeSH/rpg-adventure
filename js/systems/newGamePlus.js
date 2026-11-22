@@ -80,7 +80,13 @@ export function startNewGamePlus(gameState) {
         location.unlocked = location.type === 'safe' || location.id === 'forest';
     });
 
-    if (gameState.save() !== true) {
+    let saved = false;
+    try {
+        saved = gameState.save() === true;
+    } catch {
+        saved = false;
+    }
+    if (!saved) {
         gameState.player = currentPlayer;
         LOCATIONS.forEach((location, index) => { location.unlocked = previousUnlocks[index]; });
         return false;

@@ -259,8 +259,8 @@ test('NG++ advances campaign cycles monotonically and allows regional rewards on
         assert.equal(next.newGamePlusUnlocked, true);
         assert.equal(next.locationRewardCycles.forest, nextCycle - 1);
         assert.equal(next.locationRewardCycles.mountains, nextCycle - 1);
-        assert.equal(next.locationRewardCycles.ruins, 1);
-        assert.equal(next.locationRewardCycles.dragon_lair, 1);
+        assert.equal(next.locationRewardCycles.ruins, nextCycle - 1);
+        assert.equal(next.locationRewardCycles.dragon_lair, nextCycle - 1);
         assert.equal(canClaimLocationReward(next, 'forest'), true,
             `Forest reward resets for cycle ${nextCycle}`);
         assert.equal(canClaimLocationReward(next, 'mountains'), true,

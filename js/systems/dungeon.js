@@ -4,8 +4,7 @@ import { createPlayerSnapshot, commitPlayerMutation } from './playerTransactions
 import { LOCATIONS, getLocation, unlockNextLocation } from '../data/locations.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import { getItem } from '../data/items.js';
-import { getBattleState, resetBattlePresentation, restoreDungeonEncounter } from '../ui/battle.js';
-import { getBattlePositions } from '../ui/battleLayout.js';
+import { isDungeonBattleActive, restoreDungeonEncounter, startDungeonEncounter } from '../ports/dungeonBattlePort.js';
 import { canGrantItems, claimDeepChestAttempt, grantItemsAtomically, rollDeepChest } from './loot.js';
 import { rollAdventureEvent, resolveAdventureEvent, getAdventureChoiceLock, getAdventureEvent } from './adventureEvents.js';
 import { DUNGEON_ROUTES, getRoute, applyRouteToEnemy } from './dungeonRoutes.js';
@@ -160,7 +159,7 @@ export function startLocation(locationId) {
         window.showNotification('Вы мертвы! Восстановите здоровье в деревне.', 'error');
         return;
     }
-    if (locationState.inLocation || getBattleState().isActive) return;
+    if (locationState.inLocation || isDungeonBattleActive()) return;
     
     locationState.currentLocation = location;
     const savedProgress = player.dungeonProgress?.[locationId];
@@ -220,7 +219,7 @@ export function startLocation(locationId) {
 }
 
 export function startStageBattle() {
-    if (!locationState.inLocation || getBattleState().isActive) return;
+    if (!locationState.inLocation || isDungeonBattleActive()) return;
     if (locationState.activeEncounter) {
         if (restoreDungeonEncounter(locationState.activeEncounter)) return;
         const invalidEncounter = locationState.activeEncounter;
@@ -388,33 +387,12 @@ export function startStageBattle() {
         return;
     }
 
-    const battleState = getBattleState();
-    resetBattlePresentation();
-    battleState.currentEnemy = enemy;
-    battleState.isActive = true;
-    battleState.animationFrame = 0;
-    battleState.turn = 'player';
-    battleState.isLocationBattle = true;
-    battleState.isDungeonBattle = true;
-    battleState.isBossBattle = false;
-    battleState.guardReduction = 0;
-    battleState.relicEffects = { phoenixRebirthUsed: false };
-    
-    const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height);
-    
-    import('../entities/Sprite.js').then(module => {
-        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
-        const Sprite = module.Sprite;
-        battleState.playerSprite = new Sprite(gameState.player.class, positions.player.x, positions.player.y);
-        battleState.enemySprite = new Sprite(enemyData.id, positions.enemy.x, positions.enemy.y);
-        
-        window.updateBattleUI();
-        window.animateBattle();
-        
-        // Показываем информацию о этапе
-        const bossText = stage.boss ? ' 👹 БОСС!' : '';
-        window.showBattleMessage(`${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}${depth.tier ? ` ⚠️ Глубина ${depth.tier + 1}: награды +${Math.round((depth.reward - 1) * 100)}%` : ''}${favor.protected ? ' 🛡️ Защита странника: атака врага −15%' : ''}${pursuer.pursued ? ' 🩸 Вас настиг преследователь печати: враг сильнее, награды +25%' : ''}`);
-    });
+    // Battle state, sprites and animation belong to the UI adapter, not dungeon rules.
+    const bossText = stage.boss ? ' 👹 БОСС!' : '';
+    const battleMessage = `${location.name} - Этап ${stage.stage}/${location.stages.length}${bossText}${depth.tier ? ` ⚠️ Глубина ${depth.tier + 1}: награды +${Math.round((depth.reward - 1) * 100)}%` : ''}${favor.protected ? ' 🛡️ Защита странника: атака врага −15%' : ''}${pursuer.pursued ? ' 🩸 Вас настиг преследователь печати: враг сильнее, награды +25%' : ''}`;
+    if (!startDungeonEncounter({ enemy, message: battleMessage })) {
+        window.showNotification?.('Не удалось отобразить бой. Сохранённый противник будет восстановлен при повторной попытке.', 'error');
+    };
 }
 
 function presentDungeonCheckpoint() {
@@ -443,7 +421,7 @@ function presentDungeonCheckpoint() {
 export function chooseDungeonCheckpoint(choice) {
     const pending = locationState.pendingCheckpoint;
     if (!pending || !['continue', 'retreat'].includes(choice) || !locationState.inLocation ||
-        getBattleState().isActive || pending.runId !== locationState.runId ||
+        isDungeonBattleActive() || pending.runId !== locationState.runId ||
         pending.stage !== locationState.currentStage) return false;
 
     if (choice === 'continue') {
@@ -529,7 +507,7 @@ function presentRouteChoice() {
 export function chooseDungeonRoute(routeId) {
     const pending = locationState.pendingRoute;
     if (!pending || !getRoute(routeId) || !locationState.inLocation ||
-        getBattleState().isActive || pending.runId !== locationState.runId ||
+        isDungeonBattleActive() || pending.runId !== locationState.runId ||
         pending.stage !== locationState.currentStage) return false;
     const playerSnapshot = snapshotPlayer();
     const hadPreviousChoice = Object.hasOwn(locationState.routeChoices, pending.stage);
@@ -593,7 +571,7 @@ function presentAdventureEvent(resumeEventId = null) {
 export function chooseAdventureEvent(choiceId) {
     const pending = locationState.pendingEvent;
     if (!pending || !locationState.inLocation || pending.runId !== locationState.runId ||
-        pending.stage !== locationState.currentStage || getBattleState().isActive) return false;
+        pending.stage !== locationState.currentStage || isDungeonBattleActive()) return false;
     const playerSnapshot = snapshotPlayer();
     const previousFavorFights = locationState.travelerFavorFights;
     const previousTravelerReturnPending = locationState.travelerReturnPending;
@@ -659,7 +637,7 @@ function presentSecretRoom(resumeRoomId = null) {
 export function chooseSecretRoom(choice) {
     const pending = locationState.pendingSecretRoom;
     if (!pending || !locationState.inLocation || pending.runId !== locationState.runId ||
-        pending.stage !== locationState.currentStage || getBattleState().isActive) return false;
+        pending.stage !== locationState.currentStage || isDungeonBattleActive()) return false;
     const playerSnapshot = snapshotPlayer();
     const outcome = resolveSecretRoom(gameState.player, pending.id, choice);
     if (!outcome) return false;
@@ -687,7 +665,7 @@ function getLocationIndex(locationId) {
 }
 
 export function startBossFight(bossData) {
-    if (!locationState.inLocation || getBattleState().isActive) return;
+    if (!locationState.inLocation || isDungeonBattleActive()) return;
     window.showNotification(`👹 ПОЯВИЛСЯ БОСС: ${bossData.name}!`, 'error');
     
     const enemy = {
@@ -743,31 +721,13 @@ export function startBossFight(bossData) {
         return;
     }
 
-    const battleState = getBattleState();
-    resetBattlePresentation();
-    battleState.currentEnemy = enemy;
-    battleState.isActive = true;
-    battleState.animationFrame = 0;
-    battleState.turn = 'player';
-    battleState.isBossBattle = true;
-    battleState.isLocationBattle = true;
-    battleState.isDungeonBattle = true;
-    battleState.guardReduction = 0;
-    battleState.relicEffects = { phoenixRebirthUsed: false };
-    
-    const positions = getBattlePositions(battleState.canvas?.width, battleState.canvas?.height, true);
-    
-    import('../entities/Sprite.js').then(module => {
-        if (!battleState.isActive || battleState.currentEnemy !== enemy) return;
-        const Sprite = module.Sprite;
-        battleState.playerSprite = new Sprite(gameState.player.class, positions.player.x, positions.player.y);
-        battleState.enemySprite = new Sprite(bossData.id, positions.enemy.x, positions.enemy.y);
-        
-        window.updateBattleUI();
-        window.animateBattle();
-        
-        window.showBattleMessage(`${bossData.name} появляется!`);
-    });
+    if (!startDungeonEncounter({
+        enemy,
+        isBossBattle: true,
+        message: `${bossData.name} появляется!`
+    })) {
+        window.showNotification?.('Не удалось отобразить бой с боссом. Сохранённый противник будет восстановлен при повторной попытке.', 'error');
+    };
 }
 
 export function completeLocation(playerBeforeCompletion = null) {
@@ -913,7 +873,7 @@ export function completeLocation(playerBeforeCompletion = null) {
     window.updateMapScreen?.();
 
     setTimeout(() => {
-        if (locationState.runId !== runId || locationState.inLocation || getBattleState().isActive) return;
+        if (locationState.runId !== runId || locationState.inLocation || isDungeonBattleActive()) return;
         window.exitBattle();
         window.showScreen(campaignEnded ? 'ending-screen' : 'map-screen');
     }, 3000);
@@ -1014,7 +974,7 @@ export function handleVictory(playerBeforeBattle = null) {
 
     setTimeout(() => {
         if (!locationState.inLocation || locationState.runId !== runId ||
-            locationState.currentStage !== stageIndex || getBattleState().isActive) return;
+            locationState.currentStage !== stageIndex || isDungeonBattleActive()) return;
         if (locationState.enemiesDefeated >= stage.enemiesCount) {
             if (stage.boss) {
                 startBossFight(stage.boss);

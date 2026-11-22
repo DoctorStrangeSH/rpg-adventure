@@ -30,6 +30,18 @@ function needsRecoveryBackup(raw, nextData) {
 export const Storage = {
     save(data) {
         try {
+            // Never replace a recoverable profile with a value that cannot be
+            // loaded as a save envelope. JSON.stringify(undefined) is especially
+            // dangerous because Web Storage coerces it to the literal "undefined".
+            if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+            const serialized = JSON.stringify(data);
+            if (typeof serialized !== 'string') return false;
+            const parsed = JSON.parse(serialized);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) ||
+                !parsed.player || typeof parsed.player !== 'object' || Array.isArray(parsed.player)) {
+                return false;
+            }
+
             const existingRaw = localStorage.getItem(GAME_CONFIG.saveKey);
             if (needsRecoveryBackup(existingRaw, data) &&
                 localStorage.getItem(RECOVERY_SAVE_KEY) === null) {
@@ -37,7 +49,7 @@ export const Storage = {
                 // A later failed/invalid save must never overwrite the only known backup.
                 localStorage.setItem(RECOVERY_SAVE_KEY, existingRaw);
             }
-            localStorage.setItem(GAME_CONFIG.saveKey, JSON.stringify(data));
+            localStorage.setItem(GAME_CONFIG.saveKey, serialized);
             return true;
         } catch (error) {
             console.error('Error saving:', error);

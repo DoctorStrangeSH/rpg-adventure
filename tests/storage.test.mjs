@@ -299,3 +299,72 @@ test('circular save payloads are rejected without replacing the existing profile
     assert.equal(Storage.save(circular), false);
     assert.equal(values.get(GAME_CONFIG.saveKey), original);
 });
+
+
+test('malformed recovery bytes cannot overwrite an existing primary save', (t) => {
+    const primary = JSON.stringify({ schemaVersion: 2, player: { class: 'warrior', level: 15 } });
+    const malformedRecovery = '{truncated-recovery';
+    const values = new Map([
+        [GAME_CONFIG.saveKey, primary],
+        [RECOVERY_SAVE_KEY, malformedRecovery]
+    ]);
+    let writes = 0;
+    installStorage(t, {
+        setItem(key, value) { writes++; values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+    const originalError = console.error;
+    console.error = () => {};
+    t.after(() => { console.error = originalError; });
+
+    assert.equal(Storage.restoreRecovery(), false);
+    assert.equal(values.get(GAME_CONFIG.saveKey), primary);
+    assert.equal(values.get(RECOVERY_SAVE_KEY), malformedRecovery);
+    assert.equal(writes, 0);
+});
+
+test('recovery restore rejects structurally invalid envelopes and invalid replacement data', (t) => {
+    const primary = JSON.stringify({ schemaVersion: 2, player: { class: 'archer', level: 11 } });
+    const invalidBackups = [
+        JSON.stringify(null),
+        JSON.stringify([]),
+        JSON.stringify({ schemaVersion: 2 }),
+        JSON.stringify({ schemaVersion: 2, player: [] }),
+        JSON.stringify({ schemaVersion: 2, player: 'invalid' })
+    ];
+
+    for (const recovery of invalidBackups) {
+        const values = new Map([
+            [GAME_CONFIG.saveKey, primary],
+            [RECOVERY_SAVE_KEY, recovery]
+        ]);
+        installStorage(t, {
+            setItem(key, value) { values.set(key, value); },
+            getItem(key) { return values.get(key) ?? null; },
+            removeItem(key) { values.delete(key); }
+        });
+        assert.equal(Storage.restoreRecovery(), false);
+        assert.equal(values.get(GAME_CONFIG.saveKey), primary);
+        assert.equal(values.get(RECOVERY_SAVE_KEY), recovery);
+    }
+
+    const validRecovery = JSON.stringify({ schemaVersion: 2, player: { class: 'mage', level: 8 } });
+    const values = new Map([
+        [GAME_CONFIG.saveKey, primary],
+        [RECOVERY_SAVE_KEY, validRecovery]
+    ]);
+    installStorage(t, {
+        setItem(key, value) { values.set(key, value); },
+        getItem(key) { return values.get(key) ?? null; },
+        removeItem(key) { values.delete(key); }
+    });
+
+    for (const invalid of [undefined, null, false, [], {}, { player: null }, { player: [] }]) {
+        if (invalid === null) continue; // null requests the byte-preserving validated-backup path.
+        assert.equal(Storage.restoreRecovery(invalid), false);
+        assert.equal(values.get(GAME_CONFIG.saveKey), primary);
+    }
+    assert.equal(Storage.restoreRecovery({ schemaVersion: 2, player: { class: 'mage', level: 8 } }), true);
+    assert.deepEqual(Storage.load(), { schemaVersion: 2, player: { class: 'mage', level: 8 } });
+});

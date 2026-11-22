@@ -225,3 +225,59 @@ test('location reward eligibility can be checked without consuming its campaign 
     assert.equal(canClaimLocationReward(player, 'forest'), false);
     assert.equal(canClaimLocationReward({ campaignCycle: 1, locationRewardCycles: [] }, 'forest'), false);
 });
+
+
+test('NG++ advances campaign cycles monotonically and allows regional rewards once in each cycle', () => {
+    const player = makeCompletedPlayer();
+    const claimRegionsForCycle = (cycle) => {
+        assert.equal(player.campaignCycle, cycle);
+        for (const region of ['forest', 'mountains', 'ruins', 'dragon_lair']) {
+            assert.equal(claimLocationReward(player, region), true,
+                `${region} reward is claimable in campaign cycle ${cycle}`);
+            assert.equal(claimLocationReward(player, region), false,
+                `${region} reward cannot be claimed twice in campaign cycle ${cycle}`);
+        }
+    };
+
+    // The first cycle's Forest and Mountains rewards were already claimed.
+    assert.equal(canClaimLocationReward(player, 'forest'), false);
+    assert.equal(canClaimLocationReward(player, 'mountains'), false);
+    assert.equal(canClaimLocationReward(player, 'ruins'), true);
+    assert.equal(canClaimLocationReward(player, 'dragon_lair'), true);
+    claimRegionsForCycle(1);
+
+    for (const nextCycle of [2, 3]) {
+        const next = prepareNewGamePlus(player);
+        assert.ok(next, `campaign cycle ${nextCycle} can be prepared after completion`);
+        assert.equal(next.campaignCycle, nextCycle);
+        assert.equal(next.completedCampaignCycles, nextCycle - 1);
+        assert.equal(next.lastCompletedCampaignCycle, nextCycle - 1);
+        assert.equal(next.campaignCompleted, false);
+        assert.equal(next.newGamePlusUnlocked, true);
+        assert.equal(next.locationRewardCycles.forest, nextCycle - 1);
+        assert.equal(next.locationRewardCycles.mountains, nextCycle - 1);
+        assert.equal(next.locationRewardCycles.ruins, 1);
+        assert.equal(next.locationRewardCycles.dragon_lair, 1);
+        assert.equal(canClaimLocationReward(next, 'forest'), true,
+            `Forest reward resets for cycle ${nextCycle}`);
+        assert.equal(canClaimLocationReward(next, 'mountains'), true,
+            `Mountains reward resets for cycle ${nextCycle}`);
+
+        // Model the successful final boss transaction for this cycle.
+        assert.equal(completeCampaign(next, `2026-11-22T0${nextCycle}:00:00.000Z`), true);
+        assert.equal(completeCampaign(next), false, 'one campaign cycle can only be completed once');
+        assert.equal(next.completedCampaignCycles, nextCycle);
+        assert.equal(next.lastCompletedCampaignCycle, nextCycle);
+        Object.assign(player, next);
+        claimRegionsForCycle(nextCycle);
+    }
+
+    assert.equal(player.campaignCycle, 3);
+    assert.equal(player.completedCampaignCycles, 3);
+    assert.equal(player.lastCompletedCampaignCycle, 3);
+    assert.equal(player.campaignCompleted, true);
+    assert.equal(player.locationRewardCycles.forest, 3);
+    assert.equal(player.locationRewardCycles.mountains, 3);
+    assert.equal(player.locationRewardCycles.ruins, 3);
+    assert.equal(player.locationRewardCycles.dragon_lair, 3);
+});

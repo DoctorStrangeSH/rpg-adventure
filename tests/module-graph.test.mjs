@@ -85,3 +85,34 @@ test('JavaScript module dependency graph has no circular imports', () => {
     const cycles = findCycles(graph);
     assert.deepEqual(cycles, [], 'keep module dependencies acyclic to make ownership predictable');
 });
+
+test('JavaScript module dependencies respect documented architecture layers', () => {
+    const { graph } = buildGraph();
+    const violations = [];
+
+    const forbiddenTargets = {
+        core: new Set(['ui']),
+        data: new Set(['systems', 'ui']),
+        systems: new Set(['ui']),
+        entities: new Set(['ui'])
+    };
+
+    for (const [source, dependencies] of graph) {
+        const sourceLayer = relative(root, source).split(/[\\\\/]/)[0];
+        const forbidden = forbiddenTargets[sourceLayer];
+        if (!forbidden) continue;
+
+        for (const dependency of dependencies) {
+            const targetLayer = relative(root, dependency).split(/[\\\\/]/)[0];
+            if (forbidden.has(targetLayer)) {
+                violations.push({
+                    from: relative(root, source),
+                    to: relative(root, dependency),
+                    rule: `${sourceLayer} must not depend on ${targetLayer}`
+                });
+            }
+        }
+    }
+
+    assert.deepEqual(violations, [], 'keep dependencies aligned with docs/ARCHITECTURE.md');
+});

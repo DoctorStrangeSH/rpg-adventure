@@ -7,6 +7,7 @@ import { getLocation } from '../js/data/locations.js';
 import { battleDefeat, battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
 import { getLocationState, resetLocationState, completeLocation, handleBossVictory, handleDefeat, handleVictory, startBossFight, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 import { getBossPhase, tickEnemyEffects } from '../js/systems/combat.js';
+import { canStartNewGamePlus, completeCampaign, prepareNewGamePlus, startNewGamePlus } from '../js/systems/newGamePlus.js';
 
 function setup(t, options = {}) {
     const previousStorage = globalThis.localStorage;
@@ -1703,4 +1704,153 @@ test('the World Eater final boss completes the campaign exactly once after reloa
     assert.equal(afterDuplicate.stats.bossesKilled, bossKillsBefore + 1);
     assert.equal(afterDuplicate.inventory.filter(item => item.id === 'rune_world_fragment')
         .reduce((sum, item) => sum + item.quantity, 0), 1);
+});
+
+
+test('NG+ preparation preserves lifetime progress and resets only the new-cycle state', (t) => {
+    setup(t);
+    const player = gameState.createPlayer('mage');
+    Object.assign(player, {
+        campaignCycle: 1,
+        completedCampaignCycles: 0,
+        lastCompletedCampaignCycle: 0,
+        campaignCompleted: false,
+        newGamePlusUnlocked: false,
+        campaignCompletedAt: null,
+        health: 1,
+        mana: 0,
+        gold: 2345,
+        unlockedLocations: ['forest', 'mountains', 'ruins', 'dragon_lair'],
+        dungeonCheckpoints: { forest: { stage: 12 } },
+        dungeonProgress: { forest: { stage: 12, enemiesDefeated: 2 } },
+        itemUpgrades: { iron_sword: 8 },
+        weaponRunes: { iron_sword: ['flame', 'blood'] },
+        stats: { kills: 91, battles: 120, wins: 100, losses: 3, dungeonsCompleted: 4, bossesKilled: 9 }
+    });
+    const completedQuest = player.quests.find(entry => entry.id === 'first_blood');
+    completedQuest.progress = 1;
+    completedQuest.completed = true;
+    completedQuest.rewardClaimed = true;
+    const unfinishedQuest = player.quests.find(entry => entry.id !== 'first_blood');
+    unfinishedQuest.progress = 1;
+    const original = structuredClone(player);
+
+    assert.equal(canStartNewGamePlus(player), false, 'NG+ remains locked before the campaign ending');
+    assert.equal(prepareNewGamePlus(player), null);
+    assert.deepEqual(player, original, 'a rejected preparation cannot mutate the completed profile');
+
+    assert.equal(completeCampaign(player, '2026-11-22T08:00:00.000Z'), true);
+    assert.equal(completeCampaign(player, '2026-11-22T08:01:00.000Z'), false,
+        'the same campaign cycle cannot be completed twice');
+    assert.equal(player.completedCampaignCycles, 1);
+    assert.equal(canStartNewGamePlus(player), true);
+
+    const next = prepareNewGamePlus(player);
+    assert.ok(next);
+    assert.notEqual(next, player, 'NG+ is prepared as a separate profile object');
+    assert.equal(next.campaignCycle, 2);
+    assert.equal(next.completedCampaignCycles, 1);
+    assert.equal(next.lastCompletedCampaignCycle, 1);
+    assert.equal(next.campaignCompleted, false);
+    assert.equal(next.newGamePlusUnlocked, true);
+    assert.equal(next.campaignCompletedAt, null);
+    assert.equal(next.health, next.maxHealth);
+    assert.equal(next.mana, next.maxMana);
+    assert.equal(next.gold, original.gold);
+    assert.deepEqual(next.unlockedLocations, ['forest']);
+    assert.deepEqual(next.dungeonCheckpoints, {});
+    assert.deepEqual(next.dungeonProgress, {});
+    assert.deepEqual(next.itemUpgrades, original.itemUpgrades);
+    assert.deepEqual(next.weaponRunes, original.weaponRunes);
+    assert.deepEqual(next.stats, original.stats);
+    assert.equal(next.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+    assert.equal(next.quests.find(entry => entry.id === 'first_blood').completed, true);
+    assert.equal(next.quests.find(entry => entry.id === unfinishedQuest.id).progress, 0);
+    assert.equal(next.quests.find(entry => entry.id === unfinishedQuest.id).rewardClaimed, false);
+    assert.equal(player.campaignCycle, 1, 'preparing NG+ must not mutate the original profile');
+});
+
+
+test('starting NG+ commits one new cycle and restores the same state after reload', (t) => {
+    const values = setup(t);
+    const player = gameState.createPlayer('warrior');
+    Object.assign(player, {
+        campaignCycle: 3,
+        completedCampaignCycles: 2,
+        lastCompletedCampaignCycle: 3,
+        campaignCompleted: true,
+        newGamePlusUnlocked: true,
+        campaignCompletedAt: '2026-11-22T07:00:00.000Z',
+        health: 1,
+        mana: 0,
+        unlockedLocations: ['forest', 'mountains', 'ruins', 'dragon_lair'],
+        itemUpgrades: { iron_sword: 5 },
+        weaponRunes: { iron_sword: ['flame'] }
+    });
+    player.quests.find(entry => entry.id === 'first_blood').rewardClaimed = true;
+    gameState.player = player;
+    ['forest', 'mountains', 'ruins', 'dragon_lair'].forEach(id => { getLocation(id).unlocked = true; });
+
+    assert.equal(startNewGamePlus(gameState), true);
+    assert.notEqual(gameState.player, player);
+    assert.equal(gameState.player.campaignCycle, 4);
+    assert.equal(gameState.player.completedCampaignCycles, 2);
+    assert.equal(gameState.player.lastCompletedCampaignCycle, 3);
+    assert.equal(gameState.player.campaignCompleted, false);
+    assert.equal(gameState.player.newGamePlusUnlocked, true);
+    assert.equal(gameState.player.health, gameState.player.maxHealth);
+    assert.equal(gameState.player.mana, gameState.player.maxMana);
+    assert.deepEqual(gameState.player.unlockedLocations, ['forest']);
+    assert.equal(getLocation('forest').unlocked, true);
+    assert.equal(getLocation('mountains').unlocked, false);
+    assert.equal(getLocation('ruins').unlocked, false);
+    assert.equal(getLocation('dragon_lair').unlocked, false);
+    assert.equal(gameState.player.quests.find(entry => entry.id === 'first_blood').rewardClaimed, true);
+
+    assert.equal(gameState.load(), true);
+    assert.equal(gameState.player.campaignCycle, 4);
+    assert.equal(gameState.player.completedCampaignCycles, 2);
+    assert.deepEqual(gameState.player.itemUpgrades, { iron_sword: 5 });
+    assert.deepEqual(gameState.player.weaponRunes, { iron_sword: ['flame'] });
+    assert.equal(startNewGamePlus(gameState), false, 'a second start cannot create cycle five without another ending');
+    assert.equal(Storage.load().player.campaignCycle, 4);
+    assert.ok(values.has(GAME_CONFIG.saveKey));
+});
+
+
+test('a failed or throwing NG+ save restores the completed campaign and location unlocks', (t) => {
+    setup(t);
+    const player = gameState.createPlayer('archer');
+    Object.assign(player, {
+        campaignCycle: 2,
+        completedCampaignCycles: 1,
+        lastCompletedCampaignCycle: 2,
+        campaignCompleted: true,
+        newGamePlusUnlocked: true,
+        campaignCompletedAt: '2026-11-22T07:30:00.000Z',
+        unlockedLocations: ['forest', 'mountains', 'ruins', 'dragon_lair']
+    });
+    gameState.player = player;
+    ['forest', 'mountains', 'ruins', 'dragon_lair'].forEach(id => { getLocation(id).unlocked = true; });
+    const originalSave = gameState.save;
+    const originalUnlocks = ['forest', 'mountains', 'ruins', 'dragon_lair']
+        .map(id => getLocation(id).unlocked);
+    const originalPlayer = structuredClone(player);
+
+    gameState.save = () => { throw new Error('QuotaExceededError'); };
+    assert.equal(startNewGamePlus(gameState), false);
+    assert.equal(gameState.player, player, 'the original player object remains active');
+    assert.deepEqual(gameState.player, originalPlayer, 'campaign progress remains unchanged');
+    assert.deepEqual(['forest', 'mountains', 'ruins', 'dragon_lair']
+        .map(id => getLocation(id).unlocked), originalUnlocks);
+
+    gameState.save = () => false;
+    assert.equal(startNewGamePlus(gameState), false);
+    assert.equal(gameState.player, player);
+    assert.deepEqual(gameState.player, originalPlayer);
+    assert.deepEqual(['forest', 'mountains', 'ruins', 'dragon_lair']
+        .map(id => getLocation(id).unlocked), originalUnlocks);
+
+    gameState.save = originalSave;
+    t.after(() => { gameState.save = originalSave; });
 });

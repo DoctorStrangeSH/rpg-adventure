@@ -1833,6 +1833,7 @@ test('a failed or throwing NG+ save restores the completed campaign and location
     gameState.player = player;
     ['forest', 'mountains', 'ruins', 'dragon_lair'].forEach(id => { getLocation(id).unlocked = true; });
     const originalSave = gameState.save;
+    t.after(() => { gameState.save = originalSave; });
     const originalUnlocks = ['forest', 'mountains', 'ruins', 'dragon_lair']
         .map(id => getLocation(id).unlocked);
     const originalPlayer = structuredClone(player);
@@ -1851,6 +1852,4 @@ test('a failed or throwing NG+ save restores the completed campaign and location
     assert.deepEqual(['forest', 'mountains', 'ruins', 'dragon_lair']
         .map(id => getLocation(id).unlocked), originalUnlocks);
 
-    gameState.save = originalSave;
-    t.after(() => { gameState.save = originalSave; });
 });

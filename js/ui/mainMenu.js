@@ -1,7 +1,6 @@
 // Главное меню
 import { gameState } from '../core/state.js';
 import { CLASSES } from '../data/classes.js';
-import { ScreenManager } from '../core/screen.js';
 import { escapeHtml } from '../core/html.js';
 
 

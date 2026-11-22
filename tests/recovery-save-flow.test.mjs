@@ -4,8 +4,8 @@ import { GAME_CONFIG } from '../js/config/constants.js';
 import { gameState } from '../js/core/state.js';
 import { RECOVERY_SAVE_KEY, Storage } from '../js/core/storage.js';
 import { getLocation } from '../js/data/locations.js';
-import { battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
-import { getLocationState, resetLocationState, completeLocation, handleBossVictory, handleVictory, startBossFight, startLocation, startStageBattle } from '../js/systems/dungeon.js';
+import { battleDefeat, battleVictory, getBattleState, playerAttack, playerDefend, playerSkill } from '../js/ui/battle.js';
+import { getLocationState, resetLocationState, completeLocation, handleBossVictory, handleDefeat, handleVictory, startBossFight, startLocation, startStageBattle } from '../js/systems/dungeon.js';
 import { tickEnemyEffects } from '../js/systems/combat.js';
 
 function setup(t, options = {}) {
@@ -1401,4 +1401,88 @@ test('a lethal recovered boss advances the expedition and commits boss rewards e
         bossesKilled: gameState.player.stats.bossesKilled
     }, committed, 'a duplicate boss victory callback cannot pay boss rewards twice');
     assert.equal(Storage.load().player.dungeonProgress.forest.enemiesDefeated, 0);
+});
+
+
+test('a dungeon defeat commits the gold penalty and expedition reset exactly once', (t) => {
+    setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects),
+        pendingVictorySave: battle.pendingVictorySave, pendingDefeatSave: battle.pendingDefeatSave,
+        deathAnimationEndFrame: battle.deathAnimationEndFrame
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, handleDefeat
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; },
+        querySelector() { return null; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    player.gold = 1001;
+    player.health = 0;
+    player.stats.losses = 2;
+    player.dungeonCheckpoints = { forest: { stage: 4, health: 50 } };
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    assert.equal(battle.isActive, true);
+    assert.ok(player.dungeonProgress.forest);
+    assert.ok(player.dungeonCheckpoints.forest);
+    battle.playerSprite = { beginDeath() {} };
+
+    battleDefeat();
+
+    assert.equal(battle.isActive, false);
+    assert.equal(player.health, 1);
+    assert.equal(player.gold, 901, '10% penalty is rounded down exactly once');
+    assert.equal(player.stats.losses, 3);
+    assert.equal(getLocationState().inLocation, false);
+    assert.equal(getLocationState().currentLocation, null);
+    const saved = Storage.load().player;
+    assert.equal(saved.health, 1);
+    assert.equal(saved.gold, 901);
+    assert.equal(saved.stats.losses, 3);
+    assert.equal(saved.dungeonProgress.forest, undefined,
+        'the unfinished expedition is removed from the persisted profile');
+    assert.equal(saved.dungeonCheckpoints.forest, undefined,
+        'the stale checkpoint is removed with the failed run');
+    const afterFirstCommit = {
+        gold: player.gold, health: player.health, losses: player.stats.losses
+    };
+
+    battleDefeat();
+    handleDefeat();
+    assert.deepEqual({ gold: player.gold, health: player.health, losses: player.stats.losses },
+        afterFirstCommit, 'duplicate defeat callbacks cannot charge gold or increment losses twice');
+    assert.equal(Storage.load().player.gold, 901);
+    assert.equal(Storage.load().player.stats.losses, 3);
+    assert.equal(scheduled.length, 1, 'only one post-defeat exit is scheduled');
 });

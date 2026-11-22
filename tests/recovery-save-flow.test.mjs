@@ -379,7 +379,7 @@ test('recovery restore resumes the exact active expedition boss encounter', (t) 
 });
 
 
-test('a malformed active encounter in recovery is discarded without losing expedition progress', (t) => {
+test('a malformed active encounter in recovery is discarded without losing expedition progress', async (t) => {
     const values = setup(t);
     const previousWindow = globalThis.window;
     const previousDocument = globalThis.document;
@@ -452,6 +452,7 @@ test('a malformed active encounter in recovery is discarded without losing exped
     assert.equal(state.currentStage, 0);
     assert.equal(state.inLocation, true);
     startStageBattle();
+    await import('../js/entities/Sprite.js'); // Wait for the stage's lazy sprite module before restoring test globals.
     assert.equal(battle.isActive, true, 'the valid expedition must remain playable');
     assert.ok(battle.currentEnemy, 'a fresh encounter should be generated for the preserved stage');
     assert.equal(values.get(RECOVERY_SAVE_KEY), recovery,

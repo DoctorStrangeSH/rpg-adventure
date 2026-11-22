@@ -1080,3 +1080,33 @@ test('duplicate expedition victory callbacks commit rewards and stage transition
     assert.deepEqual(player.dungeonProgress, afterFirstVictory.dungeonProgress);
     assert.equal(battle.isActive, false);
 });
+
+
+test('duplicate defeat callbacks apply the penalty and durable expedition reset only once', (t) => {
+    const { player, battle } = setup(t);
+    prepareBattle(battle, player);
+    player.health = 0;
+    player.gold = 1000;
+    const beforePlayer = structuredClone(player);
+    let defeatCommits = 0;
+    const locationState = { inLocation: true };
+    window.getLocationState = () => locationState;
+    window.handleDefeat = snapshot => {
+        defeatCommits++;
+        assert.deepEqual(snapshot, beforePlayer);
+        return true;
+    };
+    globalThis.requestAnimationFrame = () => 1;
+    globalThis.setTimeout = () => 1;
+
+    battleDefeat();
+    const afterFirstDefeat = structuredClone(player);
+    battleDefeat();
+
+    assert.equal(defeatCommits, 1, 'the expedition reset transaction must be committed once');
+    assert.equal(player.health, 1);
+    assert.equal(player.gold, beforePlayer.gold - Math.floor(beforePlayer.gold * 0.1));
+    assert.equal(player.stats.losses, beforePlayer.stats.losses + 1);
+    assert.deepEqual(player, afterFirstDefeat, 'a duplicate callback must not apply another penalty');
+    assert.equal(battle.isActive, false);
+});

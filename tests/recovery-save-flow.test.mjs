@@ -371,6 +371,81 @@ test('recovery restore resumes the exact active expedition boss encounter', (t) 
         'resuming the recovered encounter must not consume or rewrite the backup');
 });
 
+
+test('a malformed active encounter in recovery is discarded without losing expedition progress', (t) => {
+    const values = setup(t);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const battle = getBattleState();
+    const previousBattle = { isActive: battle.isActive, currentEnemy: battle.currentEnemy };
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {},
+        updateMapScreen() {}, exitBattle() {}, showBattleMessage() {},
+        updateBattleUI() {}, animateBattle() {}
+    };
+    globalThis.document = { getElementById() { return { innerHTML: '' }; } };
+    globalThis.setTimeout = () => 0;
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        battle.isActive = previousBattle.isActive;
+        battle.currentEnemy = previousBattle.currentEnemy;
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    const location = getLocation('forest');
+    location.unlocked = true;
+    player.dungeonProgress = {
+        forest: {
+            campaignCycle: player.campaignCycle,
+            stage: 0,
+            enemiesDefeated: 0,
+            visitedEventStages: [],
+            visitedRouteStages: [],
+            routeChoices: {},
+            checkedSecretStages: [],
+            visitedCheckpointStages: [],
+            claimedDeepChestStages: [],
+            claimedUnbrokenBonusStages: [],
+            activeEncounter: {
+                enemy: {
+                    id: 'forest_guardian', name: 'Страж леса', health: 901,
+                    maxHealth: 900, attack: 52, defense: 18
+                },
+                isBossBattle: true, turn: 'enemy', guardReduction: 0.75,
+                relicEffects: { phoenixRebirthUsed: true }
+            }
+        }
+    };
+    const recovery = JSON.stringify({ schemaVersion: 2, player });
+    values.set(RECOVERY_SAVE_KEY, recovery);
+    values.set(GAME_CONFIG.saveKey, '{damaged-primary}');
+
+    assert.equal(gameState.canRestoreRecovery(), true);
+    assert.equal(gameState.restoreRecovery(), true);
+    assert.equal(gameState.player.dungeonProgress.forest.stage, 0);
+    assert.equal(gameState.player.dungeonProgress.forest.activeEncounter, null,
+        'invalid nested combat data must be discarded during save normalization');
+
+    startLocation('forest');
+    assert.equal(getLocationState().currentStage, 0);
+    assert.equal(getLocationState().inLocation, true);
+    startStageBattle();
+    assert.equal(battle.isActive, true, 'the valid expedition must remain playable');
+    assert.ok(battle.currentEnemy, 'a fresh encounter should be generated for the preserved stage');
+    assert.equal(values.get(RECOVERY_SAVE_KEY), recovery,
+        'discarding invalid nested encounter data must not rewrite the recovery copy');
+});
+
 test('a malformed primary save never replaces the active in-memory profile during reload', (t) => {
     const values = setup(t);
     const activePlayer = gameState.createPlayer('archer');

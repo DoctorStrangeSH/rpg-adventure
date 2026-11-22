@@ -1,6 +1,6 @@
 export function createTaskScope(
-    scheduleTimeout = setTimeout,
-    cancelTimeout = clearTimeout
+    scheduleTimeout = (...args) => globalThis.setTimeout(...args),
+    cancelTimeout = (...args) => globalThis.clearTimeout(...args)
 ) {
     if (typeof scheduleTimeout !== 'function' || typeof cancelTimeout !== 'function') {
         throw new TypeError('Task scope requires timeout scheduling and cancellation functions.');

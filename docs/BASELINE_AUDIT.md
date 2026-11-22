@@ -670,3 +670,13 @@ PR #16 «Boss art: death knight and runic greatsword animation» повторн�
 - [x] Gameplay CI #928: 583/583 passed, 0 failed; commits `250c37e6` и `7dc5ac00`.
 
 **Граница:** это защита границы API Storage от некорректных сериализуемых значений. Она не доказывает реальное поведение при физическом исчерпании квоты конкретного браузера; ручная проверка браузера и Telegram WebView остаётся открытой.
+
+
+## 55. Защита восстановления от повреждённой recovery-копии (22.11.2026)
+
+- [x] `Storage.restoreRecovery()` теперь проверяет, что резервная копия содержит корректный JSON envelope с объектом `player`, прежде чем перезаписывать primary save.
+- [x] Проверка выполняется и для режима byte-preserving restore: корректная копия переносится без изменения исходных байтов, повреждённая или структурно неверная копия отклоняется.
+- [x] При отклонении primary save и recovery copy остаются неизменными; проверены также некорректные replacement payload.
+- [x] Gameplay CI #933: 585/585 passed, 0 failed; commits `cb5db7ab`, `ec728c95`, `d90e6d3d`.
+
+**Граница:** storage-level проверка подтверждает синтаксическую и структурную целостность envelope, а `gameState.restoreRecovery()` дополнительно проверяет schema migration и нормализацию игрового профиля. Реальное повреждение localStorage и Telegram WebView по-прежнему требуют ручной приёмки.

@@ -13,7 +13,7 @@ import { getArenaTheme, drawArenaAtmosphere } from './arenaTheme.js';
 import { createArenaBackdropCache } from './arenaBackdrop.js';
 import { ProjectileFx } from '../systems/projectileFx.js';
 import { BossSpellFx } from '../systems/bossSpellFx.js';
-import { calculateDamage, applyDamage, consumeHealingPotion, consumeManaPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
+import { applyDamage, consumeHealingPotion, consumeManaPotion, useSkillEffect, tickEnemyEffects, planEnemyTurn, applyEnemyAction, getBossPhase, triggerWeaponEffect, getEffectiveCombatStats, getCriticalMultiplier, triggerDragonSwordEcho, triggerMoonbladeMana, triggerRangerEffect, tryPhoenixRebirth, getEnemyTacticHint, interruptEnemyWindup, getClassTacticalBonus, consumeWarriorOpening, resolveWarriorParry, addArcherMark, calculateTypedDamage, getWeaponDamageType, getDamageFeedback, getEnemyDamageProfile, recordEnemyDamageType } from '../systems/combat.js';
 import { grantItem, hasBossTrophy, rollLoot } from '../systems/loot.js';
 import { awardRelic, RELICS, getActiveRelicSynergies } from '../systems/relics.js';
 import { createPlayerSnapshot, restorePlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';

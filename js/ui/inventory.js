@@ -8,7 +8,7 @@ import { CRAFTING_RECIPES, getCraftingAvailability, craftItem } from '../systems
 import { salvageEquipment, getSalvagePreview } from '../systems/salvage.js';
 import { getItemUpgradeLevel, getUpgradePreview, upgradeEquipment } from '../systems/upgrades.js';
 import { getUpgradeVisualProfile } from '../systems/upgradeVisuals.js';
-import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, RUNE_EXTRACTION_GOLD, getRuneLoadoutPreview } from '../systems/enchanting.js';
+import { RUNE_CATALOG, getRuneSocketCount, getWeaponRunes, getEnchantPreview, inscribeRune, getRuneSynergy, getRuneExtractionPreview, extractRune, getRuneLoadoutPreview } from '../systems/enchanting.js';
 import { createPlayerSnapshot, commitPlayerMutation } from '../systems/playerTransactions.js';
 
 export function getEquipmentUpgradeStatPreview(player, itemId) {

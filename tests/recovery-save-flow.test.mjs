@@ -1486,3 +1486,91 @@ test('a dungeon defeat commits the gold penalty and expedition reset exactly onc
     assert.equal(Storage.load().player.stats.losses, 3);
     assert.equal(scheduled.length, 1, 'only one post-defeat exit is scheduled');
 });
+
+
+test('a failed defeat save rolls back the penalty and preserves the expedition for a clean retry', (t) => {
+    const options = { failActiveWrite: false };
+    setup(t, options);
+    const previousWindow = globalThis.window;
+    const previousDocument = globalThis.document;
+    const previousTimeout = globalThis.setTimeout;
+    const battle = getBattleState();
+    const previousBattle = {
+        isActive: battle.isActive, currentEnemy: battle.currentEnemy,
+        playerSprite: battle.playerSprite, enemySprite: battle.enemySprite,
+        isBossBattle: battle.isBossBattle, isLocationBattle: battle.isLocationBattle,
+        isDungeonBattle: battle.isDungeonBattle, turn: battle.turn,
+        guardReduction: battle.guardReduction, relicEffects: structuredClone(battle.relicEffects),
+        pendingVictorySave: battle.pendingVictorySave, pendingDefeatSave: battle.pendingDefeatSave,
+        deathAnimationEndFrame: battle.deathAnimationEndFrame
+    };
+    const scheduled = [];
+    globalThis.window = {
+        showScreen() {}, showNotification() {}, updateMainMenu() {}, updateMapScreen() {},
+        exitBattle() {}, showBattleMessage() {}, getLocationState, resetLocationState,
+        startStageBattle, handleDefeat
+    };
+    globalThis.document = {
+        getElementById(id) { return id === 'battle-ui' ? { innerHTML: '' } : null; },
+        querySelectorAll() { return []; },
+        querySelector() { return null; }
+    };
+    globalThis.setTimeout = callback => { scheduled.push(callback); return scheduled.length; };
+    resetLocationState();
+    battle.isActive = false;
+    battle.currentEnemy = null;
+    t.after(() => {
+        resetLocationState();
+        Object.assign(battle, previousBattle);
+        if (previousWindow === undefined) delete globalThis.window;
+        else globalThis.window = previousWindow;
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+        globalThis.setTimeout = previousTimeout;
+    });
+
+    const player = gameState.createPlayer('warrior');
+    player.unlockedLocations = ['forest'];
+    player.gold = 1001;
+    player.stats.losses = 4;
+    player.dungeonCheckpoints = { forest: { stage: 3, health: 42 } };
+    getLocation('forest').unlocked = true;
+    startLocation('forest');
+    startStageBattle();
+    player.health = 0;
+    battle.playerSprite = { beginDeath() {} };
+    const progressBefore = structuredClone(player.dungeonProgress.forest);
+    const checkpointBefore = structuredClone(player.dungeonCheckpoints.forest);
+
+    options.failActiveWrite = true;
+    battleDefeat();
+
+    assert.equal(battle.isActive, true, 'the battle remains available for retry');
+    assert.equal(battle.pendingDefeatSave, true);
+    assert.equal(player.health, 0, 'the pre-defeat HP is restored after failed commit');
+    assert.equal(player.gold, 1001, 'gold penalty is rolled back');
+    assert.equal(player.stats.losses, 4, 'loss counter is rolled back');
+    assert.equal(getLocationState().inLocation, true, 'the active expedition is preserved');
+    assert.equal(getLocationState().currentLocation.id, 'forest');
+    assert.deepEqual(player.dungeonProgress.forest, progressBefore);
+    assert.deepEqual(player.dungeonCheckpoints.forest, checkpointBefore);
+    assert.equal(Storage.load(), null, 'failed storage write leaves no partial profile');
+    assert.equal(scheduled.length, 0, 'no post-defeat navigation is scheduled on failure');
+
+    options.failActiveWrite = false;
+    battleDefeat();
+
+    assert.equal(battle.isActive, false);
+    assert.equal(battle.pendingDefeatSave, false);
+    assert.equal(player.health, 1);
+    assert.equal(player.gold, 901, 'retry applies the 10% penalty once');
+    assert.equal(player.stats.losses, 5);
+    assert.equal(getLocationState().inLocation, false);
+    const committed = Storage.load().player;
+    assert.equal(committed.gold, 901);
+    assert.equal(committed.health, 1);
+    assert.equal(committed.stats.losses, 5);
+    assert.equal(committed.dungeonProgress.forest, undefined);
+    assert.equal(committed.dungeonCheckpoints.forest, undefined);
+    assert.equal(scheduled.length, 1, 'successful retry schedules navigation exactly once');
+});

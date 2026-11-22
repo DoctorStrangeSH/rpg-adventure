@@ -12,6 +12,7 @@ import { canStartNewGamePlus, completeCampaign, prepareNewGamePlus, startNewGame
 function setup(t, options = {}) {
     const previousStorage = globalThis.localStorage;
     const previousPlayer = gameState.player;
+    const previousAnimationFrame = globalThis.requestAnimationFrame;
     const values = new Map();
     globalThis.requestAnimationFrame = () => 0;
     globalThis.localStorage = {
@@ -27,6 +28,8 @@ function setup(t, options = {}) {
         gameState.player = previousPlayer;
         if (previousStorage === undefined) delete globalThis.localStorage;
         else globalThis.localStorage = previousStorage;
+        if (previousAnimationFrame === undefined) delete globalThis.requestAnimationFrame;
+        else globalThis.requestAnimationFrame = previousAnimationFrame;
     });
     return values;
 }
@@ -504,6 +507,7 @@ test('a committed player defence restores as the pending enemy turn after reload
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -591,6 +595,7 @@ test('a committed player attack restores the damaged enemy and pending enemy tur
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -673,6 +678,7 @@ test('a committed mage fireball restores mana, enemy HP and burn without replayi
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -765,6 +771,7 @@ test('a committed frost nova restores freeze and thermal shock without replaying
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -878,6 +885,7 @@ test('a committed warrior power strike restores weaken and mana without replayin
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -966,6 +974,7 @@ test('a committed warrior shield wall restores guard reduction and mana after re
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -1049,6 +1058,7 @@ test('an archer basic shot persists its mark and rapid shot consumes it once aft
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -1156,6 +1166,7 @@ test('an archer poison arrow restores poison and bleeding synergy after reload',
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -1247,6 +1258,7 @@ test('a lethal saved encounter grants victory rewards exactly once when restored
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -1353,6 +1365,7 @@ test('a lethal recovered boss advances the expedition and commits boss rewards e
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -1469,6 +1482,7 @@ test('a dungeon defeat commits the gold penalty and expedition reset exactly onc
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -1556,6 +1570,7 @@ test('a failed defeat save rolls back the penalty and preserves the expedition f
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;
@@ -1649,6 +1664,7 @@ test('the World Eater final boss completes the campaign exactly once after reloa
     battle.isActive = false;
     battle.currentEnemy = null;
     t.after(() => {
+        exitBattle();
         resetLocationState();
         Object.assign(battle, previousBattle);
         if (previousWindow === undefined) delete globalThis.window;

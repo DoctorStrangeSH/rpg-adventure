@@ -122,9 +122,9 @@ function commitCurrentBattleState(player, playerSnapshot, failureMessage) {
 export function restoreDungeonEncounter(snapshot) {
     const player = gameState.player;
     if (!snapshot?.enemy || !player) return false;
-    battleTasks.invalidate();
     const enemy = cloneBattleEntity(snapshot.enemy);
     if (!enemy || enemy.health < 0 || enemy.health > enemy.maxHealth) return false;
+    battleTasks.invalidate();
     resetBattlePresentation();
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
@@ -207,6 +207,7 @@ export function startDungeonEncounter({ enemy, isBossBattle = false, message = '
     const player = gameState.player;
     if (!player || !enemy || battleState.isActive) return false;
 
+    battleTasks.invalidate();
     resetBattlePresentation();
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
@@ -262,7 +263,6 @@ export function startBattle(location) {
         return;
     }
 
-    battleTasks.invalidate();
     battleTasks.invalidate();
     battleState.currentEnemy = enemy;
     battleState.isActive = true;
